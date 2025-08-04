@@ -2,19 +2,17 @@
 // CLI Argument Parsing Library
 //
 
+type Validator = (value: any) => string | null;
+
 interface ParsedArg {
   name: string;
   type: "string" | "number" | "boolean";
   description?: string;
   default?: string | number | boolean;
+  validators?: Validator[];
 }
 
-interface ParseOptions {
-  helpFlag?: boolean;
-  strictMode?: boolean;
-}
-
-const PARSED_CLASSES = new Map<typeof Object, ParsedArg[]>();
+const PROPERTY_VALIDATORS = new Map<string, Validator[]>();
 
 function extractTypeFromDescriptor(
   descriptor: PropertyDescriptor,
@@ -25,6 +23,17 @@ function extractTypeFromDescriptor(
     if (typeof descriptor.value === "boolean") return "boolean";
   }
   return "string"; // default fallback
+}
+
+function validateValue(
+  value: any,
+  validators: Validator[] = [],
+): string | null {
+  for (const validator of validators) {
+    const error = validator(value);
+    if (error) return error;
+  }
+  return null;
 }
 
 function parseArguments(
@@ -68,39 +77,27 @@ function parseArguments(
             console.error(`Invalid number for --${key}: ${value}`);
             Deno.exit(1);
           }
+
+          // Validate the number
+          const validationError = validateValue(num, argDef.validators);
+          if (validationError) {
+            console.error(`Validation error for --${key}: ${validationError}`);
+            Deno.exit(1);
+          }
+
           result[key] = num;
         } else {
+          // Validate string values
+          const validationError = validateValue(value, argDef.validators);
+          if (validationError) {
+            console.error(`Validation error for --${key}: ${validationError}`);
+            Deno.exit(1);
+          }
+
           result[key] = value;
         }
 
         if (!arg.includes("=")) i++; // skip next arg since we used it as value
-      }
-    } else if (arg.startsWith("-") && arg.length === 2) {
-      // Handle short flags (basic implementation)
-      const shortFlag = arg[1];
-      const matchingArg = parsedArgs.find((a) => a.name[0] === shortFlag);
-      if (matchingArg) {
-        if (matchingArg.type === "boolean") {
-          result[matchingArg.name] = true;
-        } else {
-          const value = args[i + 1];
-          if (value === undefined) {
-            console.error(`Missing value for argument: -${shortFlag}`);
-            Deno.exit(1);
-          }
-
-          if (matchingArg.type === "number") {
-            const num = parseFloat(value);
-            if (isNaN(num)) {
-              console.error(`Invalid number for -${shortFlag}: ${value}`);
-              Deno.exit(1);
-            }
-            result[matchingArg.name] = num;
-          } else {
-            result[matchingArg.name] = value;
-          }
-          i++;
-        }
       }
     }
   }
@@ -152,17 +149,17 @@ export function parse<T extends new () => unknown>(
 
       if (descriptor && "value" in descriptor) {
         const type = extractTypeFromDescriptor(descriptor);
+        const validators =
+          PROPERTY_VALIDATORS.get(`${target.name}.${propName}`) || [];
 
         parsedArgs.push({
           name: propName,
           type,
           default: descriptor.value,
+          validators,
         });
       }
     }
-
-    // Store for later reference
-    PARSED_CLASSES.set(klass, parsedArgs);
 
     // Parse Deno.args
     const parsed = parseArguments(Deno.args, parsedArgs);
@@ -180,27 +177,14 @@ export function parse<T extends new () => unknown>(
   return target;
 }
 
-////////////////
-// usage code
-//
-
-@parse
-class MyArgs {
-  // the color of the brush
-  static color: string = "red";
-  // the size of the brush
-  static size: number = 10;
-  // whether to enable debug mode
-  static debug: boolean = false;
+// Utility for creating validation decorators
+export function addValidator(
+  className: string,
+  propertyName: string,
+  validator: Validator,
+) {
+  const key = `${className}.${propertyName}`;
+  const existing = PROPERTY_VALIDATORS.get(key) || [];
+  existing.push(validator);
+  PROPERTY_VALIDATORS.set(key, existing);
 }
-
-// Example usage:
-// deno run --allow-env script.ts --color blue --size 20 --debug
-// deno run --allow-env script.ts --color=green --size=15
-// deno run --allow-env script.ts -c yellow -s 5 -d
-// deno run --allow-env script.ts --help
-
-console.log("Parsed arguments:");
-console.log("Color:", MyArgs.color);
-console.log("Size:", MyArgs.size);
-console.log("Debug:", MyArgs.debug);
