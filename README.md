@@ -1,6 +1,7 @@
 # CLI Argument Parser
 
-A lightweight, decorator-based CLI argument parsing library for javascript with built-in validation support.
+A lightweight, decorator-based CLI argument parsing library for javascript with
+built-in validation support.
 
 ## Features
 
@@ -33,7 +34,7 @@ console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ### With Validation
 
 ```typescript
-import { parse, addValidator } from "jsr:@sigma/parse";
+import { addValidator, parse } from "jsr:@sigma/parse";
 
 // Custom validation decorators
 function min(minValue: number) {
@@ -92,9 +93,11 @@ deno run app.ts --help
 
 ### `@parse(args)`
 
-Class decorator factory that enables CLI argument parsing for static class properties.
+Class decorator factory that enables CLI argument parsing for static class
+properties.
 
 **Parameters:**
+
 - `args: string[]` - The array of arguments to parse
 
 ```typescript
@@ -117,6 +120,7 @@ class TestConfig {
 Utility function for creating custom validation decorators.
 
 **Parameters:**
+
 - `className: string` - The name of the class the property belongs to
 - `propertyName: string` - The name of the property to validate
 - `validator: Validator` - The validation function to apply
@@ -131,7 +135,8 @@ Type definition for validation functions.
 type Validator = (value: unknown) => string | null;
 ```
 
-Returns `null` if validation passes, or an error message string if validation fails.
+Returns `null` if validation passes, or an error message string if validation
+fails.
 
 ## Creating Custom Validators
 
@@ -175,7 +180,10 @@ function pattern(regex: RegExp, message: string) {
 
 @parse(Deno.args)
 class Config {
-  @pattern(/^[a-zA-Z0-9_-]+$/, "must contain only alphanumeric characters, hyphens, and underscores")
+  @pattern(
+    /^[a-zA-Z0-9_-]+$/,
+    "must contain only alphanumeric characters, hyphens, and underscores",
+  )
   static name: string = "myapp";
 }
 ```
@@ -230,7 +238,8 @@ Options:
 
 ## Examples
 
-See `example.ts` for a complete working example with custom validation decorators.
+See `example.ts` for a complete working example with custom validation
+decorators.
 
 ## Type Support
 
