@@ -16,7 +16,7 @@ A lightweight, decorator-based CLI argument parsing library for javascript with 
 ### Basic Usage
 
 ```typescript
-import { parse } from "./lib.ts";
+import { parse } from "jsr:@sigma/parse";
 
 @parse(Deno.args)
 class Config {
@@ -33,7 +33,7 @@ console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ### With Validation
 
 ```typescript
-import { parse, addValidator } from "./lib.ts";
+import { parse, addValidator } from "jsr:@sigma/parse";
 
 // Custom validation decorators
 function min(minValue: number) {
