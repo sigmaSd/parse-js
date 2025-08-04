@@ -1,6 +1,6 @@
 # CLI Argument Parser
 
-A lightweight, decorator-based CLI argument parsing library for Deno with built-in validation support.
+A lightweight, decorator-based CLI argument parsing library for javascript with built-in validation support.
 
 ## Features
 
@@ -62,10 +62,10 @@ function oneOf(choices: string[]) {
 class Config {
   @min(1)
   static port: number = 8000;
-  
+
   @oneOf(["development", "production", "test"])
   static env: string = "development";
-  
+
   static debug: boolean = false;
 }
 ```
@@ -118,7 +118,7 @@ Utility function for creating custom validation decorators.
 
 **Parameters:**
 - `className: string` - The name of the class the property belongs to
-- `propertyName: string` - The name of the property to validate  
+- `propertyName: string` - The name of the property to validate
 - `validator: Validator` - The validation function to apply
 
 **Returns:** `void`
@@ -239,11 +239,6 @@ The library automatically detects and handles:
 - **Strings**: `static name: string = "default"`
 - **Numbers**: `static port: number = 8000`
 - **Booleans**: `static debug: boolean = false`
-
-## Requirements
-
-- Deno 1.x or later
-- TypeScript decorators enabled (default in Deno)
 
 ## License
 
