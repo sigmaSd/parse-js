@@ -59,7 +59,7 @@ function _required(_target: unknown, context: { name: string }) {
 // Usage example
 //
 
-@parse
+@parse(Deno.args)
 class MyArgs {
   @oneOf(["red", "blue", "green", "yellow"])
   static color: string = "red";

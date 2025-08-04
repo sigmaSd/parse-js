@@ -2,7 +2,10 @@
 // CLI Argument Parsing Library
 //
 
-type Validator = (value: unknown) => string | null;
+/**
+ * A function that validates a value and returns an error message or null if valid.
+ */
+export type Validator = (value: unknown) => string | null;
 
 interface ParsedArg {
   name: string;
@@ -127,57 +130,97 @@ function printHelp(parsedArgs: ParsedArg[]) {
   console.log("      Show this help message");
 }
 
-export function parse<T extends new () => unknown>(
-  target: T,
-  ctx: ClassDecoratorContext,
-): T {
-  ctx.addInitializer(function () {
-    const klass = this as typeof Object;
-    const parsedArgs: ParsedArg[] = [];
+/**
+ * Class decorator factory that enables CLI argument parsing for static class properties.
+ *
+ * @param args - The array of arguments to parse
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * @parse(Deno.args)
+ * class Config {
+ *   static port: number = 8000;
+ *   static debug: boolean = false;
+ * }
+ * ```
+ */
+export function parse(
+  args: string[],
+): <T extends new () => unknown>(target: T, ctx: ClassDecoratorContext) => T {
+  return function <T extends new () => unknown>(
+    target: T,
+    ctx: ClassDecoratorContext,
+  ): T {
+    ctx.addInitializer(function () {
+      const klass = this as typeof Object;
+      const parsedArgs: ParsedArg[] = [];
 
-    // Get all static properties from the class prototype
-    const propertyNames = Object.getOwnPropertyNames(klass);
+      // Get all static properties from the class prototype
+      const propertyNames = Object.getOwnPropertyNames(klass);
 
-    for (const propName of propertyNames) {
-      if (
-        propName === "length" || propName === "name" || propName === "prototype"
-      ) {
-        continue; // Skip built-in properties
+      for (const propName of propertyNames) {
+        if (
+          propName === "length" || propName === "name" ||
+          propName === "prototype"
+        ) {
+          continue; // Skip built-in properties
+        }
+
+        const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
+
+        if (descriptor && "value" in descriptor) {
+          const type = extractTypeFromDescriptor(descriptor);
+          const validators =
+            PROPERTY_VALIDATORS.get(`${target.name}.${propName}`) || [];
+
+          parsedArgs.push({
+            name: propName,
+            type,
+            default: descriptor.value,
+            validators,
+          });
+        }
       }
 
-      const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
+      // Parse the provided arguments
+      const parsed = parseArguments(args, parsedArgs);
 
-      if (descriptor && "value" in descriptor) {
-        const type = extractTypeFromDescriptor(descriptor);
-        const validators =
-          PROPERTY_VALIDATORS.get(`${target.name}.${propName}`) || [];
-
-        parsedArgs.push({
-          name: propName,
-          type,
-          default: descriptor.value,
-          validators,
-        });
+      // Set values on the class
+      for (const arg of parsedArgs) {
+        if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
+          // deno-lint-ignore no-explicit-any
+          (klass as any)[arg.name] = parsed[arg.name];
+        }
+        // Keep default values if not provided
       }
-    }
+    });
 
-    // Parse Deno.args
-    const parsed = parseArguments(Deno.args, parsedArgs);
-
-    // Set values on the class
-    for (const arg of parsedArgs) {
-      if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
-        // deno-lint-ignore no-explicit-any
-        (klass as any)[arg.name] = parsed[arg.name];
-      }
-      // Keep default values if not provided
-    }
-  });
-
-  return target;
+    return target;
+  };
 }
 
-// Utility for creating validation decorators
+/**
+ * Utility function for creating custom validation decorators.
+ *
+ * @param className - The name of the class the property belongs to
+ * @param propertyName - The name of the property to validate
+ * @param validator - The validation function to apply
+ *
+ * @example
+ * ```ts
+ * function min(minValue: number) {
+ *   return function (target: unknown, context: { name: string }) {
+ *     addValidator("MyClass", context.name, (value: unknown) => {
+ *       if (typeof value === "number" && value < minValue) {
+ *         return `must be at least ${minValue}`;
+ *       }
+ *       return null;
+ *     });
+ *   };
+ * }
+ * ```
+ */
 export function addValidator(
   className: string,
   propertyName: string,
