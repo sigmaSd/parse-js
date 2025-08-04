@@ -4,35 +4,41 @@ import { addValidator, parse } from "./lib.ts";
 // User-defined validation decorators
 //
 
-function inferior_to_10(target: any, context: any) {
-  addValidator("MyArgs", context.name, (value: number) => {
-    if (value >= 10) return `must be inferior to 10, got ${value}`;
+function inferior_to_10(_target: unknown, context: { name: string }) {
+  addValidator("MyArgs", context.name, (value: unknown) => {
+    if (typeof value === "number" && value >= 10) {
+      return `must be inferior to 10, got ${value}`;
+    }
     return null;
   });
 }
 
 function min(minValue: number) {
-  return function (target: any, context: any) {
-    addValidator("MyArgs", context.name, (value: number) => {
-      if (value < minValue) return `must be at least ${minValue}, got ${value}`;
+  return function (_target: unknown, context: { name: string }) {
+    addValidator("MyArgs", context.name, (value: unknown) => {
+      if (typeof value === "number" && value < minValue) {
+        return `must be at least ${minValue}, got ${value}`;
+      }
       return null;
     });
   };
 }
 
 function max(maxValue: number) {
-  return function (target: any, context: any) {
-    addValidator("MyArgs", context.name, (value: number) => {
-      if (value > maxValue) return `must be at most ${maxValue}, got ${value}`;
+  return function (_target: unknown, context: { name: string }) {
+    addValidator("MyArgs", context.name, (value: unknown) => {
+      if (typeof value === "number" && value > maxValue) {
+        return `must be at most ${maxValue}, got ${value}`;
+      }
       return null;
     });
   };
 }
 
 function oneOf(choices: string[]) {
-  return function (target: any, context: any) {
-    addValidator("MyArgs", context.name, (value: string) => {
-      if (!choices.includes(value)) {
+  return function (_target: unknown, context: { name: string }) {
+    addValidator("MyArgs", context.name, (value: unknown) => {
+      if (typeof value === "string" && !choices.includes(value)) {
         return `must be one of: ${choices.join(", ")}, got ${value}`;
       }
       return null;
@@ -40,8 +46,8 @@ function oneOf(choices: string[]) {
   };
 }
 
-function required(target: any, context: any) {
-  addValidator("MyArgs", context.name, (value: any) => {
+function _required(_target: unknown, context: { name: string }) {
+  addValidator("MyArgs", context.name, (value: unknown) => {
     if (value === undefined || value === null || value === "") {
       return `is required`;
     }

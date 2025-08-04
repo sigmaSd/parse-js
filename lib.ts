@@ -2,7 +2,7 @@
 // CLI Argument Parsing Library
 //
 
-type Validator = (value: any) => string | null;
+type Validator = (value: unknown) => string | null;
 
 interface ParsedArg {
   name: string;
@@ -26,7 +26,7 @@ function extractTypeFromDescriptor(
 }
 
 function validateValue(
-  value: any,
+  value: unknown,
   validators: Validator[] = [],
 ): string | null {
   for (const validator of validators) {
