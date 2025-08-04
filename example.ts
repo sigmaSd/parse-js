@@ -1,4 +1,5 @@
 import { addValidator, parse } from "./lib.ts";
+import process from "node:process";
 
 ////////////////
 // User-defined validation decorators
@@ -59,7 +60,7 @@ function _required(_target: unknown, context: { name: string }) {
 // Usage example
 //
 
-@parse(Deno.args)
+@parse(process.argv.slice(2))
 class MyArgs {
   @oneOf(["red", "blue", "green", "yellow"])
   static color: string = "red";
@@ -82,6 +83,9 @@ class MyArgs {
 // deno run example.ts --color purple  (will fail validation)
 // deno run example.ts --timeout 5  (will fail validation)
 // deno run example.ts --help
+//
+// Can parse custom arguments for testing:
+// @parse(customArgs)             // Testing with custom args
 
 console.log("Parsed arguments:");
 console.log("Color:", MyArgs.color);

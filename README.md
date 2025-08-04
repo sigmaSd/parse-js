@@ -1,4 +1,4 @@
-# CLI Argument Parser for Deno
+# CLI Argument Parser
 
 A lightweight, decorator-based CLI argument parsing library for Deno with built-in validation support.
 
@@ -24,7 +24,6 @@ class Config {
   static host: string = "localhost";
   static debug: boolean = false;
 }
-```
 
 // Usage: deno run app.ts --port 3000 --host 0.0.0.0 --debug
 console.log(`Server running on ${Config.host}:${Config.port}`);
@@ -96,7 +95,7 @@ deno run app.ts --help
 Class decorator factory that enables CLI argument parsing for static class properties.
 
 **Parameters:**
-- `args: string[]` - The array of arguments to parse (e.g., `Deno.args`)
+- `args: string[]` - The array of arguments to parse
 
 ```typescript
 @parse(Deno.args)
@@ -104,7 +103,7 @@ class MyConfig {
   static value: string = "default";
 }
 
-// Or parse custom arguments
+// Custom arguments (for testing)
 const customArgs = ["--port", "3000", "--debug"];
 @parse(customArgs)
 class TestConfig {
@@ -219,7 +218,7 @@ The `--help` flag automatically generates usage information:
 ```bash
 $ deno run app.ts --help
 Usage:
-  deno run script.ts [options]
+  [runtime] script.js [options]
 
 Options:
   -p, --port <number>

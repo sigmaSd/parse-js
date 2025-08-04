@@ -5,6 +5,7 @@
 /**
  * A function that validates a value and returns an error message or null if valid.
  */
+import process from "node:process";
 export type Validator = (value: unknown) => string | null;
 
 interface ParsedArg {
@@ -51,7 +52,7 @@ function parseArguments(
 
     if (arg === "--help" || arg === "-h") {
       printHelp(parsedArgs);
-      Deno.exit(0);
+      process.exit(0);
     }
 
     if (arg.startsWith("--")) {
@@ -62,7 +63,8 @@ function parseArguments(
       const argDef = argMap.get(key);
       if (!argDef) {
         console.error(`Unknown argument: --${key}`);
-        Deno.exit(1);
+        process.exit(1);
+        return result; // Never reached, but helps TypeScript
       }
 
       if (argDef.type === "boolean") {
@@ -71,21 +73,24 @@ function parseArguments(
       } else {
         if (value === undefined) {
           console.error(`Missing value for argument: --${key}`);
-          Deno.exit(1);
+          process.exit(1);
+          return result; // Never reached, but helps TypeScript
         }
 
         if (argDef.type === "number") {
           const num = parseFloat(value);
           if (isNaN(num)) {
             console.error(`Invalid number for --${key}: ${value}`);
-            Deno.exit(1);
+            process.exit(1);
+            return result; // Never reached, but helps TypeScript
           }
 
           // Validate the number
           const validationError = validateValue(num, argDef.validators);
           if (validationError) {
             console.error(`Validation error for --${key}: ${validationError}`);
-            Deno.exit(1);
+            process.exit(1);
+            return result; // Never reached, but helps TypeScript
           }
 
           result[key] = num;
@@ -94,7 +99,8 @@ function parseArguments(
           const validationError = validateValue(value, argDef.validators);
           if (validationError) {
             console.error(`Validation error for --${key}: ${validationError}`);
-            Deno.exit(1);
+            process.exit(1);
+            return result; // Never reached, but helps TypeScript
           }
 
           result[key] = value;
@@ -110,7 +116,7 @@ function parseArguments(
 
 function printHelp(parsedArgs: ParsedArg[]) {
   console.log("Usage:");
-  console.log("  deno run script.ts [options]");
+  console.log("  [runtime] script.js [options]");
   console.log("");
   console.log("Options:");
 
@@ -138,7 +144,8 @@ function printHelp(parsedArgs: ParsedArg[]) {
  *
  * @example
  * ```ts
- * @parse(Deno.args)
+ * const args = ["--port", "3000", "--debug"];
+ * @parse(args)
  * class Config {
  *   static port: number = 8000;
  *   static debug: boolean = false;
