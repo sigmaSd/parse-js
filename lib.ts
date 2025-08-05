@@ -23,6 +23,21 @@ interface ParsedArg {
   validators?: Validator[];
 }
 
+interface ArgumentMetadata {
+  index: number;
+  description?: string;
+  rest?: boolean;
+}
+
+interface ArgumentDef {
+  name: string;
+  type: "string" | "number" | "boolean" | "string[]" | "number[]";
+  default?: unknown;
+  validators?: Validator[];
+  rest?: boolean;
+  description?: string;
+}
+
 interface SubCommand {
   name: string;
   description?: string;
@@ -34,6 +49,353 @@ interface PropertyMetadata {
   validators?: Validator[];
   description?: string;
   subCommand?: new () => unknown;
+  argument?: ArgumentMetadata;
+}
+
+function collectArgumentDefs(
+  klass: new () => unknown,
+): {
+  parsedArgs: ParsedArg[];
+  argumentDefs: Map<number, ArgumentDef>;
+} {
+  const parsedArgs: ParsedArg[] = [];
+  const argumentDefs = new Map<number, ArgumentDef>();
+
+  const propertyNames = Object.getOwnPropertyNames(klass);
+  const classMetadata = klass[Symbol.metadata] as
+    | Record<string | symbol, unknown>
+    | undefined;
+
+  for (const propName of propertyNames) {
+    if (propName === "length" || propName === "prototype") {
+      continue;
+    }
+
+    const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
+    if (!descriptor || typeof descriptor.value === "function") continue;
+
+    // Skip the built-in class name property
+    if (propName === "name") {
+      continue;
+    }
+
+    const metadata = classMetadata?.[propName] as PropertyMetadata | undefined;
+
+    // Skip subcommand properties - they'll be handled separately
+    if (metadata?.subCommand) {
+      continue;
+    }
+
+    // Skip properties without metadata and without default values
+    // These will be caught by extractTypeFromDescriptor and throw appropriate errors
+    if (!metadata && descriptor.value === undefined) {
+      // Try to extract type to trigger the error for properties without defaults/types
+      try {
+        extractTypeFromDescriptor(
+          descriptor,
+          {},
+          propName,
+          klass.name,
+        );
+      } catch (error) {
+        throw error; // Re-throw the error from extractTypeFromDescriptor
+      }
+      continue; // This line should never be reached due to the error above
+    }
+
+    let type: "string" | "number" | "boolean" | "string[]" | "number[]";
+    try {
+      type = extractTypeFromDescriptor(
+        descriptor,
+        metadata || {},
+        propName,
+        klass.name,
+      );
+    } catch (_error) {
+      // For positional arguments, allow missing type/default if we have argument metadata
+      if (metadata?.argument) {
+        // Try to infer type from property name or use string as default
+        type = "string";
+      } else {
+        throw new Error(
+          `Property '${propName}' in class '${klass.name}' has no default value and no @type decorator. ` +
+            `Either provide a default value like 'static ${propName}: number = 0' or use @type("number").`,
+        );
+      }
+    }
+
+    // Handle positional arguments
+    if (metadata?.argument) {
+      argumentDefs.set(metadata.argument.index, {
+        name: propName,
+        type,
+        default: descriptor.value,
+        validators: metadata.validators,
+        rest: metadata.argument.rest,
+        description: metadata.argument.description,
+      });
+    } else {
+      // Regular option
+      parsedArgs.push({
+        name: propName,
+        type,
+        description: metadata?.description,
+        default: descriptor.value,
+        validators: metadata?.validators || [],
+      });
+    }
+  }
+
+  // Validate argument definitions
+  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
+    a - b
+  );
+  let hasRest = false;
+  for (let i = 0; i < sortedArgDefs.length; i++) {
+    const [index, argDef] = sortedArgDefs[i];
+    if (index !== i) {
+      throw new Error(
+        `Argument positions must be sequential starting from 0. Missing argument at position ${i}.`,
+      );
+    }
+    if (hasRest) {
+      throw new Error(
+        `Only the last argument can be marked as rest. Found argument at position ${index} after rest argument.`,
+      );
+    }
+    if (argDef.rest) {
+      hasRest = true;
+    }
+  }
+
+  return { parsedArgs, argumentDefs };
+}
+
+function parsePositionalArguments(
+  args: string[],
+  argumentDefs: Map<number, ArgumentDef>,
+  result: Record<
+    string,
+    string | number | boolean | string[] | number[] | unknown
+  >,
+  argMap: Map<string, ParsedArg>,
+): string[] {
+  const remainingArgs: string[] = [];
+  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
+    a - b
+  );
+
+  let positionalIndex = 0;
+
+  // Check for -- separator and split arguments
+  let flagArgs: string[] = [];
+  let positionalArgs: string[] = [];
+  const separatorIndex = args.findIndex((arg) => arg === "--");
+
+  if (separatorIndex >= 0) {
+    flagArgs = args.slice(0, separatorIndex);
+    positionalArgs = args.slice(separatorIndex + 1); // Skip the -- separator
+  } else {
+    flagArgs = args;
+    positionalArgs = [];
+  }
+
+  // Process flag arguments first
+  let flagIndex = 0;
+
+  while (flagIndex < flagArgs.length) {
+    const arg = flagArgs[flagIndex];
+
+    // Skip flags and their values
+    if (arg.startsWith("--") || arg.startsWith("-")) {
+      remainingArgs.push(arg);
+      flagIndex++;
+
+      // Check if this flag expects a value
+      const flagName = arg.startsWith("--")
+        ? (arg.includes("=") ? arg.split("=")[0].slice(2) : arg.slice(2))
+        : arg.slice(1);
+
+      const argDef = argMap.get(flagName);
+      if (
+        argDef && argDef.type !== "boolean" && !arg.includes("=") &&
+        flagIndex < flagArgs.length
+      ) {
+        // This flag expects a value, skip the next argument too
+        remainingArgs.push(flagArgs[flagIndex]);
+        flagIndex++;
+      }
+      continue;
+    }
+
+    // This is a positional argument from the flag section
+
+    if (positionalIndex < sortedArgDefs.length) {
+      const [, argDef] = sortedArgDefs[positionalIndex];
+
+      if (argDef.rest) {
+        // Collect remaining arguments from flag section plus all positional args
+        const restValues: string[] = [];
+
+        // Add remaining args from flag section
+        while (
+          flagIndex < flagArgs.length && !flagArgs[flagIndex].startsWith("-")
+        ) {
+          if (argDef.type === "string[]") {
+            restValues.push(flagArgs[flagIndex]);
+          } else if (argDef.type === "number[]") {
+            const num = parseFloat(flagArgs[flagIndex]);
+            if (isNaN(num)) {
+              console.error(
+                `Invalid number in rest arguments for ${argDef.name}: ${
+                  flagArgs[flagIndex]
+                }`,
+              );
+              process.exit(1);
+            }
+            restValues.push(flagArgs[flagIndex]);
+          }
+          flagIndex++;
+        }
+
+        // Add all positional args (these are treated as strings regardless of flags)
+
+        restValues.push(...positionalArgs);
+
+        if (argDef.type === "number[]") {
+          result[argDef.name] = restValues.map((v) => parseFloat(v));
+        } else {
+          result[argDef.name] = restValues;
+        }
+
+        // Validate rest argument
+        if (argDef.validators) {
+          const validationError = validateValue(
+            result[argDef.name],
+            argDef.validators,
+          );
+          if (validationError) {
+            console.error(
+              `Validation error for positional argument ${argDef.name}: ${validationError}`,
+            );
+            process.exit(1);
+          }
+        }
+
+        // Continue processing remaining arguments (which should be flags)
+        positionalIndex++;
+
+        // Since rest argument consumes everything, break out of processing
+
+        break;
+      } else {
+        // Single positional argument
+        let value: string | number = arg;
+
+        if (argDef.type === "number") {
+          const num = parseFloat(arg);
+          if (isNaN(num)) {
+            console.error(
+              `Invalid number for positional argument ${argDef.name}: ${arg}`,
+            );
+            process.exit(1);
+          }
+          value = num;
+        }
+
+        result[argDef.name] = value;
+
+        // Validate single argument
+        if (argDef.validators) {
+          const validationError = validateValue(value, argDef.validators);
+          if (validationError) {
+            console.error(
+              `Validation error for positional argument ${argDef.name}: ${validationError}`,
+            );
+            process.exit(1);
+          }
+        }
+
+        positionalIndex++;
+        flagIndex++;
+      }
+    } else {
+      // No more positional arguments expected, add to remaining
+      remainingArgs.push(arg);
+      flagIndex++;
+    }
+  }
+
+  // After processing all flagArgs, check if we have remaining positional arguments to process
+  if (positionalIndex < sortedArgDefs.length && positionalArgs.length > 0) {
+    const [, argDef] = sortedArgDefs[positionalIndex];
+
+    if (argDef.rest) {
+      if (argDef.type === "number[]") {
+        const numbers: number[] = [];
+        for (const val of positionalArgs) {
+          const num = parseFloat(val);
+          if (isNaN(num)) {
+            console.error(
+              `Invalid number in rest arguments for ${argDef.name}: ${val}`,
+            );
+            process.exit(1);
+          }
+          numbers.push(num);
+        }
+        result[argDef.name] = numbers;
+      } else {
+        result[argDef.name] = positionalArgs;
+      }
+
+      // Validate rest argument
+      if (argDef.validators) {
+        const validationError = validateValue(
+          result[argDef.name],
+          argDef.validators,
+        );
+        if (validationError) {
+          console.error(
+            `Validation error for positional argument ${argDef.name}: ${validationError}`,
+          );
+          process.exit(1);
+        }
+      }
+    }
+  }
+
+  // Now process remaining flag arguments
+  while (flagIndex < flagArgs.length) {
+    const arg = flagArgs[flagIndex];
+
+    // Skip flags and their values
+    if (arg.startsWith("--") || arg.startsWith("-")) {
+      remainingArgs.push(arg);
+      flagIndex++;
+
+      // Check if this flag expects a value
+      const flagName = arg.startsWith("--")
+        ? (arg.includes("=") ? arg.split("=")[0].slice(2) : arg.slice(2))
+        : arg.slice(1);
+
+      const argDef = argMap.get(flagName);
+      if (
+        argDef && argDef.type !== "boolean" && !arg.includes("=") &&
+        flagIndex < flagArgs.length
+      ) {
+        // This flag expects a value, skip the next argument too
+        remainingArgs.push(flagArgs[flagIndex]);
+        flagIndex++;
+      }
+      continue;
+    }
+
+    // No more positional arguments expected, add to remaining
+    remainingArgs.push(arg);
+    flagIndex++;
+  }
+
+  return remainingArgs;
 }
 
 function extractTypeFromDescriptor(
@@ -89,20 +451,30 @@ function parseGlobalOptions(
     string | number | boolean | string[] | number[] | unknown
   >,
   argMap: Map<string, ParsedArg>,
+  argumentDefs: Map<number, ArgumentDef>,
   options?: { name?: string; description?: string },
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ) {
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+  // Check for -- separator and only process arguments before it
+  const separatorIndex = args.findIndex((arg) => arg === "--");
+  const argsToProcess = separatorIndex >= 0
+    ? args.slice(0, separatorIndex)
+    : args;
+
+  for (let i = 0; i < argsToProcess.length; i++) {
+    const arg = argsToProcess[i];
 
     if (arg === "--help" || arg === "-h") {
       printHelp(
         parsedArgs,
+        argumentDefs,
         options?.name,
         options?.description,
         subCommands,
         commandName,
+        commandPath,
       );
       process.exit(0);
     }
@@ -201,6 +573,14 @@ function parseGlobalOptions(
       }
     }
   }
+
+  // If there was a -- separator, add all arguments after it to remaining args
+  if (separatorIndex >= 0) {
+    for (let j = separatorIndex + 1; j < args.length; j++) {
+      // These are treated as remaining arguments for further processing
+      // They will be handled by parsePositionalArguments
+    }
+  }
 }
 
 function parseCommandClass(
@@ -208,6 +588,7 @@ function parseCommandClass(
   args: string[],
   appName?: string,
   commandName?: string,
+  commandPath?: string,
 ): unknown {
   // Create a temporary parse decorator for the command class
   const tempArgs = args.slice(); // Copy args to avoid mutation
@@ -218,68 +599,71 @@ function parseCommandClass(
     name: string;
     [key: string]: unknown;
   };
-  const parsedArgs: ParsedArg[] = [];
 
-  // Get metadata from command class
+  // Collect both regular options and positional arguments
+  const { parsedArgs, argumentDefs } = collectArgumentDefs(
+    commandClass,
+  );
+
+  // Get all static properties from the command class
+  const propertyNames = Object.getOwnPropertyNames(klass);
   const classMetadata = klass[Symbol.metadata] as
     | Record<string | symbol, unknown>
     | undefined;
 
-  // Get all static properties from the command class
-  const propertyNames = Object.getOwnPropertyNames(klass);
-
+  // Collect subcommands from metadata (for nested subcommands)
+  const subCommands = new Map<string, SubCommand>();
   for (const propName of propertyNames) {
-    if (
-      propName === "length" || propName === "name" ||
-      propName === "prototype"
-    ) {
-      continue; // Skip built-in properties
+    if (propName === "length" || propName === "prototype") {
+      continue;
     }
 
     const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
 
-    if (descriptor && "value" in descriptor) {
-      const propertyMetadata =
-        (classMetadata?.[propName] as PropertyMetadata) || {};
+    // Skip the built-in class name property (which is a getter, not a value)
+    if (propName === "name" && descriptor && !("value" in descriptor)) {
+      continue;
+    }
 
-      let type: "string" | "number" | "boolean" | "string[]" | "number[]";
-      try {
-        type = extractTypeFromDescriptor(
-          descriptor,
-          propertyMetadata,
-          propName,
-          klass.name,
-        );
-      } catch (_error) {
-        throw new Error(
-          `Property '${propName}' in command class '${klass.name}' has no default value and no @type decorator. ` +
-            `Either provide a default value like 'static ${propName}: number = 0' or use @type("number").`,
-        );
-      }
-
-      parsedArgs.push({
+    const propertyMetadata = classMetadata?.[propName] as PropertyMetadata;
+    if (propertyMetadata?.subCommand) {
+      subCommands.set(propName, {
         name: propName,
-        type,
-        default: descriptor.value,
-        validators: propertyMetadata.validators || [],
+        commandClass: propertyMetadata.subCommand,
         description: propertyMetadata.description,
       });
     }
   }
 
-  // Parse the command arguments
+  // Parse the command arguments with potential nested subcommands
   const parsed = parseArguments(
     tempArgs,
     parsedArgs,
+    argumentDefs,
     { name: appName },
-    undefined,
+    subCommands.size > 0 ? subCommands : undefined,
     commandName,
+    commandPath,
   );
 
   // Apply parsed values to command class
   for (const arg of parsedArgs) {
     if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
       klass[arg.name] = parsed[arg.name];
+    }
+  }
+
+  // Set positional argument values on the command class
+  for (const [_index, argDef] of argumentDefs) {
+    if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
+      klass[argDef.name] = parsed[argDef.name];
+    }
+  }
+
+  // Set subcommand instances
+  for (const [name, _subCommand] of subCommands) {
+    if (Object.prototype.hasOwnProperty.call(parsed, name)) {
+      klass[name] = parsed[name];
     }
   }
 
@@ -290,9 +674,11 @@ function parseCommandClass(
 function parseArguments(
   args: string[],
   parsedArgs: ParsedArg[],
+  argumentDefs: Map<number, ArgumentDef>,
   options?: { name?: string; description?: string },
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ): Record<string, string | number | boolean | string[] | number[] | unknown> {
   const result: Record<
     string,
@@ -318,44 +704,91 @@ function parseArguments(
     }
   }
 
-  // If we found a subcommand, split args into global and subcommand parts
-  if (subCommandIndex >= 0) {
-    const globalArgs = args.slice(0, subCommandIndex);
-    const subCommandArgs = args.slice(subCommandIndex + 1);
-    const subCommand = subCommands!.get(subCommandName)!;
+  let remainingArgsAfterPositional: string[];
 
-    // Parse global options first
-    parseGlobalOptions(
-      globalArgs,
-      parsedArgs,
+  if (subCommandIndex >= 0) {
+    // We have a subcommand, so only parse positional args from before the subcommand
+    const argsBeforeSubcommand = args.slice(0, subCommandIndex);
+    remainingArgsAfterPositional = parsePositionalArguments(
+      argsBeforeSubcommand,
+      argumentDefs,
       result,
       argMap,
-      options,
-      subCommands,
-      commandName,
     );
-
-    // Parse subcommand
-    const commandInstance = parseCommandClass(
-      subCommand.commandClass,
-      subCommandArgs,
-      options?.name,
-      subCommandName,
+    // Add the subcommand and args after it
+    remainingArgsAfterPositional.push(...args.slice(subCommandIndex));
+  } else {
+    // No subcommand, parse all args for positional arguments
+    remainingArgsAfterPositional = parsePositionalArguments(
+      args,
+      argumentDefs,
+      result,
+      argMap,
     );
-
-    result[subCommandName] = commandInstance;
-    return result;
   }
 
-  // No subcommand found, parse all args as global options
+  // If we found a subcommand, split remaining args into global and subcommand parts
+  if (subCommandIndex >= 0) {
+    // Find the subcommand position in the remaining args
+    let adjustedSubCommandIndex = -1;
+    for (let i = 0; i < remainingArgsAfterPositional.length; i++) {
+      if (remainingArgsAfterPositional[i] === subCommandName) {
+        adjustedSubCommandIndex = i;
+        break;
+      }
+    }
+
+    if (adjustedSubCommandIndex >= 0) {
+      const globalArgs = remainingArgsAfterPositional.slice(
+        0,
+        adjustedSubCommandIndex,
+      );
+      const subCommandArgs = remainingArgsAfterPositional.slice(
+        adjustedSubCommandIndex + 1,
+      );
+      const subCommand = subCommands!.get(subCommandName)!;
+
+      // Parse global options
+      parseGlobalOptions(
+        globalArgs,
+        parsedArgs,
+        result,
+        argMap,
+        argumentDefs,
+        options,
+        subCommands,
+        commandName,
+        commandPath,
+      );
+
+      // Parse subcommand with updated command path
+      const newCommandPath = commandPath
+        ? `${commandPath} ${subCommandName}`
+        : subCommandName;
+      const commandInstance = parseCommandClass(
+        subCommand.commandClass,
+        subCommandArgs,
+        options?.name,
+        subCommandName,
+        newCommandPath,
+      );
+
+      result[subCommandName] = commandInstance;
+      return result;
+    }
+  }
+
+  // No subcommand found, parse remaining args as global options
   parseGlobalOptions(
-    args,
+    remainingArgsAfterPositional,
     parsedArgs,
     result,
     argMap,
+    argumentDefs,
     options,
     subCommands,
     commandName,
+    commandPath,
   );
 
   // Validate all properties after parsing
@@ -375,15 +808,31 @@ function parseArguments(
     }
   }
 
+  // Validate positional arguments
+  for (const [index, argDef] of argumentDefs) {
+    if (result[argDef.name] === undefined && argDef.default !== undefined) {
+      result[argDef.name] = argDef.default;
+    }
+    // Check if required positional arguments are missing
+    if (result[argDef.name] === undefined && !argDef.rest) {
+      console.error(
+        `Missing required positional argument at position ${index}: ${argDef.name}`,
+      );
+      process.exit(1);
+    }
+  }
+
   return result;
 }
 
 function printHelp(
   parsedArgs: ParsedArg[],
+  argumentDefs: Map<number, ArgumentDef>,
   appName?: string,
   appDescription?: string,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ) {
   if (appName && appDescription) {
     console.log(`${appName}`);
@@ -392,17 +841,89 @@ function printHelp(
     console.log("");
   }
 
+  // Generate usage string with positional arguments
+  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
+    a - b
+  );
+  let usageArgs = "";
+  for (const [_index, argDef] of sortedArgDefs) {
+    if (argDef.rest) {
+      usageArgs += ` <${argDef.name}...>`;
+    } else {
+      const isRequired = !argDef.default &&
+        argDef.validators?.some((v) => v.toString().includes("required"));
+      usageArgs += isRequired ? ` <${argDef.name}>` : ` [${argDef.name}]`;
+    }
+  }
+
   console.log("Usage:");
   if (commandName) {
     // This is help for a specific subcommand
-    console.log(
-      `  ${appName || "[runtime] script.js"} ${commandName} [options]`,
-    );
-    console.log("");
+    const fullCommandPath = commandPath || commandName;
+    const hasSubCommands = subCommands && subCommands.size > 0;
+    if (hasSubCommands) {
+      console.log(
+        `  ${
+          appName || "[runtime] script.js"
+        } ${fullCommandPath}${usageArgs} <command> [options]`,
+      );
+      console.log("");
+      console.log("Commands:");
+      for (const [name, subCommand] of subCommands) {
+        console.log(`  ${name}`);
+        if (subCommand.description) {
+          console.log(`      ${subCommand.description}`);
+        }
+      }
+      console.log("");
+    } else {
+      console.log(
+        `  ${
+          appName || "[runtime] script.js"
+        } ${fullCommandPath}${usageArgs} [options]`,
+      );
+      console.log("");
+    }
+
+    // Show positional arguments if any
+    if (argumentDefs.size > 0) {
+      console.log("Arguments:");
+      for (const [_index, argDef] of sortedArgDefs) {
+        const isRequired = !argDef.default &&
+          argDef.validators?.some((v) => v.toString().includes("required"));
+        const requiredText = isRequired ? " (required)" : "";
+        const restText = argDef.rest ? " (rest)" : "";
+        console.log(`  ${argDef.name}${requiredText}${restText}`);
+        if (argDef.description) {
+          console.log(`      ${argDef.description}`);
+        }
+      }
+      console.log("");
+    }
+
     console.log("Options:");
   } else if (subCommands && subCommands.size > 0) {
-    console.log(`  ${appName || "[runtime] script.js"} <command> [options]`);
+    console.log(
+      `  ${appName || "[runtime] script.js"}${usageArgs} <command> [options]`,
+    );
     console.log("");
+
+    // Show positional arguments if any
+    if (argumentDefs.size > 0) {
+      console.log("Arguments:");
+      for (const [_index, argDef] of sortedArgDefs) {
+        const isRequired = !argDef.default &&
+          argDef.validators?.some((v) => v.toString().includes("required"));
+        const requiredText = isRequired ? " (required)" : "";
+        const restText = argDef.rest ? " (rest)" : "";
+        console.log(`  ${argDef.name}${requiredText}${restText}`);
+        if (argDef.description) {
+          console.log(`      ${argDef.description}`);
+        }
+      }
+      console.log("");
+    }
+
     console.log("Commands:");
     for (const [name, subCommand] of subCommands) {
       console.log(`  ${name}`);
@@ -413,8 +934,25 @@ function printHelp(
     console.log("");
     console.log("Global Options:");
   } else {
-    console.log(`  ${appName || "[runtime] script.js"} [options]`);
+    console.log(`  ${appName || "[runtime] script.js"}${usageArgs} [options]`);
     console.log("");
+
+    // Show positional arguments if any
+    if (argumentDefs.size > 0) {
+      console.log("Arguments:");
+      for (const [_index, argDef] of sortedArgDefs) {
+        const isRequired = !argDef.default &&
+          argDef.validators?.some((v) => v.toString().includes("required"));
+        const requiredText = isRequired ? " (required)" : "";
+        const restText = argDef.rest ? " (rest)" : "";
+        console.log(`  ${argDef.name}${requiredText}${restText}`);
+        if (argDef.description) {
+          console.log(`      ${argDef.description}`);
+        }
+      }
+      console.log("");
+    }
+
     console.log("Options:");
   }
 
@@ -477,67 +1015,26 @@ export function parse(
   ): T {
     ctx.addInitializer(function () {
       const klass = this as typeof Object;
-      const parsedArgs: ParsedArg[] = [];
 
-      // Get metadata object from the class
-      const classMetadata = (klass as unknown as {
-        [Symbol.metadata]?: Record<string | symbol, unknown>;
-      })[Symbol.metadata];
+      // Collect both regular options and positional arguments
+      const { parsedArgs, argumentDefs } = collectArgumentDefs(klass);
 
-      // Get all static properties from the class prototype
+      // Collect subcommands from metadata
+      const subCommands = new Map<string, SubCommand>();
       const propertyNames = Object.getOwnPropertyNames(klass);
+      const classMetadata = klass[Symbol.metadata] as
+        | Record<string | symbol, unknown>
+        | undefined;
 
       for (const propName of propertyNames) {
-        if (
-          propName === "length" || propName === "name" ||
-          propName === "prototype"
-        ) {
-          continue; // Skip built-in properties
+        if (propName === "length" || propName === "prototype") {
+          continue;
         }
 
         const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
 
-        if (descriptor && "value" in descriptor) {
-          const propertyMetadata =
-            (classMetadata?.[propName] as PropertyMetadata) || {};
-
-          // Skip subcommand properties - they'll be handled separately
-          if (propertyMetadata.subCommand) {
-            continue;
-          }
-
-          let type: "string" | "number" | "boolean" | "string[]" | "number[]";
-          try {
-            type = extractTypeFromDescriptor(
-              descriptor,
-              propertyMetadata,
-              propName,
-              target.name,
-            );
-          } catch (_error) {
-            throw new Error(
-              `Property '${propName}' in class '${target.name}' has no default value and no @type decorator. ` +
-                `Either provide a default value like 'static ${propName}: number = 0' or use @type("number").`,
-            );
-          }
-
-          parsedArgs.push({
-            name: propName,
-            type,
-            default: descriptor.value,
-            validators: propertyMetadata.validators || [],
-            description: propertyMetadata.description,
-          });
-        }
-      }
-
-      // Collect subcommands from metadata
-      const subCommands = new Map<string, SubCommand>();
-      for (const propName of propertyNames) {
-        if (
-          propName === "length" || propName === "name" ||
-          propName === "prototype"
-        ) {
+        // Skip the built-in class name property (which is a getter, not a value)
+        if (propName === "name" && descriptor && !("value" in descriptor)) {
           continue;
         }
 
@@ -555,6 +1052,7 @@ export function parse(
       const parsed = parseArguments(
         args,
         parsedArgs,
+        argumentDefs,
         options,
         subCommands.size > 0 ? subCommands : undefined,
       );
@@ -566,6 +1064,14 @@ export function parse(
             parsed[arg.name];
         }
         // Keep default values if not provided
+      }
+
+      // Set positional argument values on the class
+      for (const [_index, argDef] of argumentDefs) {
+        if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
+          (klass as unknown as Record<string, unknown>)[argDef.name] =
+            parsed[argDef.name];
+        }
       }
 
       // Set subcommand instances
@@ -809,6 +1315,71 @@ export function subCommand<T extends new () => unknown>(
       (context.metadata[context.name] as PropertyMetadata) || {};
 
     propertyMetadata.subCommand = commandClass;
+    context.metadata[context.name] = propertyMetadata;
+  };
+}
+
+/**
+ * Argument decorator to mark a property as a positional argument.
+ *
+ * @param index - The zero-based position index of the argument
+ * @param description - Optional description for help text
+ * @param options - Optional configuration object
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * @parse(Deno.args)
+ * class Config {
+ *   @argument(0, "Input file")
+ *   static input: string;
+ *
+ *   @argument(1, "Output file")
+ *   static output: string = "default.txt";
+ *
+ *   @argument(2, "Additional files", { rest: true })
+ *   @type("string[]")
+ *   static files: string[] = [];
+ * }
+ * ```
+ */
+export function argument(
+  index: number,
+  description?: string,
+  options?: { rest?: boolean },
+): (
+  _target: unknown,
+  context: {
+    name: string | symbol;
+    metadata?: Record<string | symbol, unknown>;
+  },
+) => void {
+  return function (
+    _target: unknown,
+    context: {
+      name: string | symbol;
+      metadata?: Record<string | symbol, unknown>;
+    },
+  ) {
+    if (!context.metadata) {
+      throw new Error(
+        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+      );
+    }
+
+    const propertyMetadata =
+      (context.metadata[context.name] as PropertyMetadata) || {};
+
+    propertyMetadata.argument = {
+      index,
+      description,
+      rest: options?.rest,
+    };
+
+    if (description) {
+      propertyMetadata.description = description;
+    }
+
     context.metadata[context.name] = propertyMetadata;
   };
 }

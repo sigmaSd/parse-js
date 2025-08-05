@@ -12,12 +12,20 @@ metadata.
 - 🏷️ **Explicit typing**: Use `@type()` decorator for properties without
   defaults
 - 📋 **Array support**: Parse comma-separated lists with `--items a,b,c`
+- 📍 **Positional arguments**: Support for positional arguments with
+  `@argument(index)`
+- 🔄 **Rest arguments**: Variadic positional arguments with
+  `@argument(index, desc, { rest: true })`
 - 🚀 **Subcommands**: Full subcommand support with `@subCommand()` and
   `@command`
+- 🏗️ **Nested subcommands**: Multi-level command hierarchies (e.g.,
+  `git remote add`)
 - ✅ **Validation system**: Extensible validation with custom decorators
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🌐 **Global options**: Mix global and subcommand-specific options
+- 🛑 **Argument separation**: Use `--` to stop flag parsing and pass arguments
+  through
 - 🚀 **Zero dependencies**: Pure TypeScript/JavaScript
 - 🎨 **Clean API**: Uses modern decorator metadata - no manual class names
   needed
@@ -114,6 +122,37 @@ class Config {
 }
 ```
 
+### With Positional Arguments
+
+```typescript
+import { argument, parse, required, type } from "jsr:@sigma/parse";
+
+@parse(Deno.args, {
+  name: "file-processor",
+  description: "Process files with optional configuration",
+})
+class Config {
+  @argument(0, "Input file path")
+  @required()
+  static input: string;
+
+  @argument(1, "Output file path")
+  static output: string = "output.txt";
+
+  @argument(2, "Additional files to process", { rest: true })
+  @type("string[]")
+  static files: string[] = [];
+
+  static verbose: boolean = false;
+  static format: string = "json";
+}
+
+// Usage: deno run app.ts input.txt result.txt file1.txt file2.txt --verbose --format xml
+console.log(`Processing ${Config.input} -> ${Config.output}`);
+console.log(`Additional files: ${Config.files.join(", ")}`);
+console.log(`Format: ${Config.format}, Verbose: ${Config.verbose}`);
+```
+
 ### With Subcommands
 
 ```typescript
@@ -191,18 +230,89 @@ deno run app.ts --debug=false
 # Arrays with comma-separated values
 deno run app.ts --files a.txt,b.txt,c.txt --ports 3000,4000,5000
 
+# Positional arguments
+deno run app.ts input.txt output.txt --verbose
+
+# Positional arguments with rest parameters
+deno run app.ts main.txt result.txt file1.txt file2.txt file3.txt --format json
+
+# Mixed positional and flag arguments
+deno run app.ts source.txt --debug dest.txt extra1.txt extra2.txt --verbose
+
 # Subcommands
 deno run app.ts run --force --verbose
 deno run app.ts build --output dist --minify
+
+# Positional arguments with subcommands
+deno run app.ts run script.js --verbose
+deno run app.ts database start --port 5432
 
 # Global options with subcommands
 deno run app.ts --debug run --force
 deno run app.ts --config app.json build --output dist
 
+# Nested subcommands
+deno run app.ts database migrate up --count 5
+deno run app.ts service docker start --port 8080
+
 # Built-in help
 deno run app.ts --help
 deno run app.ts run --help
+deno run app.ts database --help
+deno run app.ts database start --help
+
+# -- separator: stop parsing flags, treat everything after as positional arguments
+deno run app.ts run gleam -- --version --help
+deno run app.ts run node -- --trace-warnings --inspect
+deno run app.ts --debug run npm -- run build --watch
 ```
+
+### Argument Separation with `--`
+
+Use the `--` separator to stop flag parsing and treat all subsequent arguments
+as positional arguments. This is useful when you need to pass arguments to
+another command without them being parsed as flags:
+
+```typescript
+import {
+  argument,
+  command,
+  parse,
+  required,
+  subCommand,
+  type,
+} from "jsr:@sigma/parse";
+
+@command
+class RunCommand {
+  @argument(0, "Binary to run")
+  @required()
+  static binary: string;
+
+  @argument(1, "Arguments to pass to binary", { rest: true })
+  @type("string[]")
+  static args: string[] = [];
+}
+
+@parse(Deno.args)
+class Config {
+  @subCommand(RunCommand)
+  static run: RunCommand;
+}
+
+// Usage examples:
+// deno run app.ts run gleam -- --version --help
+// This passes ["--version", "--help"] to the gleam binary
+
+// deno run app.ts run node -- --trace-warnings --inspect=9229
+// This passes ["--trace-warnings", "--inspect=9229"] to node
+
+// Without --, flags would be parsed as RunCommand options:
+// deno run app.ts run gleam --version  // ERROR: Unknown argument --version
+```
+
+The `--` separator follows standard Unix conventions and is commonly used in
+tools like `npm run`, `docker run`, and `git` subcommands.
 
 ## API Reference
 
@@ -308,6 +418,48 @@ class Config {
   static apiUrl: string;
 }
 ```
+
+### `@argument(index, description?, options?)`
+
+Decorator to mark a property as a positional argument at a specific index.
+
+**Parameters:**
+
+- `index: number` - The zero-based position index of the argument
+- `description?: string` - Optional description for help text
+- `options?: { rest?: boolean }` - Optional configuration object
+  - `rest?: boolean` - If true, collects all remaining arguments into an array
+
+```typescript
+import { argument, parse, required, type } from "jsr:@sigma/parse";
+
+@parse(Deno.args)
+class Config {
+  @argument(0, "Input file path")
+  @required()
+  static input: string;
+
+  @argument(1, "Output file path")
+  static output: string = "default.txt";
+
+  @argument(2, "Additional files", { rest: true })
+  @type("string[]")
+  static files: string[] = [];
+
+  static verbose: boolean = false;
+}
+
+// Usage: deno run app.ts input.txt output.txt file1.txt file2.txt --verbose
+```
+
+**Important Notes:**
+
+- Positional arguments must be sequential starting from index 0
+- Only the last positional argument can be marked as `rest`
+- Rest arguments automatically collect all remaining non-flag arguments into an
+  array
+- Positional arguments are parsed before flag arguments
+- Can be combined with regular flag-based options
 
 ### `@command`
 
@@ -494,6 +646,136 @@ function myRequired() {
     }
     return null;
   });
+}
+```
+
+## Positional Arguments
+
+Positional arguments allow you to accept arguments by position rather than by
+flag name. They are processed before flag-based options and subcommands.
+
+### Basic Positional Arguments
+
+```typescript
+import { argument, parse, required } from "jsr:@sigma/parse";
+
+@parse(Deno.args)
+class Config {
+  @argument(0, "Source file")
+  @required()
+  static source: string;
+
+  @argument(1, "Destination file")
+  static dest: string = "output.txt";
+
+  static verbose: boolean = false;
+}
+
+// Usage: deno run app.ts input.txt result.txt --verbose
+```
+
+### Rest/Variadic Arguments
+
+Use `{ rest: true }` to collect multiple arguments into an array:
+
+```typescript
+import { argument, parse, type } from "jsr:@sigma/parse";
+
+@parse(Deno.args)
+class Config {
+  @argument(0, "Command to run")
+  static command: string;
+
+  @argument(1, "Arguments for the command", { rest: true })
+  @type("string[]")
+  static args: string[] = [];
+
+  static verbose: boolean = false;
+}
+
+// Usage: deno run app.ts node script.js --production --port 3000 --verbose
+// Results in: command="node", args=["script.js", "--production", "--port", "3000"]
+```
+
+### Mixed Positional and Flag Arguments
+
+Positional arguments can be combined with regular flag-based options:
+
+```typescript
+import { argument, parse, required, type } from "jsr:@sigma/parse";
+
+@parse(Deno.args)
+class Config {
+  @argument(0, "Input file")
+  @required()
+  static input: string;
+
+  @argument(1, "Output file")
+  static output: string = "result.txt";
+
+  @argument(2, "Additional files", { rest: true })
+  @type("string[]")
+  static files: string[] = [];
+
+  static format: string = "json";
+  static verbose: boolean = false;
+}
+
+// Usage: deno run app.ts data.csv output.json extra1.txt extra2.txt --format xml --verbose
+```
+
+### Positional Arguments with Subcommands
+
+Positional arguments work with subcommands - they are parsed within each
+command's scope:
+
+```typescript
+import { argument, command, parse, subCommand } from "jsr:@sigma/parse";
+
+@command
+class RunCommand {
+  @argument(0, "Script to execute")
+  static script: string;
+
+  static verbose: boolean = false;
+}
+
+@parse(Deno.args)
+class Config {
+  @subCommand(RunCommand)
+  static run: RunCommand;
+
+  static debug: boolean = false;
+}
+
+// Usage: deno run app.ts run script.js --verbose
+```
+
+### Validation Rules
+
+- **Sequential**: Argument positions must be sequential starting from 0 (0, 1,
+  2, ...)
+- **Rest Last**: Only the last positional argument can use `{ rest: true }`
+- **Required**: Use `@required()` to make positional arguments mandatory
+- **Types**: Use `@type()` for arguments without default values
+
+```typescript
+// ❌ Invalid - non-sequential positions
+class BadConfig {
+  @argument(0, "First")
+  static first: string;
+
+  @argument(2, "Third") // Error: missing position 1
+  static third: string;
+}
+
+// ❌ Invalid - rest not last
+class BadConfig2 {
+  @argument(0, "Files", { rest: true })
+  static files: string[];
+
+  @argument(1, "Output") // Error: rest must be last
+  static output: string;
 }
 ```
 
@@ -1025,10 +1307,187 @@ class DeployCommand {
 }
 ```
 
+## Nested Subcommands
+
+The library supports nested subcommands (subcommands within subcommands) to
+create hierarchical command structures like `git remote add` or
+`docker container run`.
+
+### Basic Nested Subcommands
+
+```typescript
+@command
+class StartCommand {
+  static port: number = 5432;
+  static host: string = "localhost";
+}
+
+@command
+class StopCommand {
+  static force: boolean = false;
+}
+
+@command
+class DatabaseCommand {
+  @description("Start the database server")
+  @subCommand(StartCommand)
+  static start: StartCommand;
+
+  @description("Stop the database server")
+  @subCommand(StopCommand)
+  static stop: StopCommand;
+
+  static timeout: number = 30;
+}
+
+@parse(process.argv.slice(2), { name: "myapp" })
+class Config {
+  @description("Database operations")
+  @subCommand(DatabaseCommand)
+  static database: DatabaseCommand;
+
+  static verbose: boolean = false;
+}
+```
+
+### Usage Examples
+
+```bash
+# Two-level nested command
+myapp database start --port 8080 --host 0.0.0.0
+
+# With global and intermediate options
+myapp --verbose database --timeout 60 start --port 8080
+
+# Three-level nested commands are also supported
+myapp database table create --name users
+```
+
+### Multi-Level Command Hierarchy
+
+```typescript
+@command
+class CreateTableCommand {
+  static tableName: string = "default";
+}
+
+@command
+class TableCommand {
+  @subCommand(CreateTableCommand)
+  static create: CreateTableCommand;
+
+  static schema: string = "public";
+}
+
+@command
+class DatabaseCommand {
+  @subCommand(TableCommand)
+  static table: TableCommand;
+
+  static connection: string = "local";
+}
+
+@parse(process.argv.slice(2))
+class Config {
+  @subCommand(DatabaseCommand)
+  static database: DatabaseCommand;
+}
+
+// Usage: myapp database --connection remote table --schema admin create --tableName users
+```
+
+### Nested Subcommand Help
+
+Help works automatically at every level:
+
+```bash
+myapp --help                    # Shows top-level commands
+myapp database --help           # Shows database subcommands
+myapp database start --help     # Shows start command options
+```
+
+### Best Practices for Nested Commands
+
+1. **Logical Grouping**: Group related functionality together
+   ```typescript
+   // Good: git remote add, git remote remove
+   // Bad: mixing unrelated commands at the same level
+   ```
+
+2. **Consistent Naming**: Use clear, consistent naming patterns
+   ```typescript
+   // Good: database start, database stop, database restart
+   // Bad: database begin, database halt, database reboot
+   ```
+
+3. **Reasonable Depth**: Avoid excessive nesting (2-3 levels is usually
+   sufficient)
+   ```typescript
+   // Good: app database migrate up
+   // Questionable: app environment production database primary migrate schema up
+   ```
+
+### Property Name Restrictions in Nested Commands
+
+Be aware that certain property names are reserved and cannot be used:
+
+```typescript
+@command
+class MyCommand {
+  static serviceName = "web"; // ✅ Good
+  static name = "web"; // ❌ Bad - 'name' is reserved
+  static length = 5; // ❌ Bad - 'length' is reserved
+  static prototype = {}; // ❌ Bad - 'prototype' is reserved
+}
+```
+
 ## Examples
 
 See `example.ts` for a complete working example with custom validation
 decorators.
+
+## License
+
+MIT
+
+## Comprehensive Example
+
+See `example.ts` in this repository for a complete demonstration featuring:
+
+- ✅ **All decorator types**: `@parse`, `@argument`, `@subCommand`, `@command`,
+  `@type`, `@description`, `@required`, custom validators
+- ✅ **Positional arguments**: Including rest/variadic arguments with
+  `@argument`
+- ✅ **Nested subcommands**: Multi-level command hierarchies (e.g.,
+  `database start`, `database migrate up`)
+- ✅ **Mixed argument types**: Combining positional args, flags, arrays, and
+  subcommands
+- ✅ **Comprehensive validation**: Custom validators, required fields, type
+  validation
+- ✅ **Rich help generation**: Auto-generated help with descriptions for all
+  argument types
+
+Run the example:
+
+```bash
+# View main help
+deno run example.ts --help
+
+# Test positional arguments
+deno run example.ts process input.txt output.json file1.txt file2.txt --format xml --verbose
+
+# Test nested subcommands  
+deno run example.ts database start --port 5432 --ssl
+deno run example.ts database migrate --direction up --count 3
+
+# Test various help outputs
+deno run example.ts process --help
+deno run example.ts database --help
+deno run example.ts database start --help
+```
+
+This example showcases all the library's capabilities in a real-world-like CLI
+application.
 
 ## License
 

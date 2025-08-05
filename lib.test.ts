@@ -1,7 +1,12 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "jsr:@std/assert@1";
 import process from "node:process";
 import {
   addValidator,
+  argument,
   command,
   description,
   parse,
@@ -927,4 +932,678 @@ Deno.test("Mixed global and subcommand properties", () => {
   assertEquals(ServeCommand.host, "0.0.0.0");
   assertEquals(Config.config, undefined);
   assertEquals(Config.verbose, false);
+});
+
+Deno.test("Nested subcommands - two levels deep", () => {
+  @command
+  class StartCommand {
+    static port: number = 5432;
+    static host: string = "localhost";
+  }
+
+  @command
+  class StopCommand {
+    static force: boolean = false;
+  }
+
+  @command
+  class DatabaseCommand {
+    @subCommand(StartCommand)
+    static start: StartCommand;
+
+    @subCommand(StopCommand)
+    static stop: StopCommand;
+
+    static timeout: number = 30;
+  }
+
+  @parse(["database", "start", "--port", "8080", "--host", "0.0.0.0"])
+  class Config {
+    @subCommand(DatabaseCommand)
+    static database: DatabaseCommand;
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.database instanceof DatabaseCommand, true);
+  assertEquals(DatabaseCommand.start instanceof StartCommand, true);
+  assertEquals(StartCommand.port, 8080);
+  assertEquals(StartCommand.host, "0.0.0.0");
+  assertEquals(DatabaseCommand.timeout, 30);
+  assertEquals(Config.verbose, false);
+});
+
+Deno.test("Nested subcommands - global options with nested commands", () => {
+  @command
+  class RestartCommand {
+    static graceful: boolean = false;
+  }
+
+  @command
+  class ServiceCommand {
+    @subCommand(RestartCommand)
+    static restart: RestartCommand;
+
+    static serviceName = "default";
+  }
+
+  @parse([
+    "--verbose",
+    "service",
+    "--serviceName",
+    "web",
+    "restart",
+    "--graceful",
+  ])
+  class Config {
+    @subCommand(ServiceCommand)
+    static service: ServiceCommand;
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.verbose, true);
+  assertEquals(Config.service instanceof ServiceCommand, true);
+  assertEquals(ServiceCommand.serviceName, "web");
+  assertEquals(ServiceCommand.restart instanceof RestartCommand, true);
+  assertEquals(RestartCommand.graceful, true);
+});
+
+Deno.test("parseArguments handles flags after rest arguments", () => {
+  function oneOf(choices: string[]) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "string" && !choices.includes(value)) {
+        return `must be one of: ${choices.join(", ")}, got ${value}`;
+      }
+      return null;
+    });
+  }
+
+  @command
+  class ProcessCommand {
+    @argument(0, "Input file")
+    @required()
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "output.txt";
+
+    @argument(2, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+
+    @description("Output format")
+    @oneOf(["json", "xml", "csv"])
+    static format: string = "json";
+
+    @description("Enable verbose output")
+    static verbose: boolean = false;
+  }
+
+  @parse([
+    "process",
+    "input.txt",
+    "result.txt",
+    "file1.txt",
+    "file2.txt",
+    "--format",
+    "xml",
+    "--verbose",
+  ], {
+    name: "test",
+  })
+  class Config {
+    @subCommand(ProcessCommand)
+    static process: ProcessCommand;
+
+    static globalFlag: boolean = false;
+  }
+
+  // Test that positional arguments are parsed correctly
+  assertEquals(ProcessCommand.input, "input.txt");
+  assertEquals(ProcessCommand.output, "result.txt");
+  assertEquals(ProcessCommand.files, ["file1.txt", "file2.txt"]);
+
+  // Test that flags after rest arguments are parsed correctly
+  assertEquals(ProcessCommand.format, "xml");
+  assertEquals(ProcessCommand.verbose, true);
+
+  // Test that global flags are not affected
+  assertEquals(Config.globalFlag, false);
+});
+
+Deno.test("parseArguments handles mixed flags and rest arguments", () => {
+  @command
+  class TestCommand {
+    @argument(0, "First arg")
+    static first: string;
+
+    @argument(1, "Rest args", { rest: true })
+    @type("string[]")
+    static rest: string[] = [];
+
+    static flag1: string = "default1";
+    static flag2: boolean = false;
+    static flag3: number = 42;
+  }
+
+  @parse([
+    "test",
+    "value1",
+    "rest1",
+    "rest2",
+    "rest3",
+    "--flag1",
+    "changed",
+    "--flag2",
+    "--flag3",
+    "100",
+  ], {
+    name: "test",
+  })
+  class _Config {
+    @subCommand(TestCommand)
+    static test: TestCommand;
+  }
+
+  // Test positional arguments
+  assertEquals(TestCommand.first, "value1");
+  assertEquals(TestCommand.rest, ["rest1", "rest2", "rest3"]);
+
+  // Test flags after rest arguments
+  assertEquals(TestCommand.flag1, "changed");
+  assertEquals(TestCommand.flag2, true);
+  assertEquals(TestCommand.flag3, 100);
+});
+
+Deno.test("parseArguments handles flags validation after rest arguments", () => {
+  function oneOf(choices: string[]) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "string" && !choices.includes(value)) {
+        return `must be one of: ${choices.join(", ")}, got ${value}`;
+      }
+      return null;
+    });
+  }
+
+  @command
+  class ValidatedCommand {
+    @argument(0, "Input")
+    static input: string;
+
+    @argument(1, "Files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+
+    @oneOf(["json", "xml", "csv"])
+    static format: string = "json";
+  }
+
+  // Test valid format
+  @parse(["cmd", "input.txt", "file1.txt", "file2.txt", "--format", "xml"], {
+    name: "test",
+  })
+  class _ValidConfig {
+    @subCommand(ValidatedCommand)
+    static cmd: ValidatedCommand;
+  }
+
+  assertEquals(ValidatedCommand.format, "xml");
+
+  // Test invalid format should throw
+  mockProcessExit();
+
+  assertThrows(() => {
+    @parse([
+      "cmd",
+      "input.txt",
+      "file1.txt",
+      "file2.txt",
+      "--format",
+      "invalid",
+    ], {
+      name: "test",
+    })
+    class _InvalidConfig {
+      @subCommand(ValidatedCommand)
+      static cmd: ValidatedCommand;
+    }
+  });
+
+  restoreProcessExit();
+});
+
+Deno.test("-- separator stops flag parsing", () => {
+  @command
+  class RunCommand {
+    @argument(0, "Binary to run")
+    @required()
+    static binary: string;
+
+    @argument(1, "Arguments to pass", { rest: true })
+    @type("string[]")
+    static args: string[] = [];
+
+    @description("Enable verbose output")
+    static verbose: boolean = false;
+  }
+
+  @parse([
+    "run",
+    "gleam",
+    "--",
+    "--version",
+    "--help",
+    "-v",
+  ], {
+    name: "test",
+  })
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static globalVerbose: boolean = false;
+  }
+
+  // Test that positional arguments are parsed correctly
+  assertEquals(RunCommand.binary, "gleam");
+  assertEquals(RunCommand.args, ["--version", "--help", "-v"]);
+
+  // Test that flags after -- are not parsed as flags
+  assertEquals(RunCommand.verbose, false);
+  assertEquals(Config.globalVerbose, false);
+});
+
+Deno.test("-- separator with mixed arguments", () => {
+  @command
+  class ExecCommand {
+    @argument(0, "Command")
+    static command: string;
+
+    @argument(1, "Args", { rest: true })
+    @type("string[]")
+    static args: string[] = [];
+
+    static debug: boolean = false;
+  }
+
+  @parse([
+    "exec",
+    "--debug",
+    "node",
+    "--",
+    "--version",
+    "--trace-warnings",
+  ], {
+    name: "test",
+  })
+  class _Config {
+    @subCommand(ExecCommand)
+    static exec: ExecCommand;
+  }
+
+  // Test that flags before -- are parsed
+  assertEquals(ExecCommand.debug, true);
+  assertEquals(ExecCommand.command, "node");
+
+  // Test that flags after -- are treated as arguments
+  assertEquals(ExecCommand.args, ["--version", "--trace-warnings"]);
+});
+
+Deno.test("Nested subcommands - three levels deep", () => {
+  @command
+  class CreateCommand {
+    static tableName = "default";
+  }
+
+  @command
+  class TableCommand {
+    @subCommand(CreateCommand)
+    static create: CreateCommand;
+
+    static schema: string = "public";
+  }
+
+  @command
+  class DatabaseCommand {
+    @subCommand(TableCommand)
+    static table: TableCommand;
+
+    static connection: string = "local";
+  }
+
+  @parse([
+    "database",
+    "--connection",
+    "remote",
+    "table",
+    "--schema",
+    "admin",
+    "create",
+    "--tableName",
+    "users",
+  ])
+  class Config {
+    @subCommand(DatabaseCommand)
+    static database: DatabaseCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.database instanceof DatabaseCommand, true);
+  assertEquals(DatabaseCommand.connection, "remote");
+  assertEquals(DatabaseCommand.table instanceof TableCommand, true);
+  assertEquals(TableCommand.schema, "admin");
+  assertEquals(TableCommand.create instanceof CreateCommand, true);
+  assertEquals(CreateCommand.tableName, "users");
+  assertEquals(Config.debug, false);
+});
+
+Deno.test("Nested subcommands - help shows proper command path", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class StartCommand {
+          static port: number = 5432;
+        }
+
+        @command
+        class DatabaseCommand {
+          @description("Start the database")
+          @subCommand(StartCommand)
+          static start: StartCommand;
+        }
+
+        @parse(["database", "start", "--help"])
+        class _Config {
+          @description("Database operations")
+          @subCommand(DatabaseCommand)
+          static database: DatabaseCommand;
+        }
+      } catch (_error) {
+        // Expected - help exits
+      }
+    });
+
+    assertStringIncludes(output, "database start [options]");
+    assertStringIncludes(output, "Options:");
+    assertStringIncludes(output, "--port");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Nested subcommands - help shows nested commands", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class StartCommand {
+          static port: number = 5432;
+        }
+
+        @command
+        class StopCommand {
+          static force: boolean = false;
+        }
+
+        @command
+        class DatabaseCommand {
+          @description("Start the database")
+          @subCommand(StartCommand)
+          static start: StartCommand;
+
+          @description("Stop the database")
+          @subCommand(StopCommand)
+          static stop: StopCommand;
+        }
+
+        @parse(["database", "--help"])
+        class _Config {
+          @description("Database operations")
+          @subCommand(DatabaseCommand)
+          static database: DatabaseCommand;
+        }
+      } catch (_error) {
+        // Expected - help exits
+      }
+    });
+
+    assertStringIncludes(output, "database <command> [options]");
+    assertStringIncludes(output, "Commands:");
+    assertStringIncludes(output, "start");
+    assertStringIncludes(output, "Start the database");
+    assertStringIncludes(output, "stop");
+    assertStringIncludes(output, "Stop the database");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Nested subcommands - different command paths", () => {
+  @command
+  class BuildCommand {
+    static output: string = "dist";
+  }
+
+  @command
+  class TestCommand {
+    static coverage: boolean = false;
+  }
+
+  @command
+  class ProjectCommand {
+    @subCommand(BuildCommand)
+    static build: BuildCommand;
+
+    @subCommand(TestCommand)
+    static test: TestCommand;
+  }
+
+  // Test first path
+  @parse(["project", "build", "--output", "build"])
+  class Config1 {
+    @subCommand(ProjectCommand)
+    static project: ProjectCommand;
+  }
+
+  assertEquals(Config1.project instanceof ProjectCommand, true);
+  assertEquals(ProjectCommand.build instanceof BuildCommand, true);
+  assertEquals(BuildCommand.output, "build");
+
+  // Test second path
+  @parse(["project", "test", "--coverage"])
+  class Config2 {
+    @subCommand(ProjectCommand)
+    static project: ProjectCommand;
+  }
+
+  assertEquals(Config2.project instanceof ProjectCommand, true);
+  assertEquals(ProjectCommand.test instanceof TestCommand, true);
+  assertEquals(TestCommand.coverage, true);
+});
+
+Deno.test("Positional arguments - basic usage", () => {
+  @parse(["source.txt", "dest.txt"])
+  class Config {
+    @argument(0, "Source file path")
+    @required()
+    static source: string;
+
+    @argument(1, "Destination file path")
+    static dest: string = "output.txt";
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.source, "source.txt");
+  assertEquals(Config.dest, "dest.txt");
+  assertEquals(Config.verbose, false);
+});
+
+Deno.test("Positional arguments - with options", () => {
+  @parse(["input.txt", "output.txt", "--verbose"])
+  class Config {
+    @argument(0, "Input file")
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "default.txt";
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.input, "input.txt");
+  assertEquals(Config.output, "output.txt");
+  assertEquals(Config.verbose, true);
+});
+
+Deno.test("Positional arguments - mixed with options", () => {
+  @parse(["--debug", "source.txt", "--force", "dest.txt"])
+  class Config {
+    @argument(0, "Source file")
+    static source: string;
+
+    @argument(1, "Destination file")
+    static dest: string;
+
+    static debug: boolean = false;
+    static force: boolean = false;
+  }
+
+  assertEquals(Config.source, "source.txt");
+  assertEquals(Config.dest, "dest.txt");
+  assertEquals(Config.debug, true);
+  assertEquals(Config.force, true);
+});
+
+Deno.test("Positional arguments - rest arguments", () => {
+  @parse(["first.txt", "second.txt", "third.txt", "fourth.txt"])
+  class Config {
+    @argument(0, "First file")
+    static first: string;
+
+    @argument(1, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[];
+  }
+
+  assertEquals(Config.first, "first.txt");
+  assertEquals(Config.files, ["second.txt", "third.txt", "fourth.txt"]);
+});
+
+Deno.test("Positional arguments - with default values", () => {
+  @parse(["input.txt"])
+  class Config {
+    @argument(0, "Input file")
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "default_output.txt";
+
+    @argument(2, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+  }
+
+  assertEquals(Config.input, "input.txt");
+  assertEquals(Config.output, "default_output.txt");
+  assertEquals(Config.files, []);
+});
+
+Deno.test("Positional arguments - number types", () => {
+  @parse(["42", "3.14"])
+  class Config {
+    @argument(0, "Integer value")
+    static count: number = 0;
+
+    @argument(1, "Float value")
+    static ratio: number = 1.0;
+  }
+
+  assertEquals(Config.count, 42);
+  assertEquals(Config.ratio, 3.14);
+});
+
+Deno.test("Positional arguments - with validation", () => {
+  function min(minValue: number) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "number" && value < minValue) {
+        return `must be at least ${minValue}`;
+      }
+      return null;
+    });
+  }
+
+  @parse(["5"])
+  class Config {
+    @argument(0, "Count value")
+    @min(1)
+    static count: number = 0;
+  }
+
+  assertEquals(Config.count, 5);
+});
+
+Deno.test("Positional arguments - sequential position validation error", () => {
+  assertThrows(
+    () => {
+      @parse(["test"])
+      class _Config {
+        @argument(0, "First")
+        static first: string;
+
+        @argument(2, "Third") // Error: should be position 1
+        static third: string;
+      }
+    },
+    Error,
+    "Argument positions must be sequential starting from 0",
+  );
+});
+
+Deno.test("Positional arguments - rest argument not last error", () => {
+  assertThrows(
+    () => {
+      @parse(["test"])
+      class _Config {
+        @argument(0, "Files", { rest: true })
+        @type("string[]")
+        static files: string[];
+
+        @argument(1, "Output") // Error: rest must be last
+        static output: string;
+      }
+    },
+    Error,
+    "Only the last argument can be marked as rest",
+  );
+});
+
+Deno.test("Positional arguments - with subcommands", () => {
+  @command
+  class RunCommand {
+    @argument(0, "Script path")
+    static script: string;
+
+    static verbose: boolean = false;
+  }
+
+  @parse(["run", "test.js", "--verbose"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.run instanceof RunCommand, true);
+  assertEquals(RunCommand.script, "test.js");
+  assertEquals(RunCommand.verbose, true);
+  assertEquals(Config.debug, false);
 });
