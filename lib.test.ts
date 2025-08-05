@@ -505,3 +505,143 @@ Deno.test("Parse without app info (backward compatibility)", () => {
     restoreProcessExit();
   }
 });
+
+Deno.test("Array parsing with defaults", () => {
+  @parse(["--tags", "web,api,test"])
+  class Config {
+    static tags: string[] = ["default"];
+    static ports: number[] = [8080, 3000];
+  }
+
+  assertEquals(Config.tags, ["web", "api", "test"]);
+  assertEquals(Config.ports, [8080, 3000]); // unchanged default
+});
+
+Deno.test("Array parsing with explicit types", () => {
+  @parse(["--files", "a.txt,b.txt", "--ports", "3000,4000,5000"])
+  class Config {
+    @type("string[]")
+    static files: string[];
+
+    @type("number[]")
+    static ports: number[];
+  }
+
+  assertEquals(Config.files, ["a.txt", "b.txt"]);
+  assertEquals(Config.ports, [3000, 4000, 5000]);
+});
+
+Deno.test("Empty array parsing", () => {
+  @parse(["--items", ""])
+  class Config {
+    @type("string[]")
+    static items: string[];
+  }
+
+  assertEquals(Config.items, [""]);
+});
+
+Deno.test("Number array parsing with invalid number", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--ports", "3000,abc,4000"])
+        class _Config {
+          @type("number[]")
+          static ports: number[];
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 1);
+    assertEquals(output, "Invalid number in array for --ports: abc");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Array validation with custom validators", () => {
+  function minLength(min: number) {
+    return addValidator((value: unknown) => {
+      if (Array.isArray(value) && value.length < min) {
+        return `must have at least ${min} items`;
+      }
+      return null;
+    });
+  }
+
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--items", "a"])
+        class _Config {
+          @type("string[]")
+          @minLength(3)
+          static items: string[];
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 1);
+    assertEquals(
+      output,
+      "Validation error for --items: must have at least 3 items",
+    );
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Array help output formatting", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"])
+        class _Config {
+          @type("string[]")
+          @description("List of input files")
+          static files: string[];
+
+          @type("number[]")
+          @description("Port numbers to use")
+          static ports: number[];
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("--files <string,string,...>"), true);
+    assertEquals(output.includes("List of input files"), true);
+    assertEquals(output.includes("--ports <number,number,...>"), true);
+    assertEquals(output.includes("Port numbers to use"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Mixed array and scalar arguments", () => {
+  @parse(["--files", "a.txt,b.txt", "--port", "3000", "--debug"])
+  class Config {
+    @type("string[]")
+    static files: string[];
+
+    static port: number = 8080;
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.files, ["a.txt", "b.txt"]);
+  assertEquals(Config.port, 3000);
+  assertEquals(Config.debug, true);
+});

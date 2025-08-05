@@ -5,8 +5,9 @@ A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaS
 ## Features
 
 - 🎯 **Decorator-based**: Simple `@parse(args)` decorator for classes
-- 🔍 **Type inference**: Automatically detects string, number, and boolean types from defaults
+- 🔍 **Type inference**: Automatically detects string, number, boolean, and array types from defaults
 - 🏷️ **Explicit typing**: Use `@type()` decorator for properties without defaults
+- 📋 **Array support**: Parse comma-separated lists with `--items a,b,c`
 - ✅ **Validation system**: Extensible validation with custom decorators
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
@@ -115,6 +116,9 @@ deno run app.ts --debug
 # Boolean with explicit value
 deno run app.ts --debug=false
 
+# Arrays with comma-separated values
+deno run app.ts --files a.txt,b.txt,c.txt --ports 3000,4000,5000
+
 # Built-in help
 deno run app.ts --help
 ```
@@ -160,7 +164,7 @@ class TestConfig {
 Decorator to explicitly specify the type of a property without a default value.
 
 **Parameters:**
-- `typeName: "string" | "number" | "boolean"` - The type of the property
+- `typeName: "string" | "number" | "boolean" | "string[]" | "number[]"` - The type of the property
 
 ```typescript
 @parse(Deno.args)
@@ -171,6 +175,12 @@ class Config {
   @type("string")
   @required()
   static apiKey: string; // Required string property
+
+  @type("string[]")
+  static files: string[]; // Optional string array
+
+  @type("number[]")
+  static ports: number[]; // Optional number array
 }
 ```
 
@@ -283,6 +293,45 @@ class Config {
 }
 ```
 
+### Array Validation
+
+```typescript
+function minLength(min: number) {
+  return addValidator((value: unknown) => {
+    if (Array.isArray(value) && value.length < min) {
+      return `must have at least ${min} items`;
+    }
+    return null;
+  });
+}
+
+function allInRange(min: number, max: number) {
+  return addValidator((value: unknown) => {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === "number" && (item < min || item > max)) {
+          return `all numbers must be between ${min} and ${max}`;
+        }
+      }
+    }
+    return null;
+  });
+}
+
+@parse(Deno.args)
+class Config {
+  @description("List of input files")
+  @type("string[]")
+  @minLength(1)
+  static files: string[];
+
+  @description("Port numbers to listen on")
+  @type("number[]")
+  @allInRange(1000, 9999)
+  static ports: number[];
+}
+```
+
 ### String Pattern Validation
 
 ```typescript
@@ -330,12 +379,18 @@ function myRequired() {
 class Config {
   @description("Port number to listen on")
   static port: number = 8000;      // Inferred as number
-
+  
   @description("Host address to bind to")
   static host: string = "localhost"; // Inferred as string
-
+  
   @description("Enable debug mode")
   static debug: boolean = false;    // Inferred as boolean
+
+  @description("Default file list")
+  static files: string[] = ["app.js"]; // Inferred as string[]
+
+  @description("Default port list")
+  static ports: number[] = [8080, 3000]; // Inferred as number[]
 }
 ```
 
@@ -356,6 +411,14 @@ class Config {
   @description("Enable verbose output")
   @type("boolean")
   static verbose: boolean; // Optional boolean property
+
+  @description("List of input files")
+  @type("string[]")
+  static files: string[]; // Optional string array
+
+  @description("Port numbers to use")
+  @type("number[]")
+  static ports: number[]; // Optional number array
 }
 ```
 
@@ -397,6 +460,12 @@ Validation error for --port: must be at most 65535, got 70000
 
 $ deno run app.ts --color purple
 Validation error for --color: must be one of: red, blue, green, yellow, got purple
+
+$ deno run app.ts --ports 3000,abc,4000
+Invalid number in array for --ports: abc
+
+$ deno run app.ts --files a.txt
+Validation error for --files: must have at least 3 items
 ```
 
 ### Missing Required Fields
@@ -418,6 +487,9 @@ Unknown argument: --unknown
 
 $ deno run app.ts --port not-a-number
 Invalid number for --port: not-a-number
+
+$ deno run app.ts --files
+Missing value for argument: --files
 ```
 
 ## Help Generation
@@ -436,10 +508,69 @@ Options:
       API key for authentication (required)
   --retries <number>
       Number of retry attempts (1-10)
+  --files <string,string,...>
+      List of input files to process
+  --ports <number,number,...>
+      Port numbers to listen on
   --debug
       Enable debug logging
   --help
       Show this help message
+
+## Array Usage Examples
+
+### Basic Array Parsing
+
+```bash
+# String arrays
+deno run app.ts --files index.html,styles.css,script.js
+
+# Number arrays  
+deno run app.ts --ports 3000,4000,5000
+
+# Mixed with other arguments
+deno run app.ts --files a.txt,b.txt --port 8080 --debug
+```
+
+### Array with Defaults
+
+```typescript
+@parse(Deno.args)
+class Config {
+  @description("Input files to process")
+  static files: string[] = ["default.txt"];
+  
+  @description("Ports to listen on")
+  static ports: number[] = [8080];
+}
+
+// Override defaults:
+// deno run app.ts --files new1.txt,new2.txt --ports 3000,4000
+```
+
+### Array Validation
+
+```typescript
+function minItems(min: number) {
+  return addValidator((value: unknown) => {
+    if (Array.isArray(value) && value.length < min) {
+      return `requires at least ${min} items`;
+    }
+    return null;
+  });
+}
+
+@parse(Deno.args)
+class Config {
+  @type("string[]")
+  @minItems(2)
+  @required()
+  static files: string[];
+}
+
+// deno run app.ts --files single.txt
+// Error: Validation error for --files: requires at least 2 items
+```
 ```
 
 ### With App Information

@@ -17,14 +17,14 @@ export type Validator = (value: unknown) => string | null;
 
 interface ParsedArg {
   name: string;
-  type: "string" | "number" | "boolean";
+  type: "string" | "number" | "boolean" | "string[]" | "number[]";
   description?: string;
-  default?: string | number | boolean;
+  default?: string | number | boolean | string[] | number[];
   validators?: Validator[];
 }
 
 interface PropertyMetadata {
-  type?: "string" | "number" | "boolean";
+  type?: "string" | "number" | "boolean" | "string[]" | "number[]";
   validators?: Validator[];
   description?: string;
 }
@@ -34,7 +34,7 @@ function extractTypeFromDescriptor(
   metadata: PropertyMetadata,
   propertyName: string,
   className: string,
-): "string" | "number" | "boolean" {
+): "string" | "number" | "boolean" | "string[]" | "number[]" {
   // First check if type was explicitly set via @type decorator
   if (metadata.type) {
     return metadata.type;
@@ -45,6 +45,15 @@ function extractTypeFromDescriptor(
     if (typeof descriptor.value === "string") return "string";
     if (typeof descriptor.value === "number") return "number";
     if (typeof descriptor.value === "boolean") return "boolean";
+    if (Array.isArray(descriptor.value)) {
+      if (descriptor.value.length === 0) {
+        // Empty array, default to string[] unless type is specified
+        return "string[]";
+      }
+      const firstElement = descriptor.value[0];
+      if (typeof firstElement === "string") return "string[]";
+      if (typeof firstElement === "number") return "number[]";
+    }
   }
 
   // Error if we can't determine the type
@@ -69,8 +78,11 @@ function parseArguments(
   args: string[],
   parsedArgs: ParsedArg[],
   options?: { name?: string; description?: string },
-): Record<string, string | number | boolean> {
-  const result: Record<string, string | number | boolean> = {};
+): Record<string, string | number | boolean | string[] | number[]> {
+  const result: Record<
+    string,
+    string | number | boolean | string[] | number[]
+  > = {};
   const argMap = new Map(parsedArgs.map((arg) => [arg.name, arg]));
 
   for (let i = 0; i < args.length; i++) {
@@ -110,7 +122,39 @@ function parseArguments(
           return result; // Never reached, but helps TypeScript
         }
 
-        if (argDef.type === "number") {
+        if (argDef.type === "string[]") {
+          const arrayValues = value.split(",");
+          const validationError = validateValue(arrayValues, argDef.validators);
+          if (validationError) {
+            console.error(`Validation error for --${key}: ${validationError}`);
+            process.exit(1);
+            return result; // Never reached, but helps TypeScript
+          }
+
+          result[key] = arrayValues;
+        } else if (argDef.type === "number[]") {
+          const arrayValues = value.split(",");
+          const numbers: number[] = [];
+
+          for (const val of arrayValues) {
+            const num = parseFloat(val.trim());
+            if (isNaN(num)) {
+              console.error(`Invalid number in array for --${key}: ${val}`);
+              process.exit(1);
+              return result; // Never reached, but helps TypeScript
+            }
+            numbers.push(num);
+          }
+
+          const validationError = validateValue(numbers, argDef.validators);
+          if (validationError) {
+            console.error(`Validation error for --${key}: ${validationError}`);
+            process.exit(1);
+            return result; // Never reached, but helps TypeScript
+          }
+
+          result[key] = numbers;
+        } else if (argDef.type === "number") {
           const num = parseFloat(value);
           if (isNaN(num)) {
             console.error(`Invalid number for --${key}: ${value}`);
@@ -183,7 +227,16 @@ function printHelp(
 
   for (const arg of parsedArgs) {
     const longFlag = `--${arg.name}`;
-    const typeHint = arg.type === "boolean" ? "" : ` <${arg.type}>`;
+    let typeHint = "";
+    if (arg.type !== "boolean") {
+      if (arg.type === "string[]") {
+        typeHint = " <string,string,...>";
+      } else if (arg.type === "number[]") {
+        typeHint = " <number,number,...>";
+      } else {
+        typeHint = ` <${arg.type}>`;
+      }
+    }
     const description = arg.description || "";
 
     console.log(`  ${longFlag}${typeHint}`);
@@ -255,7 +308,7 @@ export function parse(
           const propertyMetadata =
             (classMetadata?.[propName] as PropertyMetadata) || {};
 
-          let type: "string" | "number" | "boolean";
+          let type: "string" | "number" | "boolean" | "string[]" | "number[]";
           try {
             type = extractTypeFromDescriptor(
               descriptor,
@@ -310,7 +363,9 @@ export function parse(
  * static timeout: number;
  * ```
  */
-export function type(t: "string" | "number" | "boolean"): (
+export function type(
+  t: "string" | "number" | "boolean" | "string[]" | "number[]",
+): (
   _target: unknown,
   context: {
     name: string | symbol;
