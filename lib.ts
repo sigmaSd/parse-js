@@ -6,6 +6,13 @@
  * A function that validates a value and returns an error message or null if valid.
  */
 import process from "node:process";
+
+/**
+ * A function that validates a value and returns an error message or null if valid.
+ *
+ * @param value - The value to validate
+ * @returns Error message string if validation fails, null if validation passes
+ */
 export type Validator = (value: unknown) => string | null;
 
 interface ParsedArg {
@@ -304,7 +311,13 @@ export function parse(
  * static timeout: number;
  * ```
  */
-export function type(t: "string" | "number" | "boolean") {
+export function type(t: "string" | "number" | "boolean"): (
+  _target: unknown,
+  context: {
+    name: string | symbol;
+    metadata?: Record<string | symbol, unknown>;
+  },
+) => void {
   return function (
     _target: unknown,
     context: {
@@ -337,7 +350,13 @@ export function type(t: "string" | "number" | "boolean") {
  * static port: number = 8080;
  * ```
  */
-export function description(text: string) {
+export function description(text: string): (
+  _target: unknown,
+  context: {
+    name: string | symbol;
+    metadata?: Record<string | symbol, unknown>;
+  },
+) => void {
   return function (
     _target: unknown,
     context: {
@@ -386,7 +405,13 @@ export function description(text: string) {
  * }
  * ```
  */
-export function addValidator(validator: Validator) {
+export function addValidator(validator: Validator): (
+  _target: unknown,
+  context: {
+    name: string | symbol;
+    metadata?: Record<string | symbol, unknown>;
+  },
+) => void {
   return function (
     _target: unknown,
     context: {
@@ -423,7 +448,13 @@ export function addValidator(validator: Validator) {
  * static timeout: number;
  * ```
  */
-export function required() {
+export function required(): (
+  _target: unknown,
+  context: {
+    name: string | symbol;
+    metadata?: Record<string | symbol, unknown>;
+  },
+) => void {
   return addValidator((value: unknown) => {
     if (value === undefined || value === null || value === "") {
       return `is required`;
