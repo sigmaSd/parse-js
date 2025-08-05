@@ -430,15 +430,15 @@ Usage:
   [runtime] script.js [options]
 
 Options:
-  -p, --port <number>
+  --port <number>
       Port number to listen on
-  -a, --apiKey <string>
+  --apiKey <string>
       API key for authentication (required)
-  -r, --retries <number>
+  --retries <number>
       Number of retry attempts (1-10)
-  -d, --debug
+  --debug
       Enable debug logging
-  -h, --help
+  --help
       Show this help message
 ```
 
@@ -456,13 +456,13 @@ Usage:
   myserver [options]
 
 Options:
-  -p, --port <number>
+  --port <number>
       Port number to listen on
-  -h, --host <string>
+  --host <string>
       Host address to bind to
-  -d, --debug
+  --debug
       Enable debug logging
-  -h, --help
+  --help
       Show this help message
 ```
 
