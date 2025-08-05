@@ -597,6 +597,52 @@ Options:
       Show this help message
 ```
 
+## Limitations
+
+### Property Name Restrictions
+
+Due to JavaScript/TypeScript limitations, certain property names cannot be used as they conflict with built-in class properties:
+
+- `length` - Built-in property of Function
+- `name` - Built-in property of Function  
+- `prototype` - Built-in property of Function
+
+These properties will be automatically skipped during parsing. If you need to use these as CLI argument names, consider using alternatives:
+
+```typescript
+@parse(Deno.args)
+class Config {
+  // ❌ This won't work
+  // static length: number = 10;
+  
+  // ✅ Use alternatives instead
+  @description("Maximum length allowed")
+  static maxLength: number = 10;
+  
+  @description("Application name")
+  static appName: string = "myapp";
+  
+  @description("Protocol to use")
+  static protocol: string = "http";
+}
+```
+
+### Type Inference Requirements
+
+For properties without default values, you must use the `@type()` decorator:
+
+```typescript
+@parse(Deno.args)
+class Config {
+  // ❌ This will throw an error
+  // static timeout: number;
+  
+  // ✅ Explicit type required
+  @type("number")
+  static timeout: number;
+}
+```
+
 ## Modern Decorator Metadata
 
 This library uses the modern TC39 decorator metadata proposal, which allows decorators to communicate with each other without requiring global state or manual class name passing. This results in a cleaner, more maintainable API.
