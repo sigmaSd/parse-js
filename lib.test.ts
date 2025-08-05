@@ -1009,6 +1009,170 @@ Deno.test("Nested subcommands - global options with nested commands", () => {
   assertEquals(RestartCommand.graceful, true);
 });
 
+Deno.test("parseArguments handles flags after rest arguments", () => {
+  function oneOf(choices: string[]) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "string" && !choices.includes(value)) {
+        return `must be one of: ${choices.join(", ")}, got ${value}`;
+      }
+      return null;
+    });
+  }
+
+  @command
+  class ProcessCommand {
+    @argument(0, "Input file")
+    @required()
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "output.txt";
+
+    @argument(2, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+
+    @description("Output format")
+    @oneOf(["json", "xml", "csv"])
+    static format: string = "json";
+
+    @description("Enable verbose output")
+    static verbose: boolean = false;
+  }
+
+  @parse([
+    "process",
+    "input.txt",
+    "result.txt",
+    "file1.txt",
+    "file2.txt",
+    "--format",
+    "xml",
+    "--verbose",
+  ], {
+    name: "test",
+  })
+  class Config {
+    @subCommand(ProcessCommand)
+    static process: ProcessCommand;
+
+    static globalFlag: boolean = false;
+  }
+
+  // Test that positional arguments are parsed correctly
+  assertEquals(ProcessCommand.input, "input.txt");
+  assertEquals(ProcessCommand.output, "result.txt");
+  assertEquals(ProcessCommand.files, ["file1.txt", "file2.txt"]);
+
+  // Test that flags after rest arguments are parsed correctly
+  assertEquals(ProcessCommand.format, "xml");
+  assertEquals(ProcessCommand.verbose, true);
+
+  // Test that global flags are not affected
+  assertEquals(Config.globalFlag, false);
+});
+
+Deno.test("parseArguments handles mixed flags and rest arguments", () => {
+  @command
+  class TestCommand {
+    @argument(0, "First arg")
+    static first: string;
+
+    @argument(1, "Rest args", { rest: true })
+    @type("string[]")
+    static rest: string[] = [];
+
+    static flag1: string = "default1";
+    static flag2: boolean = false;
+    static flag3: number = 42;
+  }
+
+  @parse([
+    "test",
+    "value1",
+    "rest1",
+    "rest2",
+    "rest3",
+    "--flag1",
+    "changed",
+    "--flag2",
+    "--flag3",
+    "100",
+  ], {
+    name: "test",
+  })
+  class _Config {
+    @subCommand(TestCommand)
+    static test: TestCommand;
+  }
+
+  // Test positional arguments
+  assertEquals(TestCommand.first, "value1");
+  assertEquals(TestCommand.rest, ["rest1", "rest2", "rest3"]);
+
+  // Test flags after rest arguments
+  assertEquals(TestCommand.flag1, "changed");
+  assertEquals(TestCommand.flag2, true);
+  assertEquals(TestCommand.flag3, 100);
+});
+
+Deno.test("parseArguments handles flags validation after rest arguments", () => {
+  function oneOf(choices: string[]) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "string" && !choices.includes(value)) {
+        return `must be one of: ${choices.join(", ")}, got ${value}`;
+      }
+      return null;
+    });
+  }
+
+  @command
+  class ValidatedCommand {
+    @argument(0, "Input")
+    static input: string;
+
+    @argument(1, "Files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+
+    @oneOf(["json", "xml", "csv"])
+    static format: string = "json";
+  }
+
+  // Test valid format
+  @parse(["cmd", "input.txt", "file1.txt", "file2.txt", "--format", "xml"], {
+    name: "test",
+  })
+  class _ValidConfig {
+    @subCommand(ValidatedCommand)
+    static cmd: ValidatedCommand;
+  }
+
+  assertEquals(ValidatedCommand.format, "xml");
+
+  // Test invalid format should throw
+  mockProcessExit();
+
+  assertThrows(() => {
+    @parse([
+      "cmd",
+      "input.txt",
+      "file1.txt",
+      "file2.txt",
+      "--format",
+      "invalid",
+    ], {
+      name: "test",
+    })
+    class _InvalidConfig {
+      @subCommand(ValidatedCommand)
+      static cmd: ValidatedCommand;
+    }
+  });
+
+  restoreProcessExit();
+});
+
 Deno.test("Nested subcommands - three levels deep", () => {
   @command
   class CreateCommand {

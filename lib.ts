@@ -74,8 +74,8 @@ function collectArgumentDefs(
     const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
     if (!descriptor || typeof descriptor.value === "function") continue;
 
-    // Skip the built-in class name property (which is a getter, not a value)
-    if (propName === "name" && !("value" in descriptor)) {
+    // Skip the built-in class name property
+    if (propName === "name") {
       continue;
     }
 
@@ -258,7 +258,8 @@ function parsePositionalArguments(
           }
         }
 
-        break; // Rest argument consumes all remaining args
+        // Continue processing remaining arguments (which should be flags)
+        positionalIndex++; // Move past the rest argument
       } else {
         // Single positional argument
         let value: string | number = arg;
