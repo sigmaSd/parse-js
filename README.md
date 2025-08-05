@@ -24,6 +24,8 @@ metadata.
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🌐 **Global options**: Mix global and subcommand-specific options
+- 🛑 **Argument separation**: Use `--` to stop flag parsing and pass arguments
+  through
 - 🚀 **Zero dependencies**: Pure TypeScript/JavaScript
 - 🎨 **Clean API**: Uses modern decorator metadata - no manual class names
   needed
@@ -258,7 +260,59 @@ deno run app.ts --help
 deno run app.ts run --help
 deno run app.ts database --help
 deno run app.ts database start --help
+
+# -- separator: stop parsing flags, treat everything after as positional arguments
+deno run app.ts run gleam -- --version --help
+deno run app.ts run node -- --trace-warnings --inspect
+deno run app.ts --debug run npm -- run build --watch
 ```
+
+### Argument Separation with `--`
+
+Use the `--` separator to stop flag parsing and treat all subsequent arguments
+as positional arguments. This is useful when you need to pass arguments to
+another command without them being parsed as flags:
+
+```typescript
+import {
+  argument,
+  command,
+  parse,
+  required,
+  subCommand,
+  type,
+} from "jsr:@sigma/parse";
+
+@command
+class RunCommand {
+  @argument(0, "Binary to run")
+  @required()
+  static binary: string;
+
+  @argument(1, "Arguments to pass to binary", { rest: true })
+  @type("string[]")
+  static args: string[] = [];
+}
+
+@parse(Deno.args)
+class Config {
+  @subCommand(RunCommand)
+  static run: RunCommand;
+}
+
+// Usage examples:
+// deno run app.ts run gleam -- --version --help
+// This passes ["--version", "--help"] to the gleam binary
+
+// deno run app.ts run node -- --trace-warnings --inspect=9229
+// This passes ["--trace-warnings", "--inspect=9229"] to node
+
+// Without --, flags would be parsed as RunCommand options:
+// deno run app.ts run gleam --version  // ERROR: Unknown argument --version
+```
+
+The `--` separator follows standard Unix conventions and is commonly used in
+tools like `npm run`, `docker run`, and `git` subcommands.
 
 ## API Reference
 

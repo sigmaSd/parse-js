@@ -1173,6 +1173,83 @@ Deno.test("parseArguments handles flags validation after rest arguments", () => 
   restoreProcessExit();
 });
 
+Deno.test("-- separator stops flag parsing", () => {
+  @command
+  class RunCommand {
+    @argument(0, "Binary to run")
+    @required()
+    static binary: string;
+
+    @argument(1, "Arguments to pass", { rest: true })
+    @type("string[]")
+    static args: string[] = [];
+
+    @description("Enable verbose output")
+    static verbose: boolean = false;
+  }
+
+  @parse([
+    "run",
+    "gleam",
+    "--",
+    "--version",
+    "--help",
+    "-v",
+  ], {
+    name: "test",
+  })
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static globalVerbose: boolean = false;
+  }
+
+  // Test that positional arguments are parsed correctly
+  assertEquals(RunCommand.binary, "gleam");
+  assertEquals(RunCommand.args, ["--version", "--help", "-v"]);
+
+  // Test that flags after -- are not parsed as flags
+  assertEquals(RunCommand.verbose, false);
+  assertEquals(Config.globalVerbose, false);
+});
+
+Deno.test("-- separator with mixed arguments", () => {
+  @command
+  class ExecCommand {
+    @argument(0, "Command")
+    static command: string;
+
+    @argument(1, "Args", { rest: true })
+    @type("string[]")
+    static args: string[] = [];
+
+    static debug: boolean = false;
+  }
+
+  @parse([
+    "exec",
+    "--debug",
+    "node",
+    "--",
+    "--version",
+    "--trace-warnings",
+  ], {
+    name: "test",
+  })
+  class _Config {
+    @subCommand(ExecCommand)
+    static exec: ExecCommand;
+  }
+
+  // Test that flags before -- are parsed
+  assertEquals(ExecCommand.debug, true);
+  assertEquals(ExecCommand.command, "node");
+
+  // Test that flags after -- are treated as arguments
+  assertEquals(ExecCommand.args, ["--version", "--trace-warnings"]);
+});
+
 Deno.test("Nested subcommands - three levels deep", () => {
   @command
   class CreateCommand {

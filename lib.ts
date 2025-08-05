@@ -185,16 +185,31 @@ function parsePositionalArguments(
     a - b
   );
 
-  let argIndex = 0;
   let positionalIndex = 0;
 
-  while (argIndex < args.length) {
-    const arg = args[argIndex];
+  // Check for -- separator and split arguments
+  let flagArgs: string[] = [];
+  let positionalArgs: string[] = [];
+  const separatorIndex = args.findIndex((arg) => arg === "--");
+
+  if (separatorIndex >= 0) {
+    flagArgs = args.slice(0, separatorIndex);
+    positionalArgs = args.slice(separatorIndex + 1); // Skip the -- separator
+  } else {
+    flagArgs = args;
+    positionalArgs = [];
+  }
+
+  // Process flag arguments first
+  let flagIndex = 0;
+
+  while (flagIndex < flagArgs.length) {
+    const arg = flagArgs[flagIndex];
 
     // Skip flags and their values
     if (arg.startsWith("--") || arg.startsWith("-")) {
       remainingArgs.push(arg);
-      argIndex++;
+      flagIndex++;
 
       // Check if this flag expects a value
       const flagName = arg.startsWith("--")
@@ -204,39 +219,48 @@ function parsePositionalArguments(
       const argDef = argMap.get(flagName);
       if (
         argDef && argDef.type !== "boolean" && !arg.includes("=") &&
-        argIndex < args.length
+        flagIndex < flagArgs.length
       ) {
         // This flag expects a value, skip the next argument too
-        remainingArgs.push(args[argIndex]);
-        argIndex++;
+        remainingArgs.push(flagArgs[flagIndex]);
+        flagIndex++;
       }
       continue;
     }
 
-    // This is a positional argument
+    // This is a positional argument from the flag section
+
     if (positionalIndex < sortedArgDefs.length) {
       const [, argDef] = sortedArgDefs[positionalIndex];
 
       if (argDef.rest) {
-        // Collect all remaining non-flag arguments for rest parameter
+        // Collect remaining arguments from flag section plus all positional args
         const restValues: string[] = [];
-        while (argIndex < args.length && !args[argIndex].startsWith("-")) {
+
+        // Add remaining args from flag section
+        while (
+          flagIndex < flagArgs.length && !flagArgs[flagIndex].startsWith("-")
+        ) {
           if (argDef.type === "string[]") {
-            restValues.push(args[argIndex]);
+            restValues.push(flagArgs[flagIndex]);
           } else if (argDef.type === "number[]") {
-            const num = parseFloat(args[argIndex]);
+            const num = parseFloat(flagArgs[flagIndex]);
             if (isNaN(num)) {
               console.error(
                 `Invalid number in rest arguments for ${argDef.name}: ${
-                  args[argIndex]
+                  flagArgs[flagIndex]
                 }`,
               );
               process.exit(1);
             }
-            restValues.push(args[argIndex]);
+            restValues.push(flagArgs[flagIndex]);
           }
-          argIndex++;
+          flagIndex++;
         }
+
+        // Add all positional args (these are treated as strings regardless of flags)
+
+        restValues.push(...positionalArgs);
 
         if (argDef.type === "number[]") {
           result[argDef.name] = restValues.map((v) => parseFloat(v));
@@ -259,7 +283,11 @@ function parsePositionalArguments(
         }
 
         // Continue processing remaining arguments (which should be flags)
-        positionalIndex++; // Move past the rest argument
+        positionalIndex++;
+
+        // Since rest argument consumes everything, break out of processing
+
+        break;
       } else {
         // Single positional argument
         let value: string | number = arg;
@@ -289,13 +317,82 @@ function parsePositionalArguments(
         }
 
         positionalIndex++;
-        argIndex++;
+        flagIndex++;
       }
     } else {
       // No more positional arguments expected, add to remaining
       remainingArgs.push(arg);
-      argIndex++;
+      flagIndex++;
     }
+  }
+
+  // After processing all flagArgs, check if we have remaining positional arguments to process
+  if (positionalIndex < sortedArgDefs.length && positionalArgs.length > 0) {
+    const [, argDef] = sortedArgDefs[positionalIndex];
+
+    if (argDef.rest) {
+      if (argDef.type === "number[]") {
+        const numbers: number[] = [];
+        for (const val of positionalArgs) {
+          const num = parseFloat(val);
+          if (isNaN(num)) {
+            console.error(
+              `Invalid number in rest arguments for ${argDef.name}: ${val}`,
+            );
+            process.exit(1);
+          }
+          numbers.push(num);
+        }
+        result[argDef.name] = numbers;
+      } else {
+        result[argDef.name] = positionalArgs;
+      }
+
+      // Validate rest argument
+      if (argDef.validators) {
+        const validationError = validateValue(
+          result[argDef.name],
+          argDef.validators,
+        );
+        if (validationError) {
+          console.error(
+            `Validation error for positional argument ${argDef.name}: ${validationError}`,
+          );
+          process.exit(1);
+        }
+      }
+    }
+  }
+
+  // Now process remaining flag arguments
+  while (flagIndex < flagArgs.length) {
+    const arg = flagArgs[flagIndex];
+
+    // Skip flags and their values
+    if (arg.startsWith("--") || arg.startsWith("-")) {
+      remainingArgs.push(arg);
+      flagIndex++;
+
+      // Check if this flag expects a value
+      const flagName = arg.startsWith("--")
+        ? (arg.includes("=") ? arg.split("=")[0].slice(2) : arg.slice(2))
+        : arg.slice(1);
+
+      const argDef = argMap.get(flagName);
+      if (
+        argDef && argDef.type !== "boolean" && !arg.includes("=") &&
+        flagIndex < flagArgs.length
+      ) {
+        // This flag expects a value, skip the next argument too
+        remainingArgs.push(flagArgs[flagIndex]);
+        flagIndex++;
+      }
+      continue;
+    }
+
+    // No more positional arguments expected, add to remaining
+    remainingArgs.push(arg);
+    flagIndex++;
   }
 
   return remainingArgs;
@@ -360,8 +457,14 @@ function parseGlobalOptions(
   commandName?: string,
   commandPath?: string,
 ) {
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
+  // Check for -- separator and only process arguments before it
+  const separatorIndex = args.findIndex((arg) => arg === "--");
+  const argsToProcess = separatorIndex >= 0
+    ? args.slice(0, separatorIndex)
+    : args;
+
+  for (let i = 0; i < argsToProcess.length; i++) {
+    const arg = argsToProcess[i];
 
     if (arg === "--help" || arg === "-h") {
       printHelp(
@@ -468,6 +571,14 @@ function parseGlobalOptions(
 
         if (value !== undefined && !arg.includes("=")) i++; // skip next arg since we used it as value
       }
+    }
+  }
+
+  // If there was a -- separator, add all arguments after it to remaining args
+  if (separatorIndex >= 0) {
+    for (let j = separatorIndex + 1; j < args.length; j++) {
+      // These are treated as remaining arguments for further processing
+      // They will be handled by parsePositionalArguments
     }
   }
 }
