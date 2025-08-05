@@ -1,6 +1,6 @@
 {
   "name": "@sigma/parse",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "exports": "./lib.ts",
   "license": "MIT"
 }

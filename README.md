@@ -1,21 +1,28 @@
 # CLI Argument Parser
 
-A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaScript with built-in validation support using modern decorator metadata.
+A lightweight, decorator-based CLI argument parsing library for
+TypeScript/JavaScript with built-in validation support using modern decorator
+metadata.
 
 ## Features
 
 - 🎯 **Decorator-based**: Simple `@parse(args)` decorator for classes
-- 🔍 **Type inference**: Automatically detects string, number, boolean, and array types from defaults
-- 🏷️ **Explicit typing**: Use `@type()` decorator for properties without defaults
+- 🔍 **Type inference**: Automatically detects string, number, boolean, and
+  array types from defaults
+- 🏷️ **Explicit typing**: Use `@type()` decorator for properties without
+  defaults
 - 📋 **Array support**: Parse comma-separated lists with `--items a,b,c`
-- 🚀 **Subcommands**: Full subcommand support with `@subCommand()` and `@command`
+- 🚀 **Subcommands**: Full subcommand support with `@subCommand()` and
+  `@command`
 - ✅ **Validation system**: Extensible validation with custom decorators
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🌐 **Global options**: Mix global and subcommand-specific options
 - 🚀 **Zero dependencies**: Pure TypeScript/JavaScript
-- 🎨 **Clean API**: Uses modern decorator metadata - no manual class names needed
-- 🔧 **Flexible**: Support for required fields, optional properties, and complex validation
+- 🎨 **Clean API**: Uses modern decorator metadata - no manual class names
+  needed
+- 🔧 **Flexible**: Support for required fields, optional properties, and complex
+  validation
 
 ## Quick Start
 
@@ -43,7 +50,7 @@ import { parse } from "jsr:@sigma/parse";
 
 @parse(Deno.args, {
   name: "myserver",
-  description: "A simple HTTP server with configurable options"
+  description: "A simple HTTP server with configurable options",
 })
 class Config {
   static port: number = 8000;
@@ -55,7 +62,13 @@ class Config {
 ### With Type Specification, Validation, and Help Text
 
 ```typescript
-import { addValidator, description, parse, required, type } from "jsr:@sigma/parse";
+import {
+  addValidator,
+  description,
+  parse,
+  required,
+  type,
+} from "jsr:@sigma/parse";
 
 // Custom validation decorators
 function min(minValue: number) {
@@ -104,7 +117,13 @@ class Config {
 ### With Subcommands
 
 ```typescript
-import { command, description, parse, subCommand, type } from "./lib.ts";
+import {
+  command,
+  description,
+  parse,
+  subCommand,
+  type,
+} from "jsr:@sigma/parse";
 
 @command
 class RunCommand {
@@ -131,7 +150,7 @@ class BuildCommand {
 
 @parse(Deno.args, {
   name: "mycli",
-  description: "A powerful CLI tool with subcommands"
+  description: "A powerful CLI tool with subcommands",
 })
 class MyArgs {
   @description("Run the application")
@@ -189,13 +208,16 @@ deno run app.ts run --help
 
 ### `@parse(args, options?)`
 
-Class decorator factory that enables CLI argument parsing for static class properties.
+Class decorator factory that enables CLI argument parsing for static class
+properties.
 
 **Parameters:**
+
 - `args: string[]` - The array of arguments to parse
 - `options?: object` - Optional app configuration
   - `name?: string` - The name of the application (shown in help)
-  - `description?: string` - A brief description of the application (shown in help)
+  - `description?: string` - A brief description of the application (shown in
+    help)
 
 ```typescript
 @parse(Deno.args)
@@ -206,7 +228,7 @@ class MyConfig {
 // With app information
 @parse(Deno.args, {
   name: "myapp",
-  description: "A CLI tool for processing data"
+  description: "A CLI tool for processing data",
 })
 class MyConfig {
   static value: string = "default";
@@ -226,7 +248,9 @@ class TestConfig {
 Decorator to explicitly specify the type of a property without a default value.
 
 **Parameters:**
-- `typeName: "string" | "number" | "boolean" | "string[]" | "number[]"` - The type of the property
+
+- `typeName: "string" | "number" | "boolean" | "string[]" | "number[]"` - The
+  type of the property
 
 ```typescript
 @parse(Deno.args)
@@ -248,7 +272,8 @@ class Config {
 
 ### `@required()`
 
-Decorator to mark a property as required. This is a convenience function built using `addValidator`.
+Decorator to mark a property as required. This is a convenience function built
+using `addValidator`.
 
 ```typescript
 @parse(Deno.args)
@@ -261,9 +286,11 @@ class Config {
 
 ### `@description(text)`
 
-Decorator to add help text for properties that will be shown in the `--help` output.
+Decorator to add help text for properties that will be shown in the `--help`
+output.
 
 **Parameters:**
+
 - `text: string` - The description text to show in help
 
 ```typescript
@@ -296,10 +323,13 @@ class RunCommand {
 
 ### `@subCommand(commandClass)`
 
-Decorator to associate a property with a command class for subcommand functionality.
+Decorator to associate a property with a command class for subcommand
+functionality.
 
 **Parameters:**
-- `commandClass: new () => unknown` - The command class to associate with this subcommand
+
+- `commandClass: new () => unknown` - The command class to associate with this
+  subcommand
 
 ```typescript
 @parse(Deno.args)
@@ -308,7 +338,7 @@ class Config {
   @subCommand(RunCommand)
   static run: RunCommand;
 
-  @description("Build the project") 
+  @description("Build the project")
   @subCommand(BuildCommand)
   static build: BuildCommand;
 }
@@ -319,6 +349,7 @@ class Config {
 Utility function for creating custom validation decorators.
 
 **Parameters:**
+
 - `validator: Validator` - The validation function to apply
 
 **Returns:** A decorator function
@@ -331,7 +362,8 @@ Type definition for validation functions.
 type Validator = (value: unknown) => string | null;
 ```
 
-Returns `null` if validation passes, or an error message string if validation fails.
+Returns `null` if validation passes, or an error message string if validation
+fails.
 
 ## Creating Custom Validators
 
@@ -443,7 +475,7 @@ class Config {
   @description("Application name (alphanumeric, hyphens, underscores only)")
   @pattern(
     /^[a-zA-Z0-9_-]+$/,
-    "must contain only alphanumeric characters, hyphens, and underscores"
+    "must contain only alphanumeric characters, hyphens, and underscores",
   )
   static name: string = "myapp";
 }
@@ -451,7 +483,8 @@ class Config {
 
 ### Custom Required Validator
 
-While the library provides a built-in `@required()` decorator, you can easily create your own:
+While the library provides a built-in `@required()` decorator, you can easily
+create your own:
 
 ```typescript
 function myRequired() {
@@ -472,13 +505,13 @@ function myRequired() {
 @parse(Deno.args)
 class Config {
   @description("Port number to listen on")
-  static port: number = 8000;      // Inferred as number
-  
+  static port: number = 8000; // Inferred as number
+
   @description("Host address to bind to")
   static host: string = "localhost"; // Inferred as string
-  
+
   @description("Enable debug mode")
-  static debug: boolean = false;    // Inferred as boolean
+  static debug: boolean = false; // Inferred as boolean
 
   @description("Default file list")
   static files: string[] = ["app.js"]; // Inferred as string[]
@@ -495,12 +528,12 @@ class Config {
 class Config {
   @description("Request timeout in seconds")
   @type("number")
-  static timeout: number;  // Optional number property
+  static timeout: number; // Optional number property
 
   @description("API key for authentication (required)")
   @type("string")
   @required()
-  static apiKey: string;   // Required string property
+  static apiKey: string; // Required string property
 
   @description("Enable verbose output")
   @type("boolean")
@@ -548,6 +581,7 @@ class Config {
 The library provides clear error messages for various scenarios:
 
 ### Validation Failures
+
 ```bash
 $ deno run app.ts --port 70000
 Validation error for --port: must be at most 65535, got 70000
@@ -563,18 +597,21 @@ Validation error for --files: must have at least 3 items
 ```
 
 ### Missing Required Fields
+
 ```bash
 $ deno run app.ts --port 3000
 Validation error for --apiKey: is required
 ```
 
 ### Missing Type Information
+
 ```bash
 $ deno run app.ts
 Error: Property 'timeout' in class 'Config' has no default value and no @type decorator. Either provide a default value like 'static timeout: number = 0' or use @type("number").
 ```
 
 ### Invalid Arguments
+
 ```bash
 $ deno run app.ts --unknown value
 Unknown argument: --unknown
@@ -642,7 +679,7 @@ Global Options:
 
 Each subcommand has its own help:
 
-```bash
+````bash
 $ deno run app.ts run --help
 Usage:
   mycli run [options]
@@ -665,12 +702,12 @@ Options:
 # String arrays
 deno run app.ts --files index.html,styles.css,script.js
 
-# Number arrays  
+# Number arrays
 deno run app.ts --ports 3000,4000,5000
 
 # Mixed with other arguments
 deno run app.ts --files a.txt,b.txt --port 8080 --debug
-```
+````
 
 ### Array with Defaults
 
@@ -679,7 +716,7 @@ deno run app.ts --files a.txt,b.txt --port 8080 --debug
 class Config {
   @description("Input files to process")
   static files: string[] = ["default.txt"];
-  
+
   @description("Ports to listen on")
   static ports: number[] = [8080];
 }
@@ -711,8 +748,8 @@ class Config {
 // deno run app.ts --files single.txt
 // Error: Validation error for --files: requires at least 2 items
 ```
-```
 
+````
 ### With App Information
 
 When you provide app name and description, the help output becomes more informative:
@@ -735,33 +772,35 @@ Options:
       Enable debug logging
   --help
       Show this help message
-```
+````
 
 ## Limitations
 
 ### Property Name Restrictions
 
-Due to JavaScript/TypeScript limitations, certain property names cannot be used as they conflict with built-in class properties:
+Due to JavaScript/TypeScript limitations, certain property names cannot be used
+as they conflict with built-in class properties:
 
 - `length` - Built-in property of Function
-- `name` - Built-in property of Function  
+- `name` - Built-in property of Function
 - `prototype` - Built-in property of Function
 
-These properties will be automatically skipped during parsing. If you need to use these as CLI argument names, consider using alternatives:
+These properties will be automatically skipped during parsing. If you need to
+use these as CLI argument names, consider using alternatives:
 
 ```typescript
 @parse(Deno.args)
 class Config {
   // ❌ This won't work
   // static length: number = 10;
-  
+
   // ✅ Use alternatives instead
   @description("Maximum length allowed")
   static maxLength: number = 10;
-  
+
   @description("Application name")
   static appName: string = "myapp";
-  
+
   @description("Protocol to use")
   static protocol: string = "http";
 }
@@ -776,7 +815,7 @@ For properties without default values, you must use the `@type()` decorator:
 class Config {
   // ❌ This will throw an error
   // static timeout: number;
-  
+
   // ✅ Explicit type required
   @type("number")
   static timeout: number;
@@ -785,7 +824,9 @@ class Config {
 
 ## Modern Decorator Metadata
 
-This library uses the modern TC39 decorator metadata proposal, which allows decorators to communicate with each other without requiring global state or manual class name passing. This results in a cleaner, more maintainable API.
+This library uses the modern TC39 decorator metadata proposal, which allows
+decorators to communicate with each other without requiring global state or
+manual class name passing. This results in a cleaner, more maintainable API.
 
 ## Testing
 
@@ -800,40 +841,40 @@ deno test lib.test.ts
 ### Basic Subcommand Setup
 
 ```typescript
-import { command, description, parse, subCommand } from "./lib.ts";
+import { command, description, parse, subCommand } from "jsr:@sigma/parse";
 
 @command
 class ServeCommand {
   @description("Port to listen on")
   static port: number = 8080;
-  
+
   @description("Host to bind to")
   static host: string = "localhost";
 }
 
-@command  
+@command
 class TestCommand {
   @description("Run tests matching pattern")
   @type("string")
   static pattern: string;
-  
+
   @description("Enable coverage reporting")
   static coverage: boolean = false;
 }
 
 @parse(Deno.args, {
   name: "myapp",
-  description: "A web application with testing"
+  description: "A web application with testing",
 })
 class Config {
   @description("Start the web server")
   @subCommand(ServeCommand)
   static serve: ServeCommand;
-  
+
   @description("Run the test suite")
-  @subCommand(TestCommand) 
+  @subCommand(TestCommand)
   static test: TestCommand;
-  
+
   @description("Enable verbose logging")
   static verbose: boolean = false;
 }
@@ -852,12 +893,12 @@ class DeployCommand {
   @description("Deployment environment")
   @oneOf(["dev", "staging", "prod"])
   static env: string = "dev";
-  
+
   @description("Services to deploy")
   @type("string[]")
   @required()
   static services: string[];
-  
+
   @description("Skip confirmation prompts")
   static force: boolean = false;
 }
@@ -867,7 +908,7 @@ class Config {
   @description("Execute deployment")
   @subCommand(DeployCommand)
   static deploy: DeployCommand;
-  
+
   @description("Configuration file path")
   @type("string")
   static config: string;
@@ -899,10 +940,10 @@ Mark classes with `@command` and define their options:
 class DatabaseCommand {
   @description("Database host")
   static host: string = "localhost";
-  
+
   @description("Database port")
   static port: number = 5432;
-  
+
   @description("Enable SSL connection")
   static ssl: boolean = false;
 }
@@ -918,7 +959,7 @@ class Config {
   @description("Database operations")
   @subCommand(DatabaseCommand)
   static db: DatabaseCommand;
-  
+
   @description("Global debug mode")
   static debug: boolean = false;
 }
@@ -941,9 +982,12 @@ if (Config.db) {
 
 ### Subcommand Organization
 
-- **Group related functionality**: Each subcommand should represent a distinct feature
-- **Use descriptive names**: `serve`, `build`, `test`, `deploy` are clear and intuitive
-- **Keep commands focused**: Avoid overloading single commands with too many responsibilities
+- **Group related functionality**: Each subcommand should represent a distinct
+  feature
+- **Use descriptive names**: `serve`, `build`, `test`, `deploy` are clear and
+  intuitive
+- **Keep commands focused**: Avoid overloading single commands with too many
+  responsibilities
 
 ### Global vs Command Options
 
@@ -953,11 +997,11 @@ class Config {
   // Global options - available for all commands
   @description("Enable verbose output")
   static verbose: boolean = false;
-  
+
   @description("Configuration file")
   @type("string")
   static config: string;
-  
+
   // Subcommands
   @subCommand(ServeCommand)
   static serve: ServeCommand;
@@ -973,7 +1017,7 @@ class DeployCommand {
   @oneOf(["dev", "staging", "production"])
   @required()
   static environment: string;
-  
+
   @description("Services to deploy")
   @type("string[]")
   @minLength(1)
@@ -983,7 +1027,8 @@ class DeployCommand {
 
 ## Examples
 
-See `example.ts` for a complete working example with custom validation decorators.
+See `example.ts` for a complete working example with custom validation
+decorators.
 
 ## License
 

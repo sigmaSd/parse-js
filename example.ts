@@ -6,7 +6,7 @@ import {
   required,
   subCommand,
   type,
-} from "./lib.ts";
+} from "jsr:@sigma/parse";
 import process from "node:process";
 
 ////////////////

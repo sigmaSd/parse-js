@@ -8,7 +8,7 @@ import {
   required,
   subCommand,
   type,
-} from "./lib.ts";
+} from "jsr:@sigma/parse";
 
 // Test helper to capture console output
 function captureConsoleOutput(fn: () => void): string {
