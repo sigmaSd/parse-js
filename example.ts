@@ -105,13 +105,78 @@ class TestCommand {
 }
 
 ////////////////
+// Nested subcommands example - Database operations
+//
+
+@command
+class StartDatabaseCommand {
+  @description("Database port")
+  @min(1000)
+  @max(65535)
+  static port: number = 5432;
+
+  @description("Database host")
+  static host: string = "localhost";
+
+  @description("Enable SSL connection")
+  static ssl: boolean = false;
+}
+
+@command
+class StopDatabaseCommand {
+  @description("Force stop without graceful shutdown")
+  static force: boolean = false;
+
+  @description("Timeout for graceful shutdown (seconds)")
+  @min(1)
+  @max(300)
+  static timeout: number = 30;
+}
+
+@command
+class MigrateCommand {
+  @description("Migration direction")
+  @oneOf(["up", "down"])
+  static direction: string = "up";
+
+  @description("Number of migrations to run")
+  @type("number")
+  @min(1)
+  static count: number;
+}
+
+@command
+class DatabaseCommand {
+  @description("Start the database server")
+  @subCommand(StartDatabaseCommand)
+  static start: StartDatabaseCommand;
+
+  @description("Stop the database server")
+  @subCommand(StopDatabaseCommand)
+  static stop: StopDatabaseCommand;
+
+  @description("Run database migrations")
+  @subCommand(MigrateCommand)
+  static migrate: MigrateCommand;
+
+  @description("Database name")
+  @type("string")
+  static name: string;
+
+  @description("Connection timeout (seconds)")
+  @min(1)
+  @max(60)
+  static timeout: number = 10;
+}
+
+////////////////
 // Main configuration with subcommands
 //
 
 @parse(process.argv.slice(2), {
   name: "myapp",
   description:
-    "A powerful CLI application with subcommands, validation, and help",
+    "A powerful CLI application with nested subcommands, validation, and help",
 })
 class MyArgs {
   @description("Start the development server")
@@ -125,6 +190,10 @@ class MyArgs {
   @description("Run the test suite")
   @subCommand(TestCommand)
   static test: TestCommand;
+
+  @description("Database operations")
+  @subCommand(DatabaseCommand)
+  static database: DatabaseCommand;
 
   @description("Configuration file to use")
   @type("string")
@@ -167,6 +236,31 @@ if (MyArgs.serve) {
   if (TestCommand.parallel) {
     console.log(`   Parallel workers: ${TestCommand.parallel}`);
   }
+} else if (MyArgs.database) {
+  console.log("🗄️  Database operations...");
+  if (DatabaseCommand.name) {
+    console.log(`   Database: ${DatabaseCommand.name}`);
+  }
+  console.log(`   Connection timeout: ${DatabaseCommand.timeout}s`);
+
+  if (DatabaseCommand.start) {
+    console.log("   🚀 Starting database server...");
+    console.log(`      Host: ${StartDatabaseCommand.host}`);
+    console.log(`      Port: ${StartDatabaseCommand.port}`);
+    console.log(
+      `      SSL: ${StartDatabaseCommand.ssl ? "enabled" : "disabled"}`,
+    );
+  } else if (DatabaseCommand.stop) {
+    console.log("   🛑 Stopping database server...");
+    console.log(`      Force: ${StopDatabaseCommand.force ? "yes" : "no"}`);
+    console.log(`      Graceful timeout: ${StopDatabaseCommand.timeout}s`);
+  } else if (DatabaseCommand.migrate) {
+    console.log("   📊 Running migrations...");
+    console.log(`      Direction: ${MigrateCommand.direction}`);
+    if (MigrateCommand.count) {
+      console.log(`      Count: ${MigrateCommand.count}`);
+    }
+  }
 } else {
   console.log("No command specified. Use --help to see available commands.");
 }
@@ -184,20 +278,32 @@ console.log(`   Debug: ${MyArgs.debug}`);
 // deno run example.ts build --output dist --sources src/main.ts,src/utils.ts --minify
 // deno run example.ts test --pattern user --coverage --parallel 4
 //
+// Nested subcommands (2-3 levels deep):
+// deno run example.ts database start --port 5432 --host 0.0.0.0 --ssl
+// deno run example.ts database stop --force --timeout 60
+// deno run example.ts database migrate --direction up --count 3
+// deno run example.ts --verbose database --name mydb start --port 8080
+//
 // With global options:
 // deno run example.ts --verbose --debug serve --port 8080
 // deno run example.ts --config prod.json build --output build --sources src/app.ts --env production
+// deno run example.ts --verbose database --name prod migrate --direction up
 //
 // Help commands:
 // deno run example.ts --help
 // deno run example.ts serve --help
 // deno run example.ts build --help
 // deno run example.ts test --help
+// deno run example.ts database --help
+// deno run example.ts database start --help
+// deno run example.ts database migrate --help
 //
 // Validation examples (these will fail):
 // deno run example.ts serve --port 99999  (port too high)
 // deno run example.ts build --env invalid  (invalid environment)
 // deno run example.ts test --timeout 500  (timeout too high)
+// deno run example.ts database start --port 99999  (nested validation)
+// deno run example.ts database migrate --direction invalid  (invalid direction)
 //
 // Global options only:
 // deno run example.ts --config app.json --verbose

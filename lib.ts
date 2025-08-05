@@ -92,6 +92,7 @@ function parseGlobalOptions(
   options?: { name?: string; description?: string },
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ) {
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -103,6 +104,7 @@ function parseGlobalOptions(
         options?.description,
         subCommands,
         commandName,
+        commandPath,
       );
       process.exit(0);
     }
@@ -208,6 +210,7 @@ function parseCommandClass(
   args: string[],
   appName?: string,
   commandName?: string,
+  commandPath?: string,
 ): unknown {
   // Create a temporary parse decorator for the command class
   const tempArgs = args.slice(); // Copy args to avoid mutation
@@ -242,6 +245,11 @@ function parseCommandClass(
       const propertyMetadata =
         (classMetadata?.[propName] as PropertyMetadata) || {};
 
+      // Skip subcommand properties - they'll be handled separately
+      if (propertyMetadata.subCommand) {
+        continue;
+      }
+
       let type: "string" | "number" | "boolean" | "string[]" | "number[]";
       try {
         type = extractTypeFromDescriptor(
@@ -267,19 +275,47 @@ function parseCommandClass(
     }
   }
 
-  // Parse the command arguments
+  // Collect subcommands from metadata (for nested subcommands)
+  const subCommands = new Map<string, SubCommand>();
+  for (const propName of propertyNames) {
+    if (
+      propName === "length" || propName === "name" ||
+      propName === "prototype"
+    ) {
+      continue;
+    }
+
+    const propertyMetadata = classMetadata?.[propName] as PropertyMetadata;
+    if (propertyMetadata?.subCommand) {
+      subCommands.set(propName, {
+        name: propName,
+        commandClass: propertyMetadata.subCommand,
+        description: propertyMetadata.description,
+      });
+    }
+  }
+
+  // Parse the command arguments with potential nested subcommands
   const parsed = parseArguments(
     tempArgs,
     parsedArgs,
     { name: appName },
-    undefined,
+    subCommands.size > 0 ? subCommands : undefined,
     commandName,
+    commandPath,
   );
 
   // Apply parsed values to command class
   for (const arg of parsedArgs) {
     if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
       klass[arg.name] = parsed[arg.name];
+    }
+  }
+
+  // Set subcommand instances
+  for (const [name, _subCommand] of subCommands) {
+    if (Object.prototype.hasOwnProperty.call(parsed, name)) {
+      klass[name] = parsed[name];
     }
   }
 
@@ -293,6 +329,7 @@ function parseArguments(
   options?: { name?: string; description?: string },
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ): Record<string, string | number | boolean | string[] | number[] | unknown> {
   const result: Record<
     string,
@@ -333,14 +370,19 @@ function parseArguments(
       options,
       subCommands,
       commandName,
+      commandPath,
     );
 
-    // Parse subcommand
+    // Parse subcommand with updated command path
+    const newCommandPath = commandPath
+      ? `${commandPath} ${subCommandName}`
+      : subCommandName;
     const commandInstance = parseCommandClass(
       subCommand.commandClass,
       subCommandArgs,
       options?.name,
       subCommandName,
+      newCommandPath,
     );
 
     result[subCommandName] = commandInstance;
@@ -356,6 +398,7 @@ function parseArguments(
     options,
     subCommands,
     commandName,
+    commandPath,
   );
 
   // Validate all properties after parsing
@@ -384,6 +427,7 @@ function printHelp(
   appDescription?: string,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
+  commandPath?: string,
 ) {
   if (appName && appDescription) {
     console.log(`${appName}`);
@@ -395,11 +439,31 @@ function printHelp(
   console.log("Usage:");
   if (commandName) {
     // This is help for a specific subcommand
-    console.log(
-      `  ${appName || "[runtime] script.js"} ${commandName} [options]`,
-    );
-    console.log("");
-    console.log("Options:");
+    const fullCommandPath = commandPath || commandName;
+    const hasSubCommands = subCommands && subCommands.size > 0;
+    if (hasSubCommands) {
+      console.log(
+        `  ${
+          appName || "[runtime] script.js"
+        } ${fullCommandPath} <command> [options]`,
+      );
+      console.log("");
+      console.log("Commands:");
+      for (const [name, subCommand] of subCommands) {
+        console.log(`  ${name}`);
+        if (subCommand.description) {
+          console.log(`      ${subCommand.description}`);
+        }
+      }
+      console.log("");
+      console.log("Options:");
+    } else {
+      console.log(
+        `  ${appName || "[runtime] script.js"} ${fullCommandPath} [options]`,
+      );
+      console.log("");
+      console.log("Options:");
+    }
   } else if (subCommands && subCommands.size > 0) {
     console.log(`  ${appName || "[runtime] script.js"} <command> [options]`);
     console.log("");

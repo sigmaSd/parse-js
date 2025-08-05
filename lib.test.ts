@@ -1,4 +1,8 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import {
+  assertEquals,
+  assertStringIncludes,
+  assertThrows,
+} from "jsr:@std/assert@1";
 import process from "node:process";
 import {
   addValidator,
@@ -927,4 +931,257 @@ Deno.test("Mixed global and subcommand properties", () => {
   assertEquals(ServeCommand.host, "0.0.0.0");
   assertEquals(Config.config, undefined);
   assertEquals(Config.verbose, false);
+});
+
+Deno.test("Nested subcommands - two levels deep", () => {
+  @command
+  class StartCommand {
+    static port: number = 5432;
+    static host: string = "localhost";
+  }
+
+  @command
+  class StopCommand {
+    static force: boolean = false;
+  }
+
+  @command
+  class DatabaseCommand {
+    @subCommand(StartCommand)
+    static start: StartCommand;
+
+    @subCommand(StopCommand)
+    static stop: StopCommand;
+
+    static timeout: number = 30;
+  }
+
+  @parse(["database", "start", "--port", "8080", "--host", "0.0.0.0"])
+  class Config {
+    @subCommand(DatabaseCommand)
+    static database: DatabaseCommand;
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.database instanceof DatabaseCommand, true);
+  assertEquals(DatabaseCommand.start instanceof StartCommand, true);
+  assertEquals(StartCommand.port, 8080);
+  assertEquals(StartCommand.host, "0.0.0.0");
+  assertEquals(DatabaseCommand.timeout, 30);
+  assertEquals(Config.verbose, false);
+});
+
+Deno.test("Nested subcommands - global options with nested commands", () => {
+  @command
+  class RestartCommand {
+    static graceful: boolean = false;
+  }
+
+  @command
+  class ServiceCommand {
+    @subCommand(RestartCommand)
+    static restart: RestartCommand;
+
+    static serviceName = "default";
+  }
+
+  @parse([
+    "--verbose",
+    "service",
+    "--serviceName",
+    "web",
+    "restart",
+    "--graceful",
+  ])
+  class Config {
+    @subCommand(ServiceCommand)
+    static service: ServiceCommand;
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.verbose, true);
+  assertEquals(Config.service instanceof ServiceCommand, true);
+  assertEquals(ServiceCommand.serviceName, "web");
+  assertEquals(ServiceCommand.restart instanceof RestartCommand, true);
+  assertEquals(RestartCommand.graceful, true);
+});
+
+Deno.test("Nested subcommands - three levels deep", () => {
+  @command
+  class CreateCommand {
+    static tableName = "default";
+  }
+
+  @command
+  class TableCommand {
+    @subCommand(CreateCommand)
+    static create: CreateCommand;
+
+    static schema: string = "public";
+  }
+
+  @command
+  class DatabaseCommand {
+    @subCommand(TableCommand)
+    static table: TableCommand;
+
+    static connection: string = "local";
+  }
+
+  @parse([
+    "database",
+    "--connection",
+    "remote",
+    "table",
+    "--schema",
+    "admin",
+    "create",
+    "--tableName",
+    "users",
+  ])
+  class Config {
+    @subCommand(DatabaseCommand)
+    static database: DatabaseCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.database instanceof DatabaseCommand, true);
+  assertEquals(DatabaseCommand.connection, "remote");
+  assertEquals(DatabaseCommand.table instanceof TableCommand, true);
+  assertEquals(TableCommand.schema, "admin");
+  assertEquals(TableCommand.create instanceof CreateCommand, true);
+  assertEquals(CreateCommand.tableName, "users");
+  assertEquals(Config.debug, false);
+});
+
+Deno.test("Nested subcommands - help shows proper command path", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class StartCommand {
+          static port: number = 5432;
+        }
+
+        @command
+        class DatabaseCommand {
+          @description("Start the database")
+          @subCommand(StartCommand)
+          static start: StartCommand;
+        }
+
+        @parse(["database", "start", "--help"])
+        class _Config {
+          @description("Database operations")
+          @subCommand(DatabaseCommand)
+          static database: DatabaseCommand;
+        }
+      } catch (_error) {
+        // Expected - help exits
+      }
+    });
+
+    assertStringIncludes(output, "database start [options]");
+    assertStringIncludes(output, "Options:");
+    assertStringIncludes(output, "--port");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Nested subcommands - help shows nested commands", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class StartCommand {
+          static port: number = 5432;
+        }
+
+        @command
+        class StopCommand {
+          static force: boolean = false;
+        }
+
+        @command
+        class DatabaseCommand {
+          @description("Start the database")
+          @subCommand(StartCommand)
+          static start: StartCommand;
+
+          @description("Stop the database")
+          @subCommand(StopCommand)
+          static stop: StopCommand;
+        }
+
+        @parse(["database", "--help"])
+        class _Config {
+          @description("Database operations")
+          @subCommand(DatabaseCommand)
+          static database: DatabaseCommand;
+        }
+      } catch (_error) {
+        // Expected - help exits
+      }
+    });
+
+    assertStringIncludes(output, "database <command> [options]");
+    assertStringIncludes(output, "Commands:");
+    assertStringIncludes(output, "start");
+    assertStringIncludes(output, "Start the database");
+    assertStringIncludes(output, "stop");
+    assertStringIncludes(output, "Stop the database");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Nested subcommands - different command paths", () => {
+  @command
+  class BuildCommand {
+    static output: string = "dist";
+  }
+
+  @command
+  class TestCommand {
+    static coverage: boolean = false;
+  }
+
+  @command
+  class ProjectCommand {
+    @subCommand(BuildCommand)
+    static build: BuildCommand;
+
+    @subCommand(TestCommand)
+    static test: TestCommand;
+  }
+
+  // Test first path
+  @parse(["project", "build", "--output", "build"])
+  class Config1 {
+    @subCommand(ProjectCommand)
+    static project: ProjectCommand;
+  }
+
+  assertEquals(Config1.project instanceof ProjectCommand, true);
+  assertEquals(ProjectCommand.build instanceof BuildCommand, true);
+  assertEquals(BuildCommand.output, "build");
+
+  // Test second path
+  @parse(["project", "test", "--coverage"])
+  class Config2 {
+    @subCommand(ProjectCommand)
+    static project: ProjectCommand;
+  }
+
+  assertEquals(Config2.project instanceof ProjectCommand, true);
+  assertEquals(ProjectCommand.test instanceof TestCommand, true);
+  assertEquals(TestCommand.coverage, true);
 });

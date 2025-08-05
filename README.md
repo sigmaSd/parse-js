@@ -1025,6 +1025,137 @@ class DeployCommand {
 }
 ```
 
+## Nested Subcommands
+
+The library supports nested subcommands (subcommands within subcommands) to create hierarchical command structures like `git remote add` or `docker container run`.
+
+### Basic Nested Subcommands
+
+```typescript
+@command
+class StartCommand {
+  static port: number = 5432;
+  static host: string = "localhost";
+}
+
+@command
+class StopCommand {
+  static force: boolean = false;
+}
+
+@command
+class DatabaseCommand {
+  @description("Start the database server")
+  @subCommand(StartCommand)
+  static start: StartCommand;
+
+  @description("Stop the database server")
+  @subCommand(StopCommand)
+  static stop: StopCommand;
+
+  static timeout: number = 30;
+}
+
+@parse(process.argv.slice(2), { name: "myapp" })
+class Config {
+  @description("Database operations")
+  @subCommand(DatabaseCommand)
+  static database: DatabaseCommand;
+
+  static verbose: boolean = false;
+}
+```
+
+### Usage Examples
+
+```bash
+# Two-level nested command
+myapp database start --port 8080 --host 0.0.0.0
+
+# With global and intermediate options
+myapp --verbose database --timeout 60 start --port 8080
+
+# Three-level nested commands are also supported
+myapp database table create --name users
+```
+
+### Multi-Level Command Hierarchy
+
+```typescript
+@command
+class CreateTableCommand {
+  static tableName: string = "default";
+}
+
+@command
+class TableCommand {
+  @subCommand(CreateTableCommand)
+  static create: CreateTableCommand;
+
+  static schema: string = "public";
+}
+
+@command
+class DatabaseCommand {
+  @subCommand(TableCommand)
+  static table: TableCommand;
+
+  static connection: string = "local";
+}
+
+@parse(process.argv.slice(2))
+class Config {
+  @subCommand(DatabaseCommand)
+  static database: DatabaseCommand;
+}
+
+// Usage: myapp database --connection remote table --schema admin create --tableName users
+```
+
+### Nested Subcommand Help
+
+Help works automatically at every level:
+
+```bash
+myapp --help                    # Shows top-level commands
+myapp database --help           # Shows database subcommands
+myapp database start --help     # Shows start command options
+```
+
+### Best Practices for Nested Commands
+
+1. **Logical Grouping**: Group related functionality together
+   ```typescript
+   // Good: git remote add, git remote remove
+   // Bad: mixing unrelated commands at the same level
+   ```
+
+2. **Consistent Naming**: Use clear, consistent naming patterns
+   ```typescript
+   // Good: database start, database stop, database restart
+   // Bad: database begin, database halt, database reboot
+   ```
+
+3. **Reasonable Depth**: Avoid excessive nesting (2-3 levels is usually sufficient)
+   ```typescript
+   // Good: app database migrate up
+   // Questionable: app environment production database primary migrate schema up
+   ```
+
+### Property Name Restrictions in Nested Commands
+
+Be aware that certain property names are reserved and cannot be used:
+
+```typescript
+@command
+class MyCommand {
+  static serviceName = "web";  // ✅ Good
+  static name = "web";         // ❌ Bad - 'name' is reserved
+  static length = 5;           // ❌ Bad - 'length' is reserved
+  static prototype = {};       // ❌ Bad - 'prototype' is reserved
+}
+```
+
 ## Examples
 
 See `example.ts` for a complete working example with custom validation
