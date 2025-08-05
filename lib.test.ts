@@ -6,6 +6,7 @@ import {
 import process from "node:process";
 import {
   addValidator,
+  argument,
   command,
   description,
   parse,
@@ -1184,4 +1185,184 @@ Deno.test("Nested subcommands - different command paths", () => {
   assertEquals(Config2.project instanceof ProjectCommand, true);
   assertEquals(ProjectCommand.test instanceof TestCommand, true);
   assertEquals(TestCommand.coverage, true);
+});
+
+Deno.test("Positional arguments - basic usage", () => {
+  @parse(["source.txt", "dest.txt"])
+  class Config {
+    @argument(0, "Source file path")
+    @required()
+    static source: string;
+
+    @argument(1, "Destination file path")
+    static dest: string = "output.txt";
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.source, "source.txt");
+  assertEquals(Config.dest, "dest.txt");
+  assertEquals(Config.verbose, false);
+});
+
+Deno.test("Positional arguments - with options", () => {
+  @parse(["input.txt", "output.txt", "--verbose"])
+  class Config {
+    @argument(0, "Input file")
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "default.txt";
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.input, "input.txt");
+  assertEquals(Config.output, "output.txt");
+  assertEquals(Config.verbose, true);
+});
+
+Deno.test("Positional arguments - mixed with options", () => {
+  @parse(["--debug", "source.txt", "--force", "dest.txt"])
+  class Config {
+    @argument(0, "Source file")
+    static source: string;
+
+    @argument(1, "Destination file")
+    static dest: string;
+
+    static debug: boolean = false;
+    static force: boolean = false;
+  }
+
+  assertEquals(Config.source, "source.txt");
+  assertEquals(Config.dest, "dest.txt");
+  assertEquals(Config.debug, true);
+  assertEquals(Config.force, true);
+});
+
+Deno.test("Positional arguments - rest arguments", () => {
+  @parse(["first.txt", "second.txt", "third.txt", "fourth.txt"])
+  class Config {
+    @argument(0, "First file")
+    static first: string;
+
+    @argument(1, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[];
+  }
+
+  assertEquals(Config.first, "first.txt");
+  assertEquals(Config.files, ["second.txt", "third.txt", "fourth.txt"]);
+});
+
+Deno.test("Positional arguments - with default values", () => {
+  @parse(["input.txt"])
+  class Config {
+    @argument(0, "Input file")
+    static input: string;
+
+    @argument(1, "Output file")
+    static output: string = "default_output.txt";
+
+    @argument(2, "Additional files", { rest: true })
+    @type("string[]")
+    static files: string[] = [];
+  }
+
+  assertEquals(Config.input, "input.txt");
+  assertEquals(Config.output, "default_output.txt");
+  assertEquals(Config.files, []);
+});
+
+Deno.test("Positional arguments - number types", () => {
+  @parse(["42", "3.14"])
+  class Config {
+    @argument(0, "Integer value")
+    static count: number = 0;
+
+    @argument(1, "Float value")
+    static ratio: number = 1.0;
+  }
+
+  assertEquals(Config.count, 42);
+  assertEquals(Config.ratio, 3.14);
+});
+
+Deno.test("Positional arguments - with validation", () => {
+  function min(minValue: number) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "number" && value < minValue) {
+        return `must be at least ${minValue}`;
+      }
+      return null;
+    });
+  }
+
+  @parse(["5"])
+  class Config {
+    @argument(0, "Count value")
+    @min(1)
+    static count: number = 0;
+  }
+
+  assertEquals(Config.count, 5);
+});
+
+Deno.test("Positional arguments - sequential position validation error", () => {
+  assertThrows(
+    () => {
+      @parse(["test"])
+      class _Config {
+        @argument(0, "First")
+        static first: string;
+
+        @argument(2, "Third") // Error: should be position 1
+        static third: string;
+      }
+    },
+    Error,
+    "Argument positions must be sequential starting from 0",
+  );
+});
+
+Deno.test("Positional arguments - rest argument not last error", () => {
+  assertThrows(
+    () => {
+      @parse(["test"])
+      class _Config {
+        @argument(0, "Files", { rest: true })
+        @type("string[]")
+        static files: string[];
+
+        @argument(1, "Output") // Error: rest must be last
+        static output: string;
+      }
+    },
+    Error,
+    "Only the last argument can be marked as rest",
+  );
+});
+
+Deno.test("Positional arguments - with subcommands", () => {
+  @command
+  class RunCommand {
+    @argument(0, "Script path")
+    static script: string;
+
+    static verbose: boolean = false;
+  }
+
+  @parse(["run", "test.js", "--verbose"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.run instanceof RunCommand, true);
+  assertEquals(RunCommand.script, "test.js");
+  assertEquals(RunCommand.verbose, true);
+  assertEquals(Config.debug, false);
 });

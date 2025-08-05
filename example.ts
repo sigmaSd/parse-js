@@ -1,5 +1,6 @@
 import {
   addValidator,
+  argument,
   command,
   description,
   parse,
@@ -104,6 +105,27 @@ class TestCommand {
   static timeout: number = 30;
 }
 
+@command
+class ProcessCommand {
+  @argument(0, "Input file to process")
+  @required()
+  static input: string;
+
+  @argument(1, "Output file path")
+  static output: string = "processed.txt";
+
+  @argument(2, "Additional files to include", { rest: true })
+  @type("string[]")
+  static files: string[] = [];
+
+  @description("Processing format")
+  @oneOf(["json", "xml", "csv"])
+  static format: string = "json";
+
+  @description("Enable verbose output")
+  static verbose: boolean = false;
+}
+
 ////////////////
 // Nested subcommands example - Database operations
 //
@@ -191,6 +213,10 @@ class MyArgs {
   @subCommand(TestCommand)
   static test: TestCommand;
 
+  @description("Process files with positional arguments")
+  @subCommand(ProcessCommand)
+  static process: ProcessCommand;
+
   @description("Database operations")
   @subCommand(DatabaseCommand)
   static database: DatabaseCommand;
@@ -236,6 +262,15 @@ if (MyArgs.serve) {
   if (TestCommand.parallel) {
     console.log(`   Parallel workers: ${TestCommand.parallel}`);
   }
+} else if (MyArgs.process) {
+  console.log("📄 Processing files...");
+  console.log(`   Input: ${ProcessCommand.input}`);
+  console.log(`   Output: ${ProcessCommand.output}`);
+  console.log(`   Format: ${ProcessCommand.format}`);
+  console.log(`   Verbose: ${ProcessCommand.verbose ? "enabled" : "disabled"}`);
+  if (ProcessCommand.files.length > 0) {
+    console.log(`   Additional files: ${ProcessCommand.files.join(", ")}`);
+  }
 } else if (MyArgs.database) {
   console.log("🗄️  Database operations...");
   if (DatabaseCommand.name) {
@@ -277,6 +312,7 @@ console.log(`   Debug: ${MyArgs.debug}`);
 // deno run example.ts serve --port 3000 --host 0.0.0.0
 // deno run example.ts build --output dist --sources src/main.ts,src/utils.ts --minify
 // deno run example.ts test --pattern user --coverage --parallel 4
+// deno run example.ts process input.txt output.json extra1.txt extra2.txt --format json --verbose
 //
 // Nested subcommands (2-3 levels deep):
 // deno run example.ts database start --port 5432 --host 0.0.0.0 --ssl
@@ -294,6 +330,7 @@ console.log(`   Debug: ${MyArgs.debug}`);
 // deno run example.ts serve --help
 // deno run example.ts build --help
 // deno run example.ts test --help
+// deno run example.ts process --help
 // deno run example.ts database --help
 // deno run example.ts database start --help
 // deno run example.ts database migrate --help
