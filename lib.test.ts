@@ -1,6 +1,6 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
 import process from "node:process";
-import { addValidator, parse, required, type } from "./lib.ts";
+import { addValidator, description, parse, required, type } from "./lib.ts";
 
 // Test helper to capture console output
 function captureConsoleOutput(fn: () => void): string {
@@ -412,6 +412,95 @@ Deno.test("Validation on default values", () => {
 
     assertEquals(exitCode, 1);
     assertEquals(output, "Validation error for --port: must be at least 10");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Description decorator in help output", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"])
+        class _Config {
+          @description("The port number to listen on")
+          static port: number = 8080;
+
+          @description("Enable verbose logging")
+          static debug: boolean = false;
+
+          @type("string")
+          @description("API endpoint URL")
+          static apiUrl: string;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("The port number to listen on"), true);
+    assertEquals(output.includes("Enable verbose logging"), true);
+    assertEquals(output.includes("API endpoint URL"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("App name and description in help output", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          name: "testapp",
+          description: "A test CLI application for demonstration",
+        })
+        class _Config {
+          @description("The port number to listen on")
+          static port: number = 8080;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("testapp"), true);
+    assertEquals(
+      output.includes("A test CLI application for demonstration"),
+      true,
+    );
+    assertEquals(output.includes("Usage:\n  testapp [options]"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Parse without app info (backward compatibility)", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"])
+        class _Config {
+          static port: number = 8080;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(
+      output.includes("Usage:\n  [runtime] script.js [options]"),
+      true,
+    );
+    assertEquals(output.includes("Options:"), true);
   } finally {
     restoreProcessExit();
   }

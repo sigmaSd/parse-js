@@ -1,4 +1,4 @@
-import { addValidator, parse, required, type } from "./lib.ts";
+import { addValidator, description, parse, required, type } from "./lib.ts";
 import process from "node:process";
 
 ////////////////
@@ -45,29 +45,38 @@ function oneOf(choices: string[]) {
 // Usage example
 //
 
-@parse(process.argv.slice(2))
+@parse(process.argv.slice(2), {
+  name: "myapp",
+  description: "A demonstration CLI application with validation and help text",
+})
 class MyArgs {
+  @description("Color theme to use for the application")
   @oneOf(["red", "blue", "green", "yellow"])
   static color: string = "red";
 
+  @description("Size of the output (must be between 1 and 9)")
   @inferior_to_10()
   @min(1)
   static size: number = 5;
 
+  @description("Request timeout in seconds (required)")
   @type("number")
   @max(100)
   @min(10)
   @required()
   static timeout: number;
 
+  @description("Number of retry attempts (1-10)")
   @type("number")
   @min(1)
   @max(10)
   static retries: number; // Optional number property
 
+  @description("Host address to connect to")
   @type("string")
   static host: string; // Optional string property
 
+  @description("Enable debug logging")
   static debug: boolean = false;
 }
 

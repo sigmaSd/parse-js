@@ -9,6 +9,7 @@ A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaS
 - 🏷️ **Explicit typing**: Use `@type()` decorator for properties without defaults
 - ✅ **Validation system**: Extensible validation with custom decorators
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
+- 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🚀 **Zero dependencies**: Pure TypeScript/JavaScript
 - 🎨 **Clean API**: Uses modern decorator metadata - no manual class names needed
 - 🔧 **Flexible**: Support for required fields, optional properties, and complex validation
@@ -18,7 +19,7 @@ A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaS
 ### Basic Usage
 
 ```typescript
-import { parse } from "jsr:@sigma/parse";
+import { parse } from "./lib.ts";
 
 @parse(Deno.args)
 class Config {
@@ -32,10 +33,26 @@ console.log(`Server running on ${Config.host}:${Config.port}`);
 console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ```
 
-### With Type Specification and Validation
+### With App Information
 
 ```typescript
-import { addValidator, parse, required, type } from "jsr:@sigma/parse";
+import { parse } from "./lib.ts";
+
+@parse(Deno.args, {
+  name: "myserver",
+  description: "A simple HTTP server with configurable options"
+})
+class Config {
+  static port: number = 8000;
+  static host: string = "localhost";
+  static debug: boolean = false;
+}
+```
+
+### With Type Specification, Validation, and Help Text
+
+```typescript
+import { addValidator, description, parse, required, type } from "./lib.ts";
 
 // Custom validation decorators
 function min(minValue: number) {
@@ -58,20 +75,25 @@ function oneOf(choices: string[]) {
 
 @parse(Deno.args)
 class Config {
+  @description("Port number to listen on")
   @min(1)
-  static port: number = 8000;
+  static port: number = 8080;
 
+  @description("Environment to run in")
   @oneOf(["development", "production", "test"])
   static env: string = "development";
 
+  @description("Request timeout in seconds (required)")
   @type("number")
   @min(10)
   @required()
   static timeout: number; // Required property without default
 
+  @description("Host address to connect to")
   @type("string")
   static host: string; // Optional property without default
 
+  @description("Enable debug logging")
   static debug: boolean = false;
 }
 ```
@@ -99,15 +121,27 @@ deno run app.ts --help
 
 ## API Reference
 
-### `@parse(args)`
+### `@parse(args, options?)`
 
 Class decorator factory that enables CLI argument parsing for static class properties.
 
 **Parameters:**
 - `args: string[]` - The array of arguments to parse
+- `options?: object` - Optional app configuration
+  - `name?: string` - The name of the application (shown in help)
+  - `description?: string` - A brief description of the application (shown in help)
 
 ```typescript
 @parse(Deno.args)
+class MyConfig {
+  static value: string = "default";
+}
+
+// With app information
+@parse(Deno.args, {
+  name: "myapp",
+  description: "A CLI tool for processing data"
+})
 class MyConfig {
   static value: string = "default";
 }
@@ -150,6 +184,29 @@ class Config {
   @type("string")
   @required()
   static apiKey: string;
+}
+```
+
+### `@description(text)`
+
+Decorator to add help text for properties that will be shown in the `--help` output.
+
+**Parameters:**
+- `text: string` - The description text to show in help
+
+```typescript
+@parse(Deno.args)
+class Config {
+  @description("The port number to listen on")
+  static port: number = 8080;
+
+  @description("Enable verbose logging output")
+  static debug: boolean = false;
+
+  @type("string")
+  @description("API endpoint URL")
+  @required()
+  static apiUrl: string;
 }
 ```
 
@@ -199,6 +256,7 @@ function max(maxValue: number) {
 
 @parse(Deno.args)
 class Config {
+  @description("Port number to listen on (1-65535)")
   @min(1)
   @max(65535)
   static port: number = 8000;
@@ -219,6 +277,7 @@ function oneOf(choices: string[]) {
 
 @parse(Deno.args)
 class Config {
+  @description("Color theme to use")
   @oneOf(["red", "blue", "green", "yellow"])
   static color: string = "red";
 }
@@ -238,6 +297,7 @@ function pattern(regex: RegExp, message: string) {
 
 @parse(Deno.args)
 class Config {
+  @description("Application name (alphanumeric, hyphens, underscores only)")
   @pattern(
     /^[a-zA-Z0-9_-]+$/,
     "must contain only alphanumeric characters, hyphens, and underscores"
@@ -268,8 +328,13 @@ function myRequired() {
 ```typescript
 @parse(Deno.args)
 class Config {
+  @description("Port number to listen on")
   static port: number = 8000;      // Inferred as number
+  
+  @description("Host address to bind to")
   static host: string = "localhost"; // Inferred as string
+  
+  @description("Enable debug mode")
   static debug: boolean = false;    // Inferred as boolean
 }
 ```
@@ -279,13 +344,16 @@ class Config {
 ```typescript
 @parse(Deno.args)
 class Config {
+  @description("Request timeout in seconds")
   @type("number")
   static timeout: number;  // Optional number property
 
+  @description("API key for authentication (required)")
   @type("string")
   @required()
   static apiKey: string;   // Required string property
 
+  @description("Enable verbose output")
   @type("boolean")
   static verbose: boolean; // Optional boolean property
 }
@@ -297,15 +365,20 @@ class Config {
 @parse(Deno.args)
 class Config {
   // Properties with defaults (type inferred)
+  @description("Port number to listen on")
   static port: number = 8000;
+  
+  @description("Enable debug logging")
   static debug: boolean = false;
 
   // Required property without default
+  @description("API key for authentication (required)")
   @type("string")
   @required()
   static apiKey: string;
 
   // Optional property without default
+  @description("Number of retry attempts (1-10)")
   @type("number")
   @min(1)
   @max(10)
@@ -358,9 +431,37 @@ Usage:
 
 Options:
   -p, --port <number>
+      Port number to listen on
   -a, --apiKey <string>
+      API key for authentication (required)
   -r, --retries <number>
+      Number of retry attempts (1-10)
   -d, --debug
+      Enable debug logging
+  -h, --help
+      Show this help message
+```
+
+### With App Information
+
+When you provide app name and description, the help output becomes more informative:
+
+```bash
+$ deno run app.ts --help
+myserver
+
+A simple HTTP server with configurable options
+
+Usage:
+  myserver [options]
+
+Options:
+  -p, --port <number>
+      Port number to listen on
+  -h, --host <string>
+      Host address to bind to
+  -d, --debug
+      Enable debug logging
   -h, --help
       Show this help message
 ```

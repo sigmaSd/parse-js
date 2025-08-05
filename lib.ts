@@ -19,6 +19,7 @@ interface ParsedArg {
 interface PropertyMetadata {
   type?: "string" | "number" | "boolean";
   validators?: Validator[];
+  description?: string;
 }
 
 function extractTypeFromDescriptor(
@@ -60,6 +61,7 @@ function validateValue(
 function parseArguments(
   args: string[],
   parsedArgs: ParsedArg[],
+  options?: { name?: string; description?: string },
 ): Record<string, string | number | boolean> {
   const result: Record<string, string | number | boolean> = {};
   const argMap = new Map(parsedArgs.map((arg) => [arg.name, arg]));
@@ -68,17 +70,15 @@ function parseArguments(
     const arg = args[i];
 
     if (arg === "--help" || arg === "-h") {
-      printHelp(parsedArgs);
+      printHelp(parsedArgs, options?.name, options?.description);
       process.exit(0);
     }
 
     if (arg.startsWith("--")) {
-      const [key, value] = arg.includes("=")
-        ? arg.slice(2).split("=", 2)
-        : [
-          arg.slice(2),
-          args[i + 1]?.startsWith("--") ? undefined : args[i + 1],
-        ];
+      const [key, value] = arg.includes("=") ? arg.slice(2).split("=", 2) : [
+        arg.slice(2),
+        args[i + 1]?.startsWith("--") ? undefined : args[i + 1],
+      ];
 
       const argDef = argMap.get(key);
       if (!argDef) {
@@ -157,9 +157,20 @@ function parseArguments(
   return result;
 }
 
-function printHelp(parsedArgs: ParsedArg[]) {
+function printHelp(
+  parsedArgs: ParsedArg[],
+  appName?: string,
+  appDescription?: string,
+) {
+  if (appName && appDescription) {
+    console.log(`${appName}`);
+    console.log("");
+    console.log(appDescription);
+    console.log("");
+  }
+
   console.log("Usage:");
-  console.log("  [runtime] script.js [options]");
+  console.log(`  ${appName || "[runtime] script.js"} [options]`);
   console.log("");
   console.log("Options:");
 
@@ -183,6 +194,9 @@ function printHelp(parsedArgs: ParsedArg[]) {
  * Class decorator factory that enables CLI argument parsing for static class properties.
  *
  * @param args - The array of arguments to parse
+ * @param options - Optional app configuration
+ * @param options.name - The name of the application (shown in help)
+ * @param options.description - A brief description of the application (shown in help)
  * @returns A decorator function
  *
  * @example
@@ -193,10 +207,17 @@ function printHelp(parsedArgs: ParsedArg[]) {
  *   static port: number = 8000;
  *   static debug: boolean = false;
  * }
+ *
+ * // With app info
+ * @parse(args, { name: "myapp", description: "A simple web server" })
+ * class Config {
+ *   static port: number = 8000;
+ * }
  * ```
  */
 export function parse(
   args: string[],
+  options?: { name?: string; description?: string },
 ): <T extends new () => unknown>(target: T, ctx: ClassDecoratorContext) => T {
   return function <T extends new () => unknown>(
     target: T,
@@ -248,12 +269,13 @@ export function parse(
             type,
             default: descriptor.value,
             validators: propertyMetadata.validators || [],
+            description: propertyMetadata.description,
           });
         }
       }
 
       // Parse the provided arguments
-      const parsed = parseArguments(args, parsedArgs);
+      const parsed = parseArguments(args, parsedArgs, options);
 
       // Set values on the class
       for (const arg of parsedArgs) {
@@ -299,6 +321,40 @@ export function type(t: "string" | "number" | "boolean") {
     const propertyMetadata =
       (context.metadata[context.name] as PropertyMetadata) || {};
     propertyMetadata.type = t;
+    context.metadata[context.name] = propertyMetadata;
+  };
+}
+
+/**
+ * Description decorator to add help text for properties.
+ *
+ * @param text - The description text to show in help
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * @description("The port number to listen on")
+ * static port: number = 8080;
+ * ```
+ */
+export function description(text: string) {
+  return function (
+    _target: unknown,
+    context: {
+      name: string | symbol;
+      metadata?: Record<string | symbol, unknown>;
+    },
+  ) {
+    if (!context.metadata) {
+      throw new Error(
+        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+      );
+    }
+
+    const propertyMetadata =
+      (context.metadata[context.name] as PropertyMetadata) || {};
+
+    propertyMetadata.description = text;
     context.metadata[context.name] = propertyMetadata;
   };
 }
