@@ -182,18 +182,17 @@ function printHelp(
   console.log("Options:");
 
   for (const arg of parsedArgs) {
-    const shortFlag = `-${arg.name[0]}`;
     const longFlag = `--${arg.name}`;
     const typeHint = arg.type === "boolean" ? "" : ` <${arg.type}>`;
     const description = arg.description || "";
 
-    console.log(`  ${shortFlag}, ${longFlag}${typeHint}`);
+    console.log(`  ${longFlag}${typeHint}`);
     if (description) {
       console.log(`      ${description}`);
     }
   }
 
-  console.log("  -h, --help");
+  console.log("  --help");
   console.log("      Show this help message");
 }
 
