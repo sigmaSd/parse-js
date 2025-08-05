@@ -1,6 +1,14 @@
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
 import process from "node:process";
-import { addValidator, description, parse, required, type } from "./lib.ts";
+import {
+  addValidator,
+  command,
+  description,
+  parse,
+  required,
+  subCommand,
+  type,
+} from "./lib.ts";
 
 // Test helper to capture console output
 function captureConsoleOutput(fn: () => void): string {
@@ -644,4 +652,279 @@ Deno.test("Mixed array and scalar arguments", () => {
   assertEquals(Config.files, ["a.txt", "b.txt"]);
   assertEquals(Config.port, 3000);
   assertEquals(Config.debug, true);
+});
+
+Deno.test("Global options with subcommands", () => {
+  @command
+  class RunCommand {
+    static force: boolean = false;
+  }
+
+  @parse(["--debug", "run", "--force"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.run instanceof RunCommand, true);
+  assertEquals(RunCommand.force, true);
+  assertEquals(Config.debug, true);
+});
+
+Deno.test("Subcommand help shows command name", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class RunCommand {
+          static force: boolean = false;
+        }
+
+        @parse(["run", "--help"], { name: "mycli" })
+        class _Config {
+          @subCommand(RunCommand)
+          static run: RunCommand;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("Usage:\n  mycli run [options]"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Global options in different positions with subcommands", () => {
+  @command
+  class ServeCommand {
+    static port: number = 8080;
+  }
+
+  @parse(["--verbose", "--config", "app.json", "serve", "--port", "3000"])
+  class Config {
+    @subCommand(ServeCommand)
+    static serve: ServeCommand;
+
+    static verbose: boolean = false;
+
+    @type("string")
+    static config: string;
+  }
+
+  assertEquals(Config.serve instanceof ServeCommand, true);
+  assertEquals(ServeCommand.port, 3000);
+  assertEquals(Config.verbose, true);
+  assertEquals(Config.config, "app.json");
+});
+
+Deno.test("Basic subcommand parsing", () => {
+  @command
+  class RunCommand {
+    static force: boolean = false;
+    static verbose: boolean = false;
+  }
+
+  @command
+  class ListCommand {
+    static color: string = "red";
+    static all: boolean = false;
+  }
+
+  @parse(["run", "--force", "--verbose"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    @subCommand(ListCommand)
+    static list: ListCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.run instanceof RunCommand, true);
+  assertEquals(Config.list, undefined);
+  assertEquals(RunCommand.force, true);
+  assertEquals(RunCommand.verbose, true);
+  assertEquals(Config.debug, false);
+});
+
+Deno.test("Subcommand with different command", () => {
+  @command
+  class RunCommand {
+    static force: boolean = false;
+  }
+
+  @command
+  class ListCommand {
+    static color: string = "red";
+    static limit: number = 10;
+  }
+
+  @parse(["list", "--color", "blue", "--limit", "20"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    @subCommand(ListCommand)
+    static list: ListCommand;
+  }
+
+  assertEquals(Config.run, undefined);
+  assertEquals(Config.list instanceof ListCommand, true);
+  assertEquals(ListCommand.color, "blue");
+  assertEquals(ListCommand.limit, 20);
+});
+
+Deno.test("Subcommand help output", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class RunCommand {
+          static force: boolean = false;
+        }
+
+        @parse(["--help"])
+        class _Config {
+          @description("Run the application")
+          @subCommand(RunCommand)
+          static run: RunCommand;
+
+          static debug: boolean = false;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("Commands:"), true);
+    assertEquals(output.includes("run"), true);
+    assertEquals(output.includes("Run the application"), true);
+    assertEquals(output.includes("Global Options:"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Subcommand with array types", () => {
+  @command
+  class BuildCommand {
+    @type("string")
+    static output: string;
+
+    @type("string[]")
+    static sources: string[];
+
+    static minify: boolean = false;
+  }
+
+  @parse([
+    "build",
+    "--output",
+    "dist",
+    "--sources",
+    "main.ts,utils.ts",
+    "--minify",
+  ])
+  class Config {
+    @subCommand(BuildCommand)
+    static build: BuildCommand;
+  }
+
+  assertEquals(Config.build instanceof BuildCommand, true);
+  assertEquals(BuildCommand.output, "dist");
+  assertEquals(BuildCommand.sources, ["main.ts", "utils.ts"]);
+  assertEquals(BuildCommand.minify, true);
+});
+
+Deno.test("Subcommand validation", () => {
+  function min(minValue: number) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "number" && value < minValue) {
+        return `must be at least ${minValue}`;
+      }
+      return null;
+    });
+  }
+
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @command
+        class TestCommand {
+          @min(10)
+          static count: number = 5;
+        }
+
+        @parse(["test"])
+        class _Config {
+          @subCommand(TestCommand)
+          static test: TestCommand;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 1);
+    assertEquals(output, "Validation error for --count: must be at least 10");
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("No subcommand selected - regular parsing", () => {
+  @command
+  class RunCommand {
+    static force: boolean = false;
+  }
+
+  @parse(["--debug"])
+  class Config {
+    @subCommand(RunCommand)
+    static run: RunCommand;
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.run, undefined);
+  assertEquals(Config.debug, true);
+});
+
+Deno.test("Mixed global and subcommand properties", () => {
+  @command
+  class ServeCommand {
+    static port: number = 8080;
+    static host: string = "localhost";
+  }
+
+  @parse(["serve", "--port", "3000", "--host", "0.0.0.0"])
+  class Config {
+    @subCommand(ServeCommand)
+    static serve: ServeCommand;
+
+    @description("Global config file")
+    @type("string")
+    static config: string;
+
+    static verbose: boolean = false;
+  }
+
+  assertEquals(Config.serve instanceof ServeCommand, true);
+  assertEquals(ServeCommand.port, 3000);
+  assertEquals(ServeCommand.host, "0.0.0.0");
+  assertEquals(Config.config, undefined);
+  assertEquals(Config.verbose, false);
 });

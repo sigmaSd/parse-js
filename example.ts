@@ -1,18 +1,17 @@
-import { addValidator, description, parse, required, type } from "./lib.ts";
+import {
+  addValidator,
+  command,
+  description,
+  parse,
+  required,
+  subCommand,
+  type,
+} from "./lib.ts";
 import process from "node:process";
 
 ////////////////
 // User-defined validation decorators
 //
-
-function inferior_to_10() {
-  return addValidator((value: unknown) => {
-    if (typeof value === "number" && value >= 10) {
-      return `must be inferior to 10, got ${value}`;
-    }
-    return null;
-  });
-}
 
 function min(minValue: number) {
   return addValidator((value: unknown) => {
@@ -42,60 +41,163 @@ function oneOf(choices: string[]) {
 }
 
 ////////////////
-// Usage example
+// Command classes for subcommands
+//
+
+@command
+class ServeCommand {
+  @description("Port number to listen on")
+  @min(1000)
+  @max(65535)
+  static port: number = 8080;
+
+  @description("Host address to bind to")
+  static host: string = "localhost";
+
+  @description("Enable HTTPS")
+  static https: boolean = false;
+
+  @description("Number of worker processes")
+  @type("number")
+  @min(1)
+  @max(16)
+  static workers: number;
+}
+
+@command
+class BuildCommand {
+  @description("Output directory")
+  @type("string")
+  @required()
+  static output: string;
+
+  @description("Source files to build")
+  @type("string[]")
+  @required()
+  static sources: string[];
+
+  @description("Enable minification")
+  static minify: boolean = false;
+
+  @description("Target environment")
+  @oneOf(["development", "production", "test"])
+  static env: string = "development";
+}
+
+@command
+class TestCommand {
+  @description("Test files pattern")
+  @type("string")
+  static pattern: string;
+
+  @description("Enable coverage reporting")
+  static coverage: boolean = false;
+
+  @description("Number of parallel workers")
+  @type("number")
+  @min(1)
+  static parallel: number;
+
+  @description("Test timeout in seconds")
+  @min(1)
+  @max(300)
+  static timeout: number = 30;
+}
+
+////////////////
+// Main configuration with subcommands
 //
 
 @parse(process.argv.slice(2), {
   name: "myapp",
-  description: "A demonstration CLI application with validation and help text",
+  description:
+    "A powerful CLI application with subcommands, validation, and help",
 })
 class MyArgs {
-  @description("Color theme to use for the application")
-  @oneOf(["red", "blue", "green", "yellow"])
-  static color: string = "red";
+  @description("Start the development server")
+  @subCommand(ServeCommand)
+  static serve: ServeCommand;
 
-  @description("Size of the output (must be between 1 and 9)")
-  @inferior_to_10()
-  @min(1)
-  static size: number = 5;
+  @description("Build the project")
+  @subCommand(BuildCommand)
+  static build: BuildCommand;
 
-  @description("Request timeout in seconds (required)")
-  @type("number")
-  @max(100)
-  @min(10)
-  @required()
-  static timeout: number;
+  @description("Run the test suite")
+  @subCommand(TestCommand)
+  static test: TestCommand;
 
-  @description("Number of retry attempts (1-10)")
-  @type("number")
-  @min(1)
-  @max(10)
-  static retries: number; // Optional number property
-
-  @description("Host address to connect to")
+  @description("Configuration file to use")
   @type("string")
-  static host: string; // Optional string property
+  static config: string;
 
-  @description("Enable debug logging")
+  @description("Enable verbose logging")
+  static verbose: boolean = false;
+
+  @description("Enable debug mode")
   static debug: boolean = false;
 }
 
-// Example usage:
-// deno run example.ts --color blue --size 8 --debug
-// deno run example.ts --color=green --size=3 --timeout=50
-// deno run example.ts --size 15  (will fail validation)
-// deno run example.ts --color purple  (will fail validation)
-// deno run example.ts --timeout 5  (will fail validation)
-// deno run example.ts --timeout 50 --retries 3 --host localhost
-// deno run example.ts --help
+////////////////
+// Command execution logic
 //
-// Can parse custom arguments for testing:
-// @parse(customArgs)             // Testing with custom args
 
-console.log("Parsed arguments:");
-console.log("Color:", MyArgs.color);
-console.log("Size:", MyArgs.size);
-console.log("Timeout:", MyArgs.timeout);
-console.log("Retries:", MyArgs.retries);
-console.log("Host:", MyArgs.host);
-console.log("Debug:", MyArgs.debug);
+console.log("=== MyApp CLI Demo ===\n");
+
+if (MyArgs.serve) {
+  console.log("🚀 Starting development server...");
+  console.log(`   Host: ${ServeCommand.host}`);
+  console.log(`   Port: ${ServeCommand.port}`);
+  console.log(`   HTTPS: ${ServeCommand.https ? "enabled" : "disabled"}`);
+  if (ServeCommand.workers) {
+    console.log(`   Workers: ${ServeCommand.workers}`);
+  }
+} else if (MyArgs.build) {
+  console.log("🔨 Building project...");
+  console.log(`   Output: ${BuildCommand.output}`);
+  console.log(`   Sources: ${BuildCommand.sources.join(", ")}`);
+  console.log(`   Environment: ${BuildCommand.env}`);
+  console.log(`   Minify: ${BuildCommand.minify ? "enabled" : "disabled"}`);
+} else if (MyArgs.test) {
+  console.log("🧪 Running tests...");
+  if (TestCommand.pattern) {
+    console.log(`   Pattern: ${TestCommand.pattern}`);
+  }
+  console.log(`   Coverage: ${TestCommand.coverage ? "enabled" : "disabled"}`);
+  console.log(`   Timeout: ${TestCommand.timeout}s`);
+  if (TestCommand.parallel) {
+    console.log(`   Parallel workers: ${TestCommand.parallel}`);
+  }
+} else {
+  console.log("No command specified. Use --help to see available commands.");
+}
+
+console.log("\nGlobal options:");
+console.log(`   Config: ${MyArgs.config || "default"}`);
+console.log(`   Verbose: ${MyArgs.verbose}`);
+console.log(`   Debug: ${MyArgs.debug}`);
+
+////////////////
+// Example usage commands:
+//
+// Basic subcommands:
+// deno run example.ts serve --port 3000 --host 0.0.0.0
+// deno run example.ts build --output dist --sources src/main.ts,src/utils.ts --minify
+// deno run example.ts test --pattern user --coverage --parallel 4
+//
+// With global options:
+// deno run example.ts --verbose --debug serve --port 8080
+// deno run example.ts --config prod.json build --output build --sources src/app.ts --env production
+//
+// Help commands:
+// deno run example.ts --help
+// deno run example.ts serve --help
+// deno run example.ts build --help
+// deno run example.ts test --help
+//
+// Validation examples (these will fail):
+// deno run example.ts serve --port 99999  (port too high)
+// deno run example.ts build --env invalid  (invalid environment)
+// deno run example.ts test --timeout 500  (timeout too high)
+//
+// Global options only:
+// deno run example.ts --config app.json --verbose

@@ -8,9 +8,11 @@ A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaS
 - 🔍 **Type inference**: Automatically detects string, number, boolean, and array types from defaults
 - 🏷️ **Explicit typing**: Use `@type()` decorator for properties without defaults
 - 📋 **Array support**: Parse comma-separated lists with `--items a,b,c`
+- 🚀 **Subcommands**: Full subcommand support with `@subCommand()` and `@command`
 - ✅ **Validation system**: Extensible validation with custom decorators
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
+- 🌐 **Global options**: Mix global and subcommand-specific options
 - 🚀 **Zero dependencies**: Pure TypeScript/JavaScript
 - 🎨 **Clean API**: Uses modern decorator metadata - no manual class names needed
 - 🔧 **Flexible**: Support for required fields, optional properties, and complex validation
@@ -99,6 +101,57 @@ class Config {
 }
 ```
 
+### With Subcommands
+
+```typescript
+import { command, description, parse, subCommand, type } from "./lib.ts";
+
+@command
+class RunCommand {
+  @description("Force the operation")
+  static force: boolean = false;
+
+  @description("Enable verbose output")
+  static verbose: boolean = false;
+
+  @description("Number of retries")
+  @type("number")
+  static retries: number;
+}
+
+@command
+class BuildCommand {
+  @description("Output directory")
+  @type("string")
+  static output: string;
+
+  @description("Enable minification")
+  static minify: boolean = false;
+}
+
+@parse(Deno.args, {
+  name: "mycli",
+  description: "A powerful CLI tool with subcommands"
+})
+class MyArgs {
+  @description("Run the application")
+  @subCommand(RunCommand)
+  static run: RunCommand;
+
+  @description("Build the project")
+  @subCommand(BuildCommand)
+  static build: BuildCommand;
+
+  @description("Enable global debug mode")
+  static debug: boolean = false;
+}
+
+// Usage examples:
+// mycli run --force --verbose --retries 3
+// mycli --debug build --output dist --minify
+// mycli run --help
+```
+
 ## Command Line Usage
 
 The library supports multiple argument formats:
@@ -119,8 +172,17 @@ deno run app.ts --debug=false
 # Arrays with comma-separated values
 deno run app.ts --files a.txt,b.txt,c.txt --ports 3000,4000,5000
 
+# Subcommands
+deno run app.ts run --force --verbose
+deno run app.ts build --output dist --minify
+
+# Global options with subcommands
+deno run app.ts --debug run --force
+deno run app.ts --config app.json build --output dist
+
 # Built-in help
 deno run app.ts --help
+deno run app.ts run --help
 ```
 
 ## API Reference
@@ -217,6 +279,38 @@ class Config {
   @description("API endpoint URL")
   @required()
   static apiUrl: string;
+}
+```
+
+### `@command`
+
+Class decorator to mark a class as a command class for subcommand parsing.
+
+```typescript
+@command
+class RunCommand {
+  static force: boolean = false;
+  static verbose: boolean = false;
+}
+```
+
+### `@subCommand(commandClass)`
+
+Decorator to associate a property with a command class for subcommand functionality.
+
+**Parameters:**
+- `commandClass: new () => unknown` - The command class to associate with this subcommand
+
+```typescript
+@parse(Deno.args)
+class Config {
+  @description("Run the application")
+  @subCommand(RunCommand)
+  static run: RunCommand;
+
+  @description("Build the project") 
+  @subCommand(BuildCommand)
+  static build: BuildCommand;
 }
 ```
 
@@ -516,6 +610,52 @@ Options:
       Enable debug logging
   --help
       Show this help message
+```
+
+### With Subcommands
+
+When using subcommands, the help output shows available commands:
+
+```bash
+$ deno run app.ts --help
+mycli
+
+A powerful CLI tool with subcommands
+
+Usage:
+  mycli <command> [options]
+
+Commands:
+  run
+      Run the application
+  build
+      Build the project
+
+Global Options:
+  --debug
+      Enable global debug mode
+  --help
+      Show this help message
+```
+
+### Subcommand-Specific Help
+
+Each subcommand has its own help:
+
+```bash
+$ deno run app.ts run --help
+Usage:
+  mycli run [options]
+
+Options:
+  --force
+      Force the operation
+  --verbose
+      Enable verbose output
+  --retries <number>
+      Number of retries
+  --help
+      Show this help message
 
 ## Array Usage Examples
 
@@ -653,6 +793,192 @@ The library includes comprehensive tests covering all functionality:
 
 ```bash
 deno test lib.test.ts
+```
+
+## Subcommand Examples
+
+### Basic Subcommand Setup
+
+```typescript
+import { command, description, parse, subCommand } from "./lib.ts";
+
+@command
+class ServeCommand {
+  @description("Port to listen on")
+  static port: number = 8080;
+  
+  @description("Host to bind to")
+  static host: string = "localhost";
+}
+
+@command  
+class TestCommand {
+  @description("Run tests matching pattern")
+  @type("string")
+  static pattern: string;
+  
+  @description("Enable coverage reporting")
+  static coverage: boolean = false;
+}
+
+@parse(Deno.args, {
+  name: "myapp",
+  description: "A web application with testing"
+})
+class Config {
+  @description("Start the web server")
+  @subCommand(ServeCommand)
+  static serve: ServeCommand;
+  
+  @description("Run the test suite")
+  @subCommand(TestCommand) 
+  static test: TestCommand;
+  
+  @description("Enable verbose logging")
+  static verbose: boolean = false;
+}
+
+// Usage examples:
+// myapp serve --port 3000 --host 0.0.0.0
+// myapp --verbose test --pattern user --coverage
+// myapp serve --help
+```
+
+### Advanced Subcommand Usage
+
+```typescript
+@command
+class DeployCommand {
+  @description("Deployment environment")
+  @oneOf(["dev", "staging", "prod"])
+  static env: string = "dev";
+  
+  @description("Services to deploy")
+  @type("string[]")
+  @required()
+  static services: string[];
+  
+  @description("Skip confirmation prompts")
+  static force: boolean = false;
+}
+
+@parse(Deno.args, { name: "deploy-tool" })
+class Config {
+  @description("Execute deployment")
+  @subCommand(DeployCommand)
+  static deploy: DeployCommand;
+  
+  @description("Configuration file path")
+  @type("string")
+  static config: string;
+}
+
+// Usage: deploy-tool --config prod.json deploy --env prod --services api,web,worker --force
+```
+
+### Checking Which Subcommand Was Used
+
+```typescript
+if (Config.serve) {
+  console.log(`Starting server on ${ServeCommand.host}:${ServeCommand.port}`);
+} else if (Config.test) {
+  console.log(`Running tests with pattern: ${TestCommand.pattern}`);
+} else {
+  console.log("No command specified, use --help for usage");
+}
+```
+
+## Subcommand Workflow
+
+### 1. Define Command Classes
+
+Mark classes with `@command` and define their options:
+
+```typescript
+@command
+class DatabaseCommand {
+  @description("Database host")
+  static host: string = "localhost";
+  
+  @description("Database port")
+  static port: number = 5432;
+  
+  @description("Enable SSL connection")
+  static ssl: boolean = false;
+}
+```
+
+### 2. Create Main Configuration Class
+
+Use `@subCommand()` to register command classes:
+
+```typescript
+@parse(Deno.args, { name: "myapp" })
+class Config {
+  @description("Database operations")
+  @subCommand(DatabaseCommand)
+  static db: DatabaseCommand;
+  
+  @description("Global debug mode")
+  static debug: boolean = false;
+}
+```
+
+### 3. Handle Subcommand Execution
+
+Check which subcommand was selected:
+
+```typescript
+if (Config.db) {
+  console.log(`Connecting to ${DatabaseCommand.host}:${DatabaseCommand.port}`);
+  // Execute database command logic
+} else {
+  console.log("Use --help to see available commands");
+}
+```
+
+## Best Practices
+
+### Subcommand Organization
+
+- **Group related functionality**: Each subcommand should represent a distinct feature
+- **Use descriptive names**: `serve`, `build`, `test`, `deploy` are clear and intuitive
+- **Keep commands focused**: Avoid overloading single commands with too many responsibilities
+
+### Global vs Command Options
+
+```typescript
+@parse(Deno.args)
+class Config {
+  // Global options - available for all commands
+  @description("Enable verbose output")
+  static verbose: boolean = false;
+  
+  @description("Configuration file")
+  @type("string")
+  static config: string;
+  
+  // Subcommands
+  @subCommand(ServeCommand)
+  static serve: ServeCommand;
+}
+```
+
+### Validation Patterns
+
+```typescript
+@command
+class DeployCommand {
+  @description("Target environment")
+  @oneOf(["dev", "staging", "production"])
+  @required()
+  static environment: string;
+  
+  @description("Services to deploy")
+  @type("string[]")
+  @minLength(1)
+  static services: string[];
+}
 ```
 
 ## Examples
