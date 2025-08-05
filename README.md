@@ -19,7 +19,7 @@ A lightweight, decorator-based CLI argument parsing library for TypeScript/JavaS
 ### Basic Usage
 
 ```typescript
-import { parse } from "./lib.ts";
+import { parse } from "jsr:@sigma/parse";
 
 @parse(Deno.args)
 class Config {
@@ -36,7 +36,7 @@ console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ### With App Information
 
 ```typescript
-import { parse } from "./lib.ts";
+import { parse } from "jsr:@sigma/parse";
 
 @parse(Deno.args, {
   name: "myserver",
@@ -52,7 +52,7 @@ class Config {
 ### With Type Specification, Validation, and Help Text
 
 ```typescript
-import { addValidator, description, parse, required, type } from "./lib.ts";
+import { addValidator, description, parse, required, type } from "jsr:@sigma/parse";
 
 // Custom validation decorators
 function min(minValue: number) {
@@ -330,10 +330,10 @@ function myRequired() {
 class Config {
   @description("Port number to listen on")
   static port: number = 8000;      // Inferred as number
-  
+
   @description("Host address to bind to")
   static host: string = "localhost"; // Inferred as string
-  
+
   @description("Enable debug mode")
   static debug: boolean = false;    // Inferred as boolean
 }
@@ -367,7 +367,7 @@ class Config {
   // Properties with defaults (type inferred)
   @description("Port number to listen on")
   static port: number = 8000;
-  
+
   @description("Enable debug logging")
   static debug: boolean = false;
 
