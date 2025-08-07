@@ -241,6 +241,8 @@ function processSingleArgument(
     const num = parseFloat(value);
     if (isNaN(num)) {
       ErrorHandlers.invalidNumber(argDef.name, value, options);
+      // If error handler returned (didn't exit/throw), skip processing
+      return;
     }
     convertedValue = num;
   }
@@ -253,6 +255,8 @@ function processSingleArgument(
     const validationError = validateValue(convertedValue, argDef.validators);
     if (validationError) {
       ErrorHandlers.validationError(argDef.name, validationError, options);
+      // If error handler returned (didn't exit/throw), skip processing
+      return;
     }
   }
 }
@@ -280,6 +284,8 @@ function processRestArgument(
       const num = parseFloat(val);
       if (isNaN(num)) {
         ErrorHandlers.invalidArrayNumber(argDef.name, val, options);
+        // If error handler returned (didn't exit/throw), skip processing
+        return;
       }
       numbers.push(num);
     }
@@ -297,6 +303,8 @@ function processRestArgument(
     );
     if (validationError) {
       ErrorHandlers.validationError(argDef.name, validationError, options);
+      // If error handler returned (didn't exit/throw), skip processing
+      return;
     }
   }
 }

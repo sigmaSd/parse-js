@@ -446,6 +446,8 @@ function validateAndSetDefaults(
             validationError,
             options,
           );
+          // If error handler returned (didn't exit/throw), skip processing
+          return;
         }
       }
     }
@@ -458,6 +460,8 @@ function validateAndSetDefaults(
         result[argDef.name] = argDef.default;
       } else if (!argDef.rest) {
         ErrorHandlers.missingRequiredArgument(index, argDef.name, options);
+        // If error handler returned (didn't exit/throw), skip processing
+        return;
       }
       // Validate positional arguments after setting defaults
       if (argDef.validators && result[argDef.name] !== undefined) {
@@ -467,6 +471,8 @@ function validateAndSetDefaults(
         );
         if (validationError) {
           ErrorHandlers.validationError(argDef.name, validationError, options);
+          // If error handler returned (didn't exit/throw), skip processing
+          return;
         }
       }
     }

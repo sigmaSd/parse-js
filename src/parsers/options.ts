@@ -85,7 +85,7 @@ export function parseGlobalOptions(
   for (let i = 0; i < argsToProcess.length; i++) {
     const arg = argsToProcess[i];
 
-    // Handle help flags specially - show help and exit immediately
+    // Handle help flags specially - show help and potentially exit
     if (arg === "--help" || arg === "-h") {
       const helpText = printHelp(
         parsedArgs,
@@ -96,6 +96,8 @@ export function parseGlobalOptions(
         commandPath,
       );
       handleHelpDisplay(helpText, options);
+      // Return early after help display to prevent further processing
+      return;
     }
 
     // Process long flags (--flag)
@@ -110,11 +112,13 @@ export function parseGlobalOptions(
       const argDef = argMap.get(key);
       if (!argDef) {
         ErrorHandlers.unknownArgument(`--${key}`, options);
+        // If error handler returned (didn't exit/throw), skip this argument
+        continue;
       }
 
       // Process the flag based on its type
       const nextArgIndex = processFlagValue(
-        argDef as ParsedArg,
+        argDef,
         key,
         value,
         hasEmbeddedValue,
@@ -203,6 +207,8 @@ function processFlagValue(
   // Non-boolean flags must have a value
   if (value === undefined) {
     ErrorHandlers.missingValue(`--${key}`, options);
+    // If error handler returned (didn't exit/throw), return current index
+    return currentIndex;
   }
 
   // TypeScript doesn't understand that process.exit never returns
@@ -250,6 +256,8 @@ function processArrayValue(
       const num = parseFloat(val.trim());
       if (isNaN(num)) {
         ErrorHandlers.invalidArrayNumber(`--${key}`, val, options);
+        // If error handler returned (didn't exit/throw), skip processing
+        return;
       }
       numbers.push(num);
     }
@@ -258,6 +266,8 @@ function processArrayValue(
     const validationError = validateValue(numbers, argDef.validators);
     if (validationError) {
       ErrorHandlers.validationError(`--${key}`, validationError, options);
+      // If error handler returned (didn't exit/throw), skip processing
+      return;
     }
 
     result[key] = numbers;
@@ -266,6 +276,8 @@ function processArrayValue(
     const validationError = validateValue(arrayValues, argDef.validators);
     if (validationError) {
       ErrorHandlers.validationError(`--${key}`, validationError, options);
+      // If error handler returned (didn't exit/throw), skip processing
+      return;
     }
 
     result[key] = arrayValues;
@@ -290,12 +302,16 @@ function processNumericValue(
   const num = parseFloat(value);
   if (isNaN(num)) {
     ErrorHandlers.invalidNumber(`--${key}`, value, options);
+    // If error handler returned (didn't exit/throw), skip processing
+    return;
   }
 
   // Validate the number
   const validationError = validateValue(num, argDef.validators);
   if (validationError) {
     ErrorHandlers.validationError(`--${key}`, validationError, options);
+    // If error handler returned (didn't exit/throw), skip processing
+    return;
   }
 
   result[key] = num;
@@ -320,6 +336,8 @@ function processStringValue(
   const validationError = validateValue(value, argDef.validators);
   if (validationError) {
     ErrorHandlers.validationError(`--${key}`, validationError, options);
+    // If error handler returned (didn't exit/throw), skip processing
+    return;
   }
 
   result[key] = value;

@@ -107,7 +107,7 @@ export function parse(
       // Handle default command when no arguments are provided
       if (args.length === 0 && options?.defaultCommand) {
         if (options.defaultCommand === "help") {
-          // Show help and exit
+          // Show help and potentially exit
           const helpText = printHelp(
             parsedArgs,
             argumentDefs,
@@ -115,6 +115,8 @@ export function parse(
             subCommands.size > 0 ? subCommands : undefined,
           );
           handleHelpDisplay(helpText, options);
+          // Return early after help display to prevent further processing
+          return;
         } else if (subCommands.has(options.defaultCommand)) {
           // Run the default subcommand
           const defaultArgs = [options.defaultCommand];
@@ -294,4 +296,5 @@ export {
   handleParsingError,
   isParseError,
   ParseError,
+  type ParseErrorType,
 } from "./error-handling.ts";

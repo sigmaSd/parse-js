@@ -102,21 +102,21 @@ export function handleParsingError(
   errorType: ParseErrorType = "validation_error",
   context?: ParseError["context"],
   exitCode: number = 1,
-): never {
-  const shouldExit = options?.exitOnError ?? true;
+): void {
+  if (options?.onError) {
+    // Custom error handler provided - has complete control
+    options.onError(message, exitCode);
+    // Custom handler decides whether to throw, exit, or continue
+    return;
+  }
 
+  const shouldExit = options?.exitOnError ?? true;
   if (shouldExit) {
     // Default behavior: print error and exit
     console.error(message);
     process.exit(exitCode);
-    throw new Error("unreachable");
-  } else if (options?.onError) {
-    // Custom error handler provided
-    options.onError(message, exitCode);
-    // Still throw to stop execution flow
-    throw new ParseError(errorType, message, exitCode, context);
   } else {
-    // No custom handler: throw error for caller to handle
+    // No custom handler and exit disabled: throw error for caller to handle
     throw new ParseError(errorType, message, exitCode, context);
   }
 }
@@ -148,21 +148,21 @@ export function handleParsingError(
 export function handleHelpDisplay(
   helpText: string,
   options?: ParseOptions,
-): never {
-  const shouldExit = options?.exitOnHelp ?? true;
+): void {
+  if (options?.onHelp) {
+    // Custom help handler provided - has complete control
+    options.onHelp(helpText);
+    // Custom handler decides whether to throw, exit, or continue
+    return;
+  }
 
+  const shouldExit = options?.exitOnHelp ?? true;
   if (shouldExit) {
     // Default behavior: print help and exit with success
     console.log(helpText);
     process.exit(0);
-    throw new Error("unreachable");
-  } else if (options?.onHelp) {
-    // Custom help handler provided
-    options.onHelp(helpText);
-    // Throw special help error to stop parsing flow
-    throw new ParseError("validation_error", "Help requested", 0);
   } else {
-    // No custom handler: throw error with the help text
+    // No custom handler and exit disabled: throw error with the help text
     throw new ParseError("validation_error", helpText, 0);
   }
 }
@@ -204,7 +204,7 @@ export const ErrorMessages = {
  * These provide a consistent interface for error handling throughout the library.
  */
 export const ErrorHandlers = {
-  unknownArgument: (arg: string, options?: ParseOptions): never =>
+  unknownArgument: (arg: string, options?: ParseOptions): void =>
     handleParsingError(
       ErrorMessages.unknownArgument(arg),
       options,
@@ -212,7 +212,7 @@ export const ErrorHandlers = {
       { argumentName: arg },
     ),
 
-  missingValue: (arg: string, options?: ParseOptions): never =>
+  missingValue: (arg: string, options?: ParseOptions): void =>
     handleParsingError(
       ErrorMessages.missingValue(arg),
       options,
@@ -220,7 +220,7 @@ export const ErrorHandlers = {
       { argumentName: arg },
     ),
 
-  invalidNumber: (arg: string, value: string, options?: ParseOptions): never =>
+  invalidNumber: (arg: string, value: string, options?: ParseOptions): void =>
     handleParsingError(
       ErrorMessages.invalidNumber(arg, value),
       options,
@@ -232,7 +232,7 @@ export const ErrorHandlers = {
     arg: string,
     value: string,
     options?: ParseOptions,
-  ): never =>
+  ): void =>
     handleParsingError(
       ErrorMessages.invalidArrayNumber(arg, value),
       options,
@@ -244,7 +244,7 @@ export const ErrorHandlers = {
     arg: string,
     validationMessage: string,
     options?: ParseOptions,
-  ): never =>
+  ): void =>
     handleParsingError(
       ErrorMessages.validationError(arg, validationMessage),
       options,
@@ -256,7 +256,7 @@ export const ErrorHandlers = {
     position: number,
     name: string,
     options?: ParseOptions,
-  ): never =>
+  ): void =>
     handleParsingError(
       ErrorMessages.missingRequiredArgument(position, name),
       options,
@@ -268,7 +268,7 @@ export const ErrorHandlers = {
     property: string,
     className: string,
     options?: ParseOptions,
-  ): never =>
+  ): void =>
     handleParsingError(
       ErrorMessages.missingTypeInformation(property, className),
       options,
