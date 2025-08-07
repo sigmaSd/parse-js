@@ -116,7 +116,7 @@ export function parseGlobalOptions(
 
       // Process the flag based on its type
       const nextArgIndex = processFlagValue(
-        argDef,
+        argDef as ParsedArg,
         key,
         value,
         hasEmbeddedValue,
@@ -206,16 +206,19 @@ function processFlagValue(
     process.exit(1);
   }
 
+  // TypeScript doesn't understand that process.exit never returns
+  const nonNullValue = value as string;
+
   // Process value based on argument type
   if (argDef.type === "string[]") {
-    processArrayValue(argDef, key, value, "string", result);
+    processArrayValue(argDef, key, nonNullValue, "string", result);
   } else if (argDef.type === "number[]") {
-    processArrayValue(argDef, key, value, "number", result);
+    processArrayValue(argDef, key, nonNullValue, "number", result);
   } else if (argDef.type === "number") {
-    processNumericValue(argDef, key, value, result);
+    processNumericValue(argDef, key, nonNullValue, result);
   } else {
-    // String type - validate and store
-    processStringValue(argDef, key, value, result);
+    // String type (default)
+    processStringValue(argDef, key, nonNullValue, result);
   }
 
   // Return new index position
