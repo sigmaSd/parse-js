@@ -1542,19 +1542,19 @@ Run the example:
 
 ```bash
 # View main help
-deno run example.ts --help
+deno run examples/example.ts --help
 
 # Test positional arguments
-deno run example.ts process input.txt output.json file1.txt file2.txt --format xml --verbose
+deno run examples/example.ts process input.txt output.json file1.txt file2.txt --format xml --verbose
 
-# Test nested subcommands  
-deno run example.ts database start --port 5432 --ssl
-deno run example.ts database migrate --direction up --count 3
+# Test nested subcommands
+deno run examples/example.ts database start --port 5432 --ssl
+deno run examples/example.ts database migrate --direction up --count 3
 
 # Test various help outputs
-deno run example.ts process --help
-deno run example.ts database --help
-deno run example.ts database start --help
+deno run examples/example.ts process --help
+deno run examples/example.ts database --help
+deno run examples/example.ts database start --help
 ```
 
 This example showcases all the library's capabilities in a real-world-like CLI
