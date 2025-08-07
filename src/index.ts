@@ -1,6 +1,8 @@
+import process from "node:process";
 import type { ParseOptions, ParseResult, SubCommand } from "./types.ts";
 import { collectArgumentDefs } from "./metadata.ts";
 import { parseArguments } from "./parsers/commands.ts";
+import { printHelp } from "./help.ts";
 
 /**
  * Main parse function and class decorator factory.
@@ -101,6 +103,38 @@ export function parse(
 
       // Extract subcommand definitions from class metadata
       const subCommands = collectSubCommands(klass);
+
+      // Handle default command when no arguments are provided
+      if (args.length === 0 && options?.defaultCommand) {
+        if (options.defaultCommand === "help") {
+          // Show help and exit
+          printHelp(
+            parsedArgs,
+            argumentDefs,
+            options,
+            subCommands.size > 0 ? subCommands : undefined,
+          );
+          process.exit(0);
+        } else if (subCommands.has(options.defaultCommand)) {
+          // Run the default subcommand
+          const defaultArgs = [options.defaultCommand];
+          const parsed = parseArguments(
+            defaultArgs,
+            parsedArgs,
+            argumentDefs,
+            options,
+            subCommands.size > 0 ? subCommands : undefined,
+          );
+          applyParsedValues(
+            klass,
+            parsedArgs,
+            argumentDefs,
+            subCommands,
+            parsed,
+          );
+          return;
+        }
+      }
 
       // Parse the provided arguments
       const parsed = parseArguments(

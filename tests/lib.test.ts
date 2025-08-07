@@ -14,6 +14,7 @@ import {
   subCommand,
   type,
 } from "jsr:@sigma/parse";
+import { createColors } from "../src/colors.ts";
 
 // Test helper to capture console output
 function captureConsoleOutput(fn: () => void): string {
@@ -1757,4 +1758,327 @@ Deno.test("Positional arguments - with subcommands", () => {
   assertEquals(RunCommand.script, "test.js");
   assertEquals(RunCommand.verbose, true);
   assertEquals(Config.debug, false);
+});
+
+Deno.test("Color support - help output with colors enabled", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          name: "colortest",
+          description: "A test app with colors",
+          color: true,
+        })
+        class _Config {
+          @description("Port number")
+          static port: number = 8080;
+
+          @description("Enable debug mode")
+          static debug: boolean = false;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    // Test that basic help content is present
+    assertEquals(output.includes("colortest"), true);
+    assertEquals(output.includes("Usage:"), true);
+    assertEquals(output.includes("--port"), true);
+    assertEquals(output.includes("Port number"), true);
+    assertEquals(output.includes("Enable debug mode"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Color support - respects NO_COLOR environment variable", () => {
+  // Save original environment
+  const originalNoColor = Deno.env.get("NO_COLOR");
+
+  try {
+    // Set NO_COLOR environment variable
+    Deno.env.set("NO_COLOR", "1");
+
+    mockProcessExit();
+
+    try {
+      const output = captureConsoleOutput(() => {
+        try {
+          @parse(["--help"], {
+            name: "nocolor",
+            description: "Test NO_COLOR",
+            color: true, // Even with color=true, NO_COLOR should disable it
+          })
+          class _Config {
+            static port: number = 8080;
+          }
+        } catch (_e) {
+          // Expected process.exit call
+        }
+      });
+
+      assertEquals(exitCode, 0);
+      // Colors should NOT be present in output when NO_COLOR is set
+      assertEquals(output.includes("\x1b["), false);
+      assertEquals(output.includes("nocolor"), true);
+    } finally {
+      restoreProcessExit();
+    }
+  } finally {
+    // Restore original environment
+    if (originalNoColor !== undefined) {
+      Deno.env.set("NO_COLOR", originalNoColor);
+    } else {
+      Deno.env.delete("NO_COLOR");
+    }
+  }
+});
+
+Deno.test("Show defaults - help output includes default values", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          name: "defaults-test",
+          showDefaults: true,
+        })
+        class _Config {
+          @description("Server port")
+          static port: number = 8080;
+
+          @description("Host address")
+          static host: string = "localhost";
+
+          @description("Debug mode")
+          static debug: boolean = false;
+
+          @argument(0, "Input file")
+          static input: string = "input.txt";
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("(default: 8080)"), true);
+    assertEquals(output.includes('(default: "localhost")'), true);
+    assertEquals(output.includes("(default: false)"), true);
+    assertEquals(output.includes('(default: "input.txt")'), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Show defaults - disabled when showDefaults is false", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          name: "no-defaults-test",
+          showDefaults: false,
+        })
+        class _Config {
+          @description("Server port")
+          static port: number = 8080;
+
+          @description("Host address")
+          static host: string = "localhost";
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("(default: 8080)"), false);
+    assertEquals(output.includes('(default: "localhost")'), false);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Default command - help as default", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse([], {
+          name: "help-default",
+          description: "App with help as default",
+          defaultCommand: "help",
+        })
+        class _Config {
+          static port: number = 8080;
+          static debug: boolean = false;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("help-default"), true);
+    assertEquals(output.includes("Usage:"), true);
+    assertEquals(output.includes("--port"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Default command - specific subcommand as default", () => {
+  @command
+  class ServeCommand {
+    static port: number = 3000;
+    static host: string = "localhost";
+  }
+
+  @parse([], {
+    name: "serve-default",
+    defaultCommand: "serve",
+  })
+  class Config {
+    @subCommand(ServeCommand)
+    static serve: ServeCommand;
+
+    static debug: boolean = false;
+  }
+
+  // Default command should be executed
+  assertEquals(Config.serve instanceof ServeCommand, true);
+  assertEquals(ServeCommand.port, 3000);
+  assertEquals(ServeCommand.host, "localhost");
+  assertEquals(Config.debug, false);
+});
+
+Deno.test("Default command - invalid default command is ignored", () => {
+  @command
+  class TestCommand {
+    static value: string = "test";
+  }
+
+  @parse([], {
+    name: "invalid-default",
+    defaultCommand: "nonexistent", // This command doesn't exist
+  })
+  class Config {
+    @subCommand(TestCommand)
+    static test: TestCommand;
+
+    static flag: boolean = false;
+  }
+
+  // Should work normally when default command doesn't exist
+  assertEquals(Config.test, undefined);
+  assertEquals(Config.flag, false);
+});
+
+Deno.test("Combined features - colors, defaults, and default command", () => {
+  @command
+  class BuildCommand {
+    @description("Output directory")
+    static output: string = "dist";
+
+    @description("Enable minification")
+    static minify: boolean = false;
+  }
+
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse([], {
+          name: "combined-test",
+          description: "Testing all features together",
+          color: true,
+          showDefaults: true,
+          defaultCommand: "help",
+        })
+        class _Config {
+          @subCommand(BuildCommand)
+          static build: BuildCommand;
+
+          @description("Global verbose flag")
+          static verbose: boolean = false;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    // Should show colored help with defaults
+    assertEquals(output.includes("combined-test"), true);
+    assertEquals(output.includes("Usage:"), true);
+    assertEquals(output.includes("Commands:"), true);
+    assertEquals(output.includes("build"), true);
+    assertEquals(output.includes("(default: false)"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Array defaults in help output", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          showDefaults: true,
+        })
+        class _Config {
+          @description("List of tags")
+          static tags: string[] = ["web", "api"];
+
+          @description("Port numbers")
+          static ports: number[] = [8080, 3000];
+
+          @description("Empty array")
+          static empty: string[] = [];
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes('(default: ["web","api"])'), true);
+    assertEquals(output.includes("(default: [8080,3000])"), true);
+    assertEquals(output.includes("(default: [])"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Color utility functions - direct testing", () => {
+  // Test colors when explicitly enabled (ignoring TTY for direct testing)
+  const colors = createColors();
+
+  // Test that color functions exist and return strings
+  const redText = colors.red("test");
+  const boldText = colors.bold("test");
+  const blueText = colors.blue("test");
+
+  assertEquals(typeof redText, "string");
+  assertEquals(typeof boldText, "string");
+  assertEquals(typeof blueText, "string");
+
+  // Test that text content is preserved
+  assertEquals(redText.includes("test"), true);
+  assertEquals(boldText.includes("test"), true);
+  assertEquals(blueText.includes("test"), true);
+
+  // Test that isEnabled is a boolean
+  assertEquals(typeof colors.isEnabled, "boolean");
 });

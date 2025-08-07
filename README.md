@@ -334,6 +334,11 @@ properties.
   - `name?: string` - The name of the application (shown in help)
   - `description?: string` - A brief description of the application (shown in
     help)
+  - `color?: boolean` - Enable colored help output (respects NO_COLOR
+    environment variable)
+  - `showDefaults?: boolean` - Show default values in help text (default: true)
+  - `defaultCommand?: string | "help"` - Default command to run when no
+    arguments are provided
 
 ```typescript
 @parse(Deno.args)
@@ -348,6 +353,19 @@ class MyConfig {
 })
 class MyConfig {
   static value: string = "default";
+}
+
+// With enhanced features
+@parse(Deno.args, {
+  name: "devtool",
+  description: "Modern development tool",
+  color: true, // Enable colored help output
+  showDefaults: true, // Show default values in help
+  defaultCommand: "help", // Show help when no args provided
+})
+class DevConfig {
+  static port: number = 3000;
+  static debug: boolean = false;
 }
 
 // Custom arguments (for testing)
@@ -1046,6 +1064,133 @@ Options:
       Number of retries
   --help
       Show this help message
+
+## Enhanced Help Features
+
+### Colored Help Output
+
+Enable colored help text that respects the NO_COLOR environment variable standard:
+
+```typescript
+@parse(Deno.args, {
+  name: "myapp",
+  description: "A colorful CLI application",
+  color: true,  // Enable colored help output
+})
+class Config {
+  @description("Server port number")
+  static port: number = 8080;
+  
+  @description("Enable debug logging")
+  static debug: boolean = false;
+}
+```
+
+**Color behavior:**
+- Colors are automatically disabled if `NO_COLOR` environment variable is set
+- Colors are disabled if stdout is not a TTY (e.g., piped output)
+- Use `color: true` to request colors (still respects NO_COLOR and TTY)
+- Use `color: false` to explicitly disable colors
+
+```bash
+# Colored help (if terminal supports it)
+deno run app.ts --help
+
+# Disable colors via environment variable
+NO_COLOR=1 deno run app.ts --help
+
+# Disable colors via pipe
+deno run app.ts --help | cat
+```
+
+### Show Default Values
+
+Display default values in help text to make CLI usage clearer:
+
+```typescript
+@parse(Deno.args, {
+  name: "server",
+  showDefaults: true,  // Show defaults in help (default: true)
+})
+class ServerConfig {
+  @description("Port to listen on")
+  static port: number = 3000;
+  
+  @description("Host to bind to")
+  static host: string = "localhost";
+  
+  @description("Enable SSL")
+  static ssl: boolean = false;
+  
+  @description("Allowed origins")
+  static origins: string[] = ["http://localhost:3000"];
+}
+```
+
+Help output with defaults:
+```bash
+$ deno run server.ts --help
+server
+
+Usage:
+  server [options]
+
+Options:
+  --port <number> (default: 3000)
+      Port to listen on
+  --host <string> (default: "localhost")
+      Host to bind to
+  --ssl (default: false)
+      Enable SSL
+  --origins <string,string,...> (default: ["http://localhost:3000"])
+      Allowed origins
+  --help
+      Show this help message
+```
+
+### Default Command
+
+Set a default command to run when no arguments are provided:
+
+```typescript
+@command
+class ServeCommand {
+  static port: number = 3000;
+}
+
+@command  
+class BuildCommand {
+  static output: string = "dist";
+}
+
+@parse(Deno.args, {
+  name: "devtool",
+  defaultCommand: "help",  // Show help when no args provided
+  // defaultCommand: "serve",  // Or run a specific command
+})
+class DevTool {
+  @subCommand(ServeCommand)
+  static serve: ServeCommand;
+  
+  @subCommand(BuildCommand)
+  static build: BuildCommand;
+}
+```
+
+**Default command options:**
+- `"help"` - Show help text when no arguments provided
+- `"commandName"` - Run the specified subcommand with default arguments
+- `undefined` - Normal behavior (no default command)
+
+```bash
+# These are equivalent when defaultCommand: "help"
+deno run devtool.ts
+deno run devtool.ts --help
+
+# When defaultCommand: "serve", this runs the serve command:
+deno run devtool.ts
+# Same as: deno run devtool.ts serve
+```
 
 ## Array Usage Examples
 

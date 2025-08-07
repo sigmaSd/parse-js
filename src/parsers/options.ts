@@ -90,8 +90,7 @@ export function parseGlobalOptions(
       printHelp(
         parsedArgs,
         argumentDefs,
-        options?.name,
-        options?.description,
+        options,
         subCommands,
         commandName,
         commandPath,

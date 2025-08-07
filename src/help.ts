@@ -20,7 +20,13 @@
  * 6. Format everything with consistent alignment
  */
 
-import type { ArgumentDef, ParsedArg, SubCommand } from "./types.ts";
+import type {
+  ArgumentDef,
+  ParsedArg,
+  ParseOptions,
+  SubCommand,
+} from "./types.ts";
+import { createColors } from "./colors.ts";
 
 /**
  * Generates and prints comprehensive help text for a command.
@@ -38,8 +44,7 @@ import type { ArgumentDef, ParsedArg, SubCommand } from "./types.ts";
  *
  * @param parsedArgs - CLI options available for this command
  * @param argumentDefs - Positional arguments for this command
- * @param appName - Application name to display
- * @param appDescription - Application description to display
+ * @param options - Parse options including color and defaults settings
  * @param subCommands - Available subcommands (if any)
  * @param commandName - Current command name (for subcommands)
  * @param commandPath - Full command path (e.g., "git commit")
@@ -74,24 +79,26 @@ import type { ArgumentDef, ParsedArg, SubCommand } from "./types.ts";
 export function printHelp(
   parsedArgs: ParsedArg[],
   argumentDefs: Map<number, ArgumentDef>,
-  appName?: string,
-  appDescription?: string,
+  options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
   commandPath?: string,
 ): void {
+  const colors = createColors(options?.color);
+  const showDefaults = options?.showDefaults ?? true;
   // Print application header if available
-  if (appName && appDescription) {
-    console.log(`${appName}`);
+  if (options?.name && options?.description) {
+    console.log(colors.bold(colors.brightBlue(options.name)));
     console.log("");
-    console.log(appDescription);
+    console.log(colors.dim(options.description));
     console.log("");
   }
 
   // Generate and print usage section
   printUsageSection(
     argumentDefs,
-    appName,
+    colors,
+    options?.name,
     subCommands,
     commandName,
     commandPath,
@@ -99,16 +106,22 @@ export function printHelp(
 
   // Print available subcommands if any
   if (subCommands && subCommands.size > 0) {
-    printSubCommandsSection(subCommands);
+    printSubCommandsSection(subCommands, colors);
   }
 
   // Print positional arguments if any
   if (argumentDefs.size > 0) {
-    printArgumentsSection(argumentDefs);
+    printArgumentsSection(argumentDefs, colors, showDefaults);
   }
 
   // Print options section
-  printOptionsSection(parsedArgs, subCommands, commandName);
+  printOptionsSection(
+    parsedArgs,
+    colors,
+    showDefaults,
+    subCommands,
+    commandName,
+  );
 }
 
 /**
@@ -121,6 +134,7 @@ export function printHelp(
  */
 function printUsageSection(
   argumentDefs: Map<number, ArgumentDef>,
+  colors: ReturnType<typeof createColors>,
   appName?: string,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
@@ -130,7 +144,7 @@ function printUsageSection(
   const usageArgs = buildUsageArguments(argumentDefs);
   const baseCommand = appName || "[runtime] script.js";
 
-  console.log("Usage:");
+  console.log(colors.bold(colors.brightYellow("Usage:")));
 
   if (commandName) {
     // This is help for a specific subcommand
@@ -139,17 +153,31 @@ function printUsageSection(
 
     if (hasSubCommands) {
       console.log(
-        `  ${baseCommand} ${fullCommandPath}${usageArgs} <command> [options]`,
+        `  ${colors.cyan(baseCommand)} ${colors.brightCyan(fullCommandPath)}${
+          colors.green(usageArgs)
+        } ${colors.yellow("<command>")} ${colors.dim("[options]")}`,
       );
     } else {
-      console.log(`  ${baseCommand} ${fullCommandPath}${usageArgs} [options]`);
+      console.log(
+        `  ${colors.cyan(baseCommand)} ${colors.brightCyan(fullCommandPath)}${
+          colors.green(usageArgs)
+        } ${colors.dim("[options]")}`,
+      );
     }
   } else if (subCommands && subCommands.size > 0) {
     // Main command with subcommands
-    console.log(`  ${baseCommand}${usageArgs} <command> [options]`);
+    console.log(
+      `  ${colors.cyan(baseCommand)}${colors.green(usageArgs)} ${
+        colors.yellow("<command>")
+      } ${colors.dim("[options]")}`,
+    );
   } else {
     // Simple command without subcommands
-    console.log(`  ${baseCommand}${usageArgs} [options]`);
+    console.log(
+      `  ${colors.cyan(baseCommand)}${colors.green(usageArgs)} ${
+        colors.dim("[options]")
+      }`,
+    );
   }
 
   console.log("");
@@ -195,13 +223,16 @@ function isRequiredByValidator(argDef: ArgumentDef): boolean {
 /**
  * Prints the subcommands section.
  */
-function printSubCommandsSection(subCommands: Map<string, SubCommand>): void {
-  console.log("Commands:");
+function printSubCommandsSection(
+  subCommands: Map<string, SubCommand>,
+  colors: ReturnType<typeof createColors>,
+): void {
+  console.log(colors.bold(colors.brightYellow("Commands:")));
 
   for (const [name, subCommand] of subCommands) {
-    console.log(`  ${name}`);
+    console.log(`  ${colors.brightCyan(name)}`);
     if (subCommand.description) {
-      console.log(`      ${subCommand.description}`);
+      console.log(`      ${colors.dim(subCommand.description)}`);
     }
   }
 
@@ -211,8 +242,12 @@ function printSubCommandsSection(subCommands: Map<string, SubCommand>): void {
 /**
  * Prints the positional arguments section.
  */
-function printArgumentsSection(argumentDefs: Map<number, ArgumentDef>): void {
-  console.log("Arguments:");
+function printArgumentsSection(
+  argumentDefs: Map<number, ArgumentDef>,
+  colors: ReturnType<typeof createColors>,
+  showDefaults: boolean,
+): void {
+  console.log(colors.bold(colors.brightYellow("Arguments:")));
 
   const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
     a - b
@@ -220,13 +255,20 @@ function printArgumentsSection(argumentDefs: Map<number, ArgumentDef>): void {
 
   for (const [_index, argDef] of sortedArgDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
-    const requiredText = isRequired ? " (required)" : "";
-    const restText = argDef.rest ? " (rest)" : "";
+    const requiredText = isRequired ? colors.red(" (required)") : "";
+    const restText = argDef.rest ? colors.yellow(" (rest)") : "";
+    const defaultText = showDefaults && argDef.default !== undefined
+      ? colors.dim(` (default: ${JSON.stringify(argDef.default)})`)
+      : "";
 
-    console.log(`  ${argDef.name}${requiredText}${restText}`);
+    console.log(
+      `  ${
+        colors.brightGreen(argDef.name)
+      }${requiredText}${restText}${defaultText}`,
+    );
 
     if (argDef.description) {
-      console.log(`      ${argDef.description}`);
+      console.log(`      ${colors.dim(argDef.description)}`);
     }
   }
 
@@ -238,33 +280,37 @@ function printArgumentsSection(argumentDefs: Map<number, ArgumentDef>): void {
  */
 function printOptionsSection(
   parsedArgs: ParsedArg[],
+  colors: ReturnType<typeof createColors>,
+  showDefaults: boolean,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
 ): void {
   // Determine section title based on context
   if (commandName) {
-    console.log("Options:");
+    console.log(colors.bold(colors.brightYellow("Options:")));
   } else if (subCommands && subCommands.size > 0) {
-    console.log("Global Options:");
+    console.log(colors.bold(colors.brightYellow("Global Options:")));
   } else {
-    console.log("Options:");
+    console.log(colors.bold(colors.brightYellow("Options:")));
   }
 
   // Print each option with type hint and description
   for (const arg of parsedArgs) {
     const longFlag = `--${arg.name}`;
-    const typeHint = generateTypeHint(arg.type);
-    const description = arg.description || "";
+    const typeHint = generateTypeHint(arg.type, colors);
+    const defaultText = showDefaults && arg.default !== undefined
+      ? colors.dim(` (default: ${JSON.stringify(arg.default)})`)
+      : "";
 
-    console.log(`  ${longFlag}${typeHint}`);
-    if (description) {
-      console.log(`      ${description}`);
+    console.log(`  ${colors.brightCyan(longFlag)}${typeHint}${defaultText}`);
+    if (arg.description) {
+      console.log(`      ${colors.dim(arg.description)}`);
     }
   }
 
   // Always include help option
-  console.log("  --help");
-  console.log("      Show this help message");
+  console.log(`  ${colors.brightCyan("--help")}`);
+  console.log(`      ${colors.dim("Show this help message")}`);
 }
 
 /**
@@ -275,18 +321,21 @@ function printOptionsSection(
  * - `--tags <string,string,...>`
  * - `--debug` (no hint for boolean)
  */
-function generateTypeHint(type: string): string {
+function generateTypeHint(
+  type: string,
+  colors: ReturnType<typeof createColors>,
+): string {
   if (type === "boolean") {
     return "";
   }
 
   if (type === "string[]") {
-    return " <string,string,...>";
+    return colors.yellow(" <string,string,...>");
   }
 
   if (type === "number[]") {
-    return " <number,number,...>";
+    return colors.yellow(" <number,number,...>");
   }
 
-  return ` <${type}>`;
+  return colors.yellow(` <${type}>`);
 }
