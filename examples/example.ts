@@ -109,6 +109,7 @@ class TestCommand {
 class ProcessCommand {
   @argument(0, "Input file to process")
   @required()
+  @type("string")
   static input: string;
 
   @argument(1, "Output file path")

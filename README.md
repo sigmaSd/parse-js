@@ -9,7 +9,7 @@ metadata.
 - 🎯 **Decorator-based**: Simple `@parse(args)` decorator for classes
 - 🔍 **Type inference**: Automatically detects string, number, boolean, and
   array types from defaults
-- 🏷️ **Explicit typing**: Use `@type()` decorator for properties without
+- 🏷️ **Strict typing**: Requires explicit `@type()` for all properties without
   defaults
 - 📋 **Array support**: Parse comma-separated lists with `--items a,b,c`
 - 📍 **Positional arguments**: Support for positional arguments with
@@ -20,7 +20,9 @@ metadata.
   `@command`
 - 🏗️ **Nested subcommands**: Multi-level command hierarchies (e.g.,
   `git remote add`)
-- ✅ **Validation system**: Extensible validation with custom decorators
+- ✅ **Validation system**: Custom validators with `addValidator()` plus
+  built-in validators (`@required()`, `@min()`, `@max()`, `@oneOf()`,
+  `@pattern()`, etc.)
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🌐 **Global options**: Mix global and subcommand-specific options
@@ -50,6 +52,9 @@ class Config {
 console.log(`Server running on ${Config.host}:${Config.port}`);
 console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ```
+
+> **Note**: All properties without default values require explicit `@type()`
+> decorators for type safety.
 
 ### With App Information
 
@@ -134,6 +139,7 @@ import { argument, parse, required, type } from "jsr:@sigma/parse";
 class Config {
   @argument(0, "Input file path")
   @required()
+  @type("string")
   static input: string;
 
   @argument(1, "Output file path")
@@ -437,6 +443,7 @@ import { argument, parse, required, type } from "jsr:@sigma/parse";
 class Config {
   @argument(0, "Input file path")
   @required()
+  @type("string")
   static input: string;
 
   @argument(1, "Output file path")
@@ -498,7 +505,10 @@ class Config {
 
 ### `addValidator(validator)`
 
-Utility function for creating custom validation decorators.
+Utility function for creating custom validation decorators. The library also
+provides built-in validators including `@required()`, `@min()`, `@max()`,
+`@oneOf()`, `@pattern()`, `@length()`, `@range()`, `@integer()`, and
+`@arrayLength()` for common validation needs.
 
 **Parameters:**
 
@@ -516,6 +526,60 @@ type Validator = (value: unknown) => string | null;
 
 Returns `null` if validation passes, or an error message string if validation
 fails.
+
+## Built-in Validators
+
+The library provides several built-in validators for common validation needs,
+including a flexible `custom()` validator for custom logic:
+
+```typescript
+import {
+  arrayLength,
+  custom,
+  integer,
+  length,
+  max,
+  min,
+  oneOf,
+  pattern,
+  range,
+  required,
+} from "jsr:@sigma/parse";
+
+@parse(Deno.args)
+class Config {
+  @required()
+  static name: string;
+
+  @min(1)
+  @max(100)
+  static port: number = 8080;
+
+  @oneOf(["dev", "prod", "test"])
+  static env: string = "dev";
+
+  @pattern(/^[a-zA-Z0-9]+$/)
+  static username: string = "user";
+
+  @length(3, 50)
+  static description: string = "default";
+
+  @range(1, 10)
+  static level: number = 5;
+
+  @integer()
+  static workers: number = 4;
+
+  @arrayLength(1, 5)
+  static tags: string[] = [];
+
+  @custom((value: string) => value.includes("@"), "must be a valid email")
+  static email: string = "user@example.com";
+
+  @custom((value: number) => value % 2 === 0, "must be an even number")
+  static threads: number = 4;
+}
+```
 
 ## Creating Custom Validators
 
@@ -663,6 +727,7 @@ import { argument, parse, required } from "jsr:@sigma/parse";
 class Config {
   @argument(0, "Source file")
   @required()
+  @type("string")
   static source: string;
 
   @argument(1, "Destination file")
@@ -684,6 +749,7 @@ import { argument, parse, type } from "jsr:@sigma/parse";
 @parse(Deno.args)
 class Config {
   @argument(0, "Command to run")
+  @type("string")
   static command: string;
 
   @argument(1, "Arguments for the command", { rest: true })
@@ -708,6 +774,7 @@ import { argument, parse, required, type } from "jsr:@sigma/parse";
 class Config {
   @argument(0, "Input file")
   @required()
+  @type("string")
   static input: string;
 
   @argument(1, "Output file")
@@ -735,6 +802,7 @@ import { argument, command, parse, subCommand } from "jsr:@sigma/parse";
 @command
 class RunCommand {
   @argument(0, "Script to execute")
+  @type("string")
   static script: string;
 
   static verbose: boolean = false;
@@ -763,9 +831,11 @@ class Config {
 // ❌ Invalid - non-sequential positions
 class BadConfig {
   @argument(0, "First")
+  @type("string")
   static first: string;
 
   @argument(2, "Third") // Error: missing position 1
+  @type("string")
   static third: string;
 }
 
@@ -775,6 +845,7 @@ class BadConfig2 {
   static files: string[];
 
   @argument(1, "Output") // Error: rest must be last
+  @type("string")
   static output: string;
 }
 ```
@@ -1471,19 +1542,19 @@ Run the example:
 
 ```bash
 # View main help
-deno run example.ts --help
+deno run examples/example.ts --help
 
 # Test positional arguments
-deno run example.ts process input.txt output.json file1.txt file2.txt --format xml --verbose
+deno run examples/example.ts process input.txt output.json file1.txt file2.txt --format xml --verbose
 
-# Test nested subcommands  
-deno run example.ts database start --port 5432 --ssl
-deno run example.ts database migrate --direction up --count 3
+# Test nested subcommands
+deno run examples/example.ts database start --port 5432 --ssl
+deno run examples/example.ts database migrate --direction up --count 3
 
 # Test various help outputs
-deno run example.ts process --help
-deno run example.ts database --help
-deno run example.ts database start --help
+deno run examples/example.ts process --help
+deno run examples/example.ts database --help
+deno run examples/example.ts database start --help
 ```
 
 This example showcases all the library's capabilities in a real-world-like CLI
