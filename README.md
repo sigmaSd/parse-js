@@ -20,7 +20,9 @@ metadata.
   `@command`
 - 🏗️ **Nested subcommands**: Multi-level command hierarchies (e.g.,
   `git remote add`)
-- ✅ **Validation system**: Custom validators with `addValidator()` plus built-in validators (`@required()`, `@min()`, `@max()`, `@oneOf()`, `@pattern()`, etc.)
+- ✅ **Validation system**: Custom validators with `addValidator()` plus
+  built-in validators (`@required()`, `@min()`, `@max()`, `@oneOf()`,
+  `@pattern()`, etc.)
 - 📚 **Auto-generated help**: Built-in `--help` flag with usage information
 - 📝 **Help descriptions**: Use `@description()` to add help text for properties
 - 🌐 **Global options**: Mix global and subcommand-specific options
@@ -51,7 +53,8 @@ console.log(`Server running on ${Config.host}:${Config.port}`);
 console.log(`Debug mode: ${Config.debug ? "enabled" : "disabled"}`);
 ```
 
-> **Note**: All properties without default values require explicit `@type()` decorators for type safety.
+> **Note**: All properties without default values require explicit `@type()`
+> decorators for type safety.
 
 ### With App Information
 
@@ -502,7 +505,10 @@ class Config {
 
 ### `addValidator(validator)`
 
-Utility function for creating custom validation decorators. The library also provides built-in validators including `@required()`, `@min()`, `@max()`, `@oneOf()`, `@pattern()`, `@length()`, `@range()`, `@integer()`, and `@arrayLength()` for common validation needs.
+Utility function for creating custom validation decorators. The library also
+provides built-in validators including `@required()`, `@min()`, `@max()`,
+`@oneOf()`, `@pattern()`, `@length()`, `@range()`, `@integer()`, and
+`@arrayLength()` for common validation needs.
 
 **Parameters:**
 
@@ -523,12 +529,21 @@ fails.
 
 ## Built-in Validators
 
-The library provides several built-in validators for common validation needs, including a flexible `custom()` validator for custom logic:
+The library provides several built-in validators for common validation needs,
+including a flexible `custom()` validator for custom logic:
 
 ```typescript
-import { 
-  required, min, max, oneOf, pattern, length, 
-  range, integer, arrayLength, custom 
+import {
+  arrayLength,
+  custom,
+  integer,
+  length,
+  max,
+  min,
+  oneOf,
+  pattern,
+  range,
+  required,
 } from "jsr:@sigma/parse";
 
 @parse(Deno.args)
