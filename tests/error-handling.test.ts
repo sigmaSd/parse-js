@@ -7,7 +7,6 @@ import {
   addValidator,
   argument,
   command,
-  description,
   handleHelpDisplay,
   handleParsingError,
   isParseError,
