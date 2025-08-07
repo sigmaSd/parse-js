@@ -1196,7 +1196,7 @@ manual class name passing. This results in a cleaner, more maintainable API.
 The library includes comprehensive tests covering all functionality:
 
 ```bash
-deno test lib.test.ts
+deno test
 ```
 
 ## Subcommand Examples
@@ -1525,8 +1525,7 @@ class MyCommand {
 
 ## Examples
 
-See `example.ts` for a complete working example with custom validation
-decorators.
+See `examples` for a complete working example with custom validation decorators.
 
 ## License
 
