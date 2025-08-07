@@ -1131,33 +1131,43 @@ Options:
 
 ### Property Name Restrictions
 
-Due to JavaScript/TypeScript limitations, certain property names cannot be used
-as they conflict with built-in class properties:
-
-- `length` - Built-in property of Function
-- `name` - Built-in property of Function
-- `prototype` - Built-in property of Function
-
-These properties will be automatically skipped during parsing. If you need to
-use these as CLI argument names, consider using alternatives:
+The library automatically distinguishes between built-in class properties and
+user-defined static properties. You can now safely use `length` and `name` as
+CLI argument names:
 
 ```typescript
 @parse(Deno.args)
 class Config {
-  // ❌ This won't work
-  // static length: number = 10;
-
-  // ✅ Use alternatives instead
+  // ✅ User-defined properties work correctly
   @description("Maximum length allowed")
-  static maxLength: number = 10;
+  static length: number = 10;
 
   @description("Application name")
-  static appName: string = "myapp";
+  static name: string = "myapp";
 
   @description("Protocol to use")
   static protocol: string = "http";
 }
 ```
+
+**Note:** JavaScript itself prevents defining static properties named
+`prototype`:
+
+```typescript
+@parse(Deno.args)
+class Config {
+  // ❌ JavaScript syntax error - not allowed by the language
+  // static prototype = "value";
+
+  // ✅ Use alternatives for prototype-related concepts
+  static protocolType: string = "http";
+}
+```
+
+The library uses property descriptor analysis to reliably distinguish between:
+
+- Built-in properties (non-writable, non-enumerable)
+- User-defined static properties (writable, enumerable)
 
 ### Type Inference Requirements
 
@@ -1500,15 +1510,16 @@ myapp database start --help     # Shows start command options
 
 ### Property Name Restrictions in Nested Commands
 
-Be aware that certain property names are reserved and cannot be used:
+Most property names work correctly, including `length` and `name`. Only
+`prototype` is restricted by JavaScript itself:
 
 ```typescript
 @command
 class MyCommand {
   static serviceName = "web"; // ✅ Good
-  static name = "web"; // ❌ Bad - 'name' is reserved
-  static length = 5; // ❌ Bad - 'length' is reserved
-  static prototype = {}; // ❌ Bad - 'prototype' is reserved
+  static name = "web"; // ✅ Good - now works correctly
+  static length = 5; // ✅ Good - now works correctly
+  // static prototype = {}; // ❌ Bad - JavaScript syntax error
 }
 ```
 

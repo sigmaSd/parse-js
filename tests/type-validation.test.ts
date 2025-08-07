@@ -242,6 +242,142 @@ Deno.test("Proposed: -- separator should provide raw access", () => {
   // is passed literally to the program
 });
 
+Deno.test("Reserved property names - user-defined length and name work correctly", () => {
+  // Test that user-defined static properties named 'length' and 'name'
+  // are correctly distinguished from built-in class properties
+  @command
+  class ReservedNamesCommand {
+    @argument(0, "Input file")
+    @type("string")
+    static input: string;
+
+    // User-defined 'length' property - should work
+    static length: number = 10;
+
+    // User-defined 'name' property - should work
+    static name: string = "default";
+  }
+
+  @parse(["cmd", "test.txt", "--length", "50", "--name", "custom"], {
+    name: "test",
+  })
+  class _Config {
+    @subCommand(ReservedNamesCommand)
+    static cmd: ReservedNamesCommand;
+  }
+
+  assertEquals(ReservedNamesCommand.input, "test.txt");
+  assertEquals(ReservedNamesCommand.length, 50);
+  assertEquals(ReservedNamesCommand.name, "custom");
+});
+
+Deno.test("Reserved property names - built-in properties are skipped", () => {
+  // Test that built-in class properties are properly skipped
+  // while user-defined properties with the same names work
+  @command
+  class MixedPropertiesCommand {
+    // This user-defined length should work
+    static length: number = 25;
+
+    // Regular property
+    static timeout: number = 30;
+  }
+
+  @parse(["cmd", "--length", "100", "--timeout", "60"], { name: "test" })
+  class _Config {
+    @subCommand(MixedPropertiesCommand)
+    static cmd: MixedPropertiesCommand;
+  }
+
+  // User-defined properties should be parsed
+  assertEquals(MixedPropertiesCommand.length, 100);
+  assertEquals(MixedPropertiesCommand.timeout, 60);
+});
+
+Deno.test("Reserved property names - prototype property restriction", () => {
+  // JavaScript itself prevents defining static properties named 'prototype'
+  // This test documents that this is a language-level restriction
+  assertThrows(
+    () => {
+      eval(`
+        class TestClass {
+          static prototype = "custom";
+        }
+      `);
+    },
+    SyntaxError,
+    "Classes may not have a static property named 'prototype'",
+  );
+});
+
+Deno.test("Reserved property names - property descriptor validation", () => {
+  // Test the internal logic that distinguishes built-in vs user-defined properties
+  class TestClass {
+    static customLength = 42;
+    static customName = "test";
+  }
+
+  // Get descriptors for comparison
+  const builtInLength = Object.getOwnPropertyDescriptor(class {}, "length");
+  const builtInName = Object.getOwnPropertyDescriptor(class {}, "name");
+  const userLength = Object.getOwnPropertyDescriptor(TestClass, "customLength");
+  const userName = Object.getOwnPropertyDescriptor(TestClass, "customName");
+
+  // Built-in properties: non-writable, non-enumerable
+  assertEquals(builtInLength?.writable, false);
+  assertEquals(builtInLength?.enumerable, false);
+  assertEquals(builtInName?.writable, false);
+  assertEquals(builtInName?.enumerable, false);
+
+  // User-defined properties: writable, enumerable
+  assertEquals(userLength?.writable, true);
+  assertEquals(userLength?.enumerable, true);
+  assertEquals(userName?.writable, true);
+  assertEquals(userName?.enumerable, true);
+});
+
+Deno.test("Type validation - properties with reserved names require explicit types", () => {
+  // Test that user-defined properties with reserved names still follow type rules
+  assertThrows(
+    () => {
+      @command
+      class BadCommand {
+        // No default, no @type - should fail
+        static length: number;
+      }
+
+      @parse(["cmd"], { name: "test" })
+      class _Config {
+        @subCommand(BadCommand)
+        static cmd: BadCommand;
+      }
+    },
+    Error,
+    "has no default value and no @type decorator",
+  );
+});
+
+Deno.test("Type validation - reserved names with explicit types work", () => {
+  // Test that explicit @type decorators work for reserved names
+  @command
+  class GoodCommand {
+    @type("number")
+    static length: number;
+
+    @type("string")
+    static name: string;
+  }
+
+  @parse(["cmd", "--length", "75", "--name", "test-app"], { name: "test" })
+  class _Config {
+    @subCommand(GoodCommand)
+    static cmd: GoodCommand;
+  }
+
+  assertEquals(GoodCommand.length, 75);
+  assertEquals(GoodCommand.name, "test-app");
+});
+
 Deno.test("Edge case: -- with no positional args defined", () => {
   @command
   class NoPositionalCommand {

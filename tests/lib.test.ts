@@ -1433,6 +1433,142 @@ Deno.test("Nested subcommands - different command paths", () => {
   assertEquals(TestCommand.coverage, true);
 });
 
+Deno.test("Reserved property names - user-defined length and name properties", () => {
+  // Test that user-defined static properties named 'length' and 'name' work correctly
+  // These should be distinguished from built-in class properties
+  @parse(["--length", "100", "--name", "custom-app"])
+  class Config {
+    // User-defined 'length' property - should override built-in class length
+    static length: number = 50;
+
+    // User-defined 'name' property - should override built-in class name
+    static name: string = "default-name";
+
+    static debug: boolean = false;
+  }
+
+  assertEquals(Config.length, 100);
+  assertEquals(Config.name, "custom-app");
+  assertEquals(Config.debug, false);
+});
+
+Deno.test("Reserved property names - with descriptions and validation", () => {
+  function min(minValue: number) {
+    return addValidator((value: unknown) => {
+      if (typeof value === "number" && value < minValue) {
+        return `must be at least ${minValue}`;
+      }
+      return null;
+    });
+  }
+
+  @parse(["--length", "25", "--name", "test-service"])
+  class Config {
+    @description("Maximum length allowed")
+    @min(10)
+    static length: number = 20;
+
+    @description("Service name identifier")
+    @required()
+    static name: string = "default";
+  }
+
+  assertEquals(Config.length, 25);
+  assertEquals(Config.name, "test-service");
+});
+
+Deno.test("Reserved property names - help output includes user-defined properties", () => {
+  mockProcessExit();
+
+  try {
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"])
+        class _Config {
+          @description("Array length limit")
+          static length: number = 10;
+
+          @description("Application name")
+          static name: string = "myapp";
+
+          static debug: boolean = false;
+        }
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
+
+    assertEquals(exitCode, 0);
+    assertEquals(output.includes("--length <number>"), true);
+    assertEquals(output.includes("Array length limit"), true);
+    assertEquals(output.includes("--name <string>"), true);
+    assertEquals(output.includes("Application name"), true);
+  } finally {
+    restoreProcessExit();
+  }
+});
+
+Deno.test("Reserved property names - subcommands with user-defined properties", () => {
+  @command
+  class TestCommand {
+    @description("Command execution length")
+    static length: number = 30;
+
+    @description("Command name override")
+    static name: string = "cmd";
+  }
+
+  @parse(["test", "--length", "60", "--name", "custom-cmd"])
+  class Config {
+    @subCommand(TestCommand)
+    static test: TestCommand;
+  }
+
+  assertEquals(Config.test instanceof TestCommand, true);
+  assertEquals(TestCommand.length, 60);
+  assertEquals(TestCommand.name, "custom-cmd");
+});
+
+Deno.test("Reserved property names - prototype property restriction", () => {
+  // Test that JavaScript prevents defining static properties named 'prototype'
+  // This should fail at the language level, not the library level
+  assertThrows(
+    () => {
+      // This will fail during class definition, not during parsing
+      eval(`
+        class TestClass {
+          static prototype = "custom";
+        }
+      `);
+    },
+    SyntaxError,
+    "Classes may not have a static property named 'prototype'",
+  );
+});
+
+Deno.test("Reserved property names - built-in vs user-defined detection", () => {
+  // Test that the library correctly distinguishes between built-in and user-defined properties
+  class TestClass {
+    static length = 42; // User-defined
+    static name = "custom"; // User-defined
+  }
+
+  // Built-in properties have different descriptor characteristics
+  const builtInLength = Object.getOwnPropertyDescriptor(class {}, "length");
+  const userDefinedLength = Object.getOwnPropertyDescriptor(
+    TestClass,
+    "length",
+  );
+
+  // Built-in: writable: false, enumerable: false
+  assertEquals(builtInLength?.writable, false);
+  assertEquals(builtInLength?.enumerable, false);
+
+  // User-defined: writable: true, enumerable: true
+  assertEquals(userDefinedLength?.writable, true);
+  assertEquals(userDefinedLength?.enumerable, true);
+});
+
 Deno.test("Positional arguments - basic usage", () => {
   @parse(["source.txt", "dest.txt"])
   class Config {

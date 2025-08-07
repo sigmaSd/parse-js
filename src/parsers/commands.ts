@@ -35,6 +35,22 @@ import { parseGlobalOptions } from "./options.ts";
 import { validateValue } from "../validation.ts";
 
 /**
+ * Determines if a property is a user-defined static property vs a built-in class property.
+ *
+ * Built-in properties like `length`, `name`, and `prototype` have specific characteristics:
+ * - `writable: false` and `enumerable: false` for built-ins
+ * - `writable: true` and `enumerable: true` for user-defined static properties
+ *
+ * @param descriptor - Property descriptor from Object.getOwnPropertyDescriptor()
+ * @returns true if this is a user-defined property that should be processed
+ */
+function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
+  // User-defined static properties are typically writable and enumerable
+  // Built-in properties are typically non-writable and non-enumerable
+  return descriptor.writable === true && descriptor.enumerable === true;
+}
+
+/**
  * Parses a command class and its arguments recursively.
  *
  * This function handles the complete parsing of a command class, including:
@@ -327,14 +343,14 @@ function collectSubCommands(klass: {
   const classMetadata = klass[Symbol.metadata];
 
   for (const propName of propertyNames) {
-    if (propName === "length" || propName === "prototype") {
-      continue;
-    }
-
     const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
 
-    // Skip the built-in class name property
-    if (propName === "name" && descriptor && !("value" in descriptor)) {
+    // Skip built-in class properties, but allow user-defined properties with the same names
+    if (
+      (propName === "length" || propName === "name" ||
+        propName === "prototype") &&
+      (!descriptor || !isUserDefinedProperty(descriptor))
+    ) {
       continue;
     }
 

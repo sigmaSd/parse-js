@@ -120,6 +120,22 @@ export function parse(
 }
 
 /**
+ * Determines if a property is a user-defined static property vs a built-in class property.
+ *
+ * Built-in properties like `length`, `name`, and `prototype` have specific characteristics:
+ * - `writable: false` and `enumerable: false` for built-ins
+ * - `writable: true` and `enumerable: true` for user-defined static properties
+ *
+ * @param descriptor - Property descriptor from Object.getOwnPropertyDescriptor()
+ * @returns true if this is a user-defined property that should be processed
+ */
+function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
+  // User-defined static properties are typically writable and enumerable
+  // Built-in properties are typically non-writable and non-enumerable
+  return descriptor.writable === true && descriptor.enumerable === true;
+}
+
+/**
  * Collects subcommand definitions from a class's metadata.
  *
  * This function scans through all static properties of a class to find
@@ -138,15 +154,14 @@ function collectSubCommands(klass: {
   const classMetadata = klass[Symbol.metadata];
 
   for (const propName of propertyNames) {
-    // Skip built-in class properties
-    if (propName === "length" || propName === "prototype") {
-      continue;
-    }
-
     const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
 
-    // Skip the built-in class name property (it's a getter, not a static value)
-    if (propName === "name" && descriptor && !("value" in descriptor)) {
+    // Skip built-in class properties, but allow user-defined properties with the same names
+    if (
+      (propName === "length" || propName === "name" ||
+        propName === "prototype") &&
+      (!descriptor || !isUserDefinedProperty(descriptor))
+    ) {
       continue;
     }
 

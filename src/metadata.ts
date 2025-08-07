@@ -22,6 +22,30 @@ import type {
 } from "./types.ts";
 
 /**
+ * Determines if a property is a user-defined static property vs a built-in class property.
+ *
+ * Built-in properties like `length`, `name`, and `prototype` have specific characteristics:
+ * - `writable: false` and `enumerable: false` for built-ins
+ * - `writable: true` and `enumerable: true` for user-defined static properties
+ *
+ * This allows us to reliably distinguish between:
+ * ```ts
+ * class MyClass {
+ *   static length = 42;  // User-defined, should be processed
+ * }
+ * ```
+ * vs the built-in `length` property that exists on all class constructors.
+ *
+ * @param descriptor - Property descriptor from Object.getOwnPropertyDescriptor()
+ * @returns true if this is a user-defined property that should be processed
+ */
+function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
+  // User-defined static properties are typically writable and enumerable
+  // Built-in properties are typically non-writable and non-enumerable
+  return descriptor.writable === true && descriptor.enumerable === true;
+}
+
+/**
  * Collects and processes argument definitions from a command class.
  *
  * This function performs the critical task of introspecting a class to
@@ -73,17 +97,16 @@ export function collectArgumentDefs(
 
   // Process each property to determine its role and configuration
   for (const propName of propertyNames) {
-    // Skip built-in class properties that we don't want to parse
-    if (propName === "length" || propName === "prototype") {
-      continue;
-    }
-
     // Get the property descriptor to access default values
     const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
     if (!descriptor || typeof descriptor.value === "function") continue;
 
-    // Skip the built-in class name property (it's a getter, not a static value)
-    if (propName === "name") {
+    // Skip built-in class properties, but allow user-defined properties with the same names
+    if (
+      (propName === "length" || propName === "name" ||
+        propName === "prototype") &&
+      !isUserDefinedProperty(descriptor)
+    ) {
       continue;
     }
 
