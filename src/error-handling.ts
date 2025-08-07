@@ -109,6 +109,7 @@ export function handleParsingError(
     // Default behavior: print error and exit
     console.error(message);
     process.exit(exitCode);
+    throw new Error("unreachable");
   } else if (options?.onError) {
     // Custom error handler provided
     options.onError(message, exitCode);
@@ -154,6 +155,7 @@ export function handleHelpDisplay(
     // Default behavior: print help and exit with success
     console.log(helpText);
     process.exit(0);
+    throw new Error("unreachable");
   } else if (options?.onHelp) {
     // Custom help handler provided
     options.onHelp(helpText);
