@@ -105,15 +105,8 @@ export function collectArgumentDefs(
         klass.name,
       );
     } catch (error) {
-      // For positional arguments, allow missing type/default if we have argument metadata
-      if (metadata?.argument) {
-        // TODO: require @type for undetermined array types
-        // Use string as default type for positional arguments without explicit types
-        type = "string";
-      } else {
-        // Re-throw the error for regular options that need explicit types
-        throw error;
-      }
+      // All properties without defaults must have explicit @type decorators
+      throw error;
     }
 
     // Categorize the property based on its metadata
@@ -243,7 +236,6 @@ export function extractTypeFromDescriptor(
     if (typeof value === "boolean") return "boolean";
 
     // Handle array types
-    // TODO: require @type for undetermined array types
     if (Array.isArray(value)) {
       if (value.length === 0) {
         // Empty array defaults to string[] unless type is explicitly specified
@@ -263,6 +255,7 @@ export function extractTypeFromDescriptor(
   // No type could be determined - this is an error
   throw new Error(
     `Property '${propertyName}' in class '${className}' has no default value and no @type decorator. ` +
-      `Either provide a default value like 'static ${propertyName}: number = 0' or use @type("number").`,
+      `Either provide a default value or use @type() to specify the type. ` +
+      `Examples: @type("string"), @type("number"), @type("boolean"), @type("string[]"), etc.`,
   );
 }

@@ -1023,6 +1023,7 @@ Deno.test("parseArguments handles flags after rest arguments", () => {
   class ProcessCommand {
     @argument(0, "Input file")
     @required()
+    @type("string")
     static input: string;
 
     @argument(1, "Output file")
@@ -1076,6 +1077,7 @@ Deno.test("parseArguments handles mixed flags and rest arguments", () => {
   @command
   class TestCommand {
     @argument(0, "First arg")
+    @type("string")
     static first: string;
 
     @argument(1, "Rest args", { rest: true })
@@ -1129,6 +1131,7 @@ Deno.test("parseArguments handles flags validation after rest arguments", () => 
   @command
   class ValidatedCommand {
     @argument(0, "Input")
+    @type("string")
     static input: string;
 
     @argument(1, "Files", { rest: true })
@@ -1178,6 +1181,7 @@ Deno.test("-- separator stops flag parsing", () => {
   class RunCommand {
     @argument(0, "Binary to run")
     @required()
+    @type("string")
     static binary: string;
 
     @argument(1, "Arguments to pass", { rest: true })
@@ -1218,6 +1222,7 @@ Deno.test("-- separator with mixed arguments", () => {
   @command
   class ExecCommand {
     @argument(0, "Command")
+    @type("string")
     static command: string;
 
     @argument(1, "Args", { rest: true })
@@ -1433,6 +1438,7 @@ Deno.test("Positional arguments - basic usage", () => {
   class Config {
     @argument(0, "Source file path")
     @required()
+    @type("string")
     static source: string;
 
     @argument(1, "Destination file path")
@@ -1450,6 +1456,7 @@ Deno.test("Positional arguments - with options", () => {
   @parse(["input.txt", "output.txt", "--verbose"])
   class Config {
     @argument(0, "Input file")
+    @type("string")
     static input: string;
 
     @argument(1, "Output file")
@@ -1467,9 +1474,11 @@ Deno.test("Positional arguments - mixed with options", () => {
   @parse(["--debug", "source.txt", "--force", "dest.txt"])
   class Config {
     @argument(0, "Source file")
+    @type("string")
     static source: string;
 
     @argument(1, "Destination file")
+    @type("string")
     static dest: string;
 
     static debug: boolean = false;
@@ -1486,6 +1495,7 @@ Deno.test("Positional arguments - rest arguments", () => {
   @parse(["first.txt", "second.txt", "third.txt", "fourth.txt"])
   class Config {
     @argument(0, "First file")
+    @type("string")
     static first: string;
 
     @argument(1, "Additional files", { rest: true })
@@ -1501,6 +1511,7 @@ Deno.test("Positional arguments - with default values", () => {
   @parse(["input.txt"])
   class Config {
     @argument(0, "Input file")
+    @type("string")
     static input: string;
 
     @argument(1, "Output file")
@@ -1556,9 +1567,11 @@ Deno.test("Positional arguments - sequential position validation error", () => {
       @parse(["test"])
       class _Config {
         @argument(0, "First")
+        @type("string")
         static first: string;
 
         @argument(2, "Third") // Error: should be position 1
+        @type("string")
         static third: string;
       }
     },
@@ -1577,6 +1590,7 @@ Deno.test("Positional arguments - rest argument not last error", () => {
         static files: string[];
 
         @argument(1, "Output") // Error: rest must be last
+        @type("string")
         static output: string;
       }
     },
@@ -1589,6 +1603,7 @@ Deno.test("Positional arguments - with subcommands", () => {
   @command
   class RunCommand {
     @argument(0, "Script path")
+    @type("string")
     static script: string;
 
     static verbose: boolean = false;

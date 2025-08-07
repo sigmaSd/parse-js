@@ -151,7 +151,12 @@ export function parsePositionalArguments(
   }
 
   // Process pure positional arguments (after "--")
-  // TODO: is this needed ?
+  // This behavior is intentional and follows the library's design:
+  // - Arguments after "--" are still processed through the positional argument schema
+  // - This allows rest arguments to capture everything after "--" in a structured way
+  // - While this differs from some CLI conventions, it provides more flexibility
+  // - Standard CLI tools often pass everything after "--" as raw args to subprocesses
+  // - This library processes them through defined positional args for better integration
   if (positionalIndex < sortedArgDefs.length && positionalArgs.length > 0) {
     const [, argDef] = sortedArgDefs[positionalIndex];
 
