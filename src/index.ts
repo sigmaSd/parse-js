@@ -216,11 +216,11 @@ export {
   addValidator,
   argument,
   command,
-  type DecoratorContext,
   description,
   required,
   subCommand,
   type,
+  validate,
 } from "./decorators.ts";
 export {
   arrayLength,

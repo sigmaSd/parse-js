@@ -240,6 +240,43 @@ export function required(): (
 }
 
 /**
+ * Validate decorator for custom validation logic.
+ *
+ * This decorator creates a validator using a predicate function and custom error message.
+ * It's a convenient wrapper around addValidator(custom(...)).
+ *
+ * @param predicate - Function that returns true if value is valid
+ * @param message - Error message to show when validation fails
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * @validate((value: string) => value.includes("@"), "must be a valid email")
+ * static email: string = "user@example.com";
+ *
+ * @validate((value: number) => value % 2 === 0, "must be an even number")
+ * static threads: number = 4;
+ *
+ * @validate((value: string) => value.length >= 8, "must be at least 8 characters")
+ * static password: string;
+ * ```
+ */
+export function validate<T>(
+  predicate: (value: T) => boolean,
+  message: string,
+): (
+  _target: unknown,
+  context: DecoratorContext,
+) => void {
+  return addValidator((value: unknown) => {
+    if (!predicate(value as T)) {
+      return message;
+    }
+    return null;
+  });
+}
+
+/**
  * Command decorator to mark a class as a command class for subcommand parsing.
  *
  * This decorator serves as a marker to identify command classes. It doesn't

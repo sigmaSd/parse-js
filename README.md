@@ -530,12 +530,11 @@ fails.
 ## Built-in Validators
 
 The library provides several built-in validators for common validation needs,
-including a flexible `custom()` validator for custom logic:
+including a flexible `@validate()` decorator for custom logic:
 
 ```typescript
 import {
   arrayLength,
-  custom,
   integer,
   length,
   max,
@@ -544,6 +543,7 @@ import {
   pattern,
   range,
   required,
+  validate,
 } from "jsr:@sigma/parse";
 
 @parse(Deno.args)
@@ -573,10 +573,10 @@ class Config {
   @arrayLength(1, 5)
   static tags: string[] = [];
 
-  @custom((value: string) => value.includes("@"), "must be a valid email")
+  @validate((value: string) => value.includes("@"), "must be a valid email")
   static email: string = "user@example.com";
 
-  @custom((value: number) => value % 2 === 0, "must be an even number")
+  @validate((value: number) => value % 2 === 0, "must be an even number")
   static threads: number = 4;
 }
 ```
