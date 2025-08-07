@@ -16,9 +16,14 @@
  * 5. Validate and convert types for each positional argument
  */
 
-import process from "node:process";
-import type { ArgumentDef, ParsedArg, ParseResult } from "../types.ts";
+import type {
+  ArgumentDef,
+  ParsedArg,
+  ParseOptions,
+  ParseResult,
+} from "../types.ts";
 import { validateValue } from "../validation.ts";
+import { ErrorHandlers } from "../error-handling.ts";
 
 /**
  * Parses positional arguments from the command line input.
@@ -44,6 +49,7 @@ import { validateValue } from "../validation.ts";
  * @param argumentDefs - Map of positional argument definitions by index
  * @param result - Object to store parsed values
  * @param argMap - Map of flag names to their definitions (for skipping flag values)
+ * @param options - Parse options for error handling configuration
  * @returns Array of remaining arguments that weren't consumed as positional
  *
  * @example
@@ -61,6 +67,7 @@ export function parsePositionalArguments(
   argumentDefs: Map<number, ArgumentDef>,
   result: ParseResult,
   argMap: Map<string, ParsedArg>,
+  options?: ParseOptions,
 ): string[] {
   const remainingArgs: string[] = [];
   const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
@@ -132,14 +139,14 @@ export function parsePositionalArguments(
         restValues.push(...positionalArgs);
 
         // Convert and validate the collected values
-        processRestArgument(argDef, restValues, result);
+        processRestArgument(argDef, restValues, result, options);
 
         // Rest argument consumes everything, so we're done with positional processing
         positionalIndex++;
         break;
       } else {
         // Single positional argument
-        processSingleArgument(argDef, arg, result);
+        processSingleArgument(argDef, arg, result, options);
         positionalIndex++;
         flagIndex++;
       }
@@ -162,7 +169,7 @@ export function parsePositionalArguments(
 
     if (argDef.rest) {
       // Rest argument gets all remaining positional args
-      processRestArgument(argDef, positionalArgs, result);
+      processRestArgument(argDef, positionalArgs, result, options);
     } else {
       // Process remaining positional args one by one
       for (
@@ -171,7 +178,12 @@ export function parsePositionalArguments(
         i++
       ) {
         const [, currentArgDef] = sortedArgDefs[positionalIndex];
-        processSingleArgument(currentArgDef, positionalArgs[i], result);
+        processSingleArgument(
+          currentArgDef,
+          positionalArgs[i],
+          result,
+          options,
+        );
         positionalIndex++;
       }
     }
@@ -220,6 +232,7 @@ function processSingleArgument(
   argDef: ArgumentDef,
   value: string,
   result: ParseResult,
+  options?: ParseOptions,
 ): void {
   let convertedValue: string | number = value;
 
@@ -227,10 +240,7 @@ function processSingleArgument(
   if (argDef.type === "number") {
     const num = parseFloat(value);
     if (isNaN(num)) {
-      console.error(
-        `Invalid number for positional argument ${argDef.name}: ${value}`,
-      );
-      process.exit(1);
+      ErrorHandlers.invalidNumber(argDef.name, value, options);
     }
     convertedValue = num;
   }
@@ -242,10 +252,7 @@ function processSingleArgument(
   if (argDef.validators) {
     const validationError = validateValue(convertedValue, argDef.validators);
     if (validationError) {
-      console.error(
-        `Validation error for positional argument ${argDef.name}: ${validationError}`,
-      );
-      process.exit(1);
+      ErrorHandlers.validationError(argDef.name, validationError, options);
     }
   }
 }
@@ -264,6 +271,7 @@ function processRestArgument(
   argDef: ArgumentDef,
   values: string[],
   result: ParseResult,
+  options?: ParseOptions,
 ): void {
   if (argDef.type === "number[]") {
     // Convert all values to numbers
@@ -271,10 +279,7 @@ function processRestArgument(
     for (const val of values) {
       const num = parseFloat(val);
       if (isNaN(num)) {
-        console.error(
-          `Invalid number in rest arguments for ${argDef.name}: ${val}`,
-        );
-        process.exit(1);
+        ErrorHandlers.invalidArrayNumber(argDef.name, val, options);
       }
       numbers.push(num);
     }
@@ -291,10 +296,7 @@ function processRestArgument(
       argDef.validators,
     );
     if (validationError) {
-      console.error(
-        `Validation error for positional argument ${argDef.name}: ${validationError}`,
-      );
-      process.exit(1);
+      ErrorHandlers.validationError(argDef.name, validationError, options);
     }
   }
 }

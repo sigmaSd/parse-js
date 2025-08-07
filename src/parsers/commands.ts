@@ -21,7 +21,6 @@
  * 5. Build command path for proper help display
  */
 
-import process from "node:process";
 import type {
   ArgumentDef,
   ParsedArg,
@@ -33,6 +32,7 @@ import { collectArgumentDefs } from "../metadata.ts";
 import { parsePositionalArguments } from "./positional.ts";
 import { parseGlobalOptions } from "./options.ts";
 import { validateValue } from "../validation.ts";
+import { ErrorHandlers } from "../error-handling.ts";
 
 /**
  * Determines if a property is a user-defined static property vs a built-in class property.
@@ -93,6 +93,7 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
 export function parseCommandClass(
   commandClass: new () => unknown,
   args: string[],
+  options?: ParseOptions,
   appName?: string,
   commandName?: string,
   commandPath?: string,
@@ -105,7 +106,9 @@ export function parseCommandClass(
   };
 
   // Collect argument definitions from the command class
-  const { parsedArgs, argumentDefs } = collectArgumentDefs(commandClass);
+  const { parsedArgs, argumentDefs } = collectArgumentDefs(
+    commandClass,
+  );
 
   // Extract subcommand definitions from class metadata
   const subCommands = collectSubCommands(klass);
@@ -115,7 +118,7 @@ export function parseCommandClass(
     args,
     parsedArgs,
     argumentDefs,
-    { name: appName },
+    options || { name: appName },
     subCommands.size > 0 ? subCommands : undefined,
     commandName,
     commandPath,
@@ -252,6 +255,7 @@ function parseWithSubCommand(
     argumentDefs,
     result,
     argMap,
+    options,
   );
 
   // Parse global options before the subcommand
@@ -275,6 +279,7 @@ function parseWithSubCommand(
   const commandInstance = parseCommandClass(
     subCommandInfo.command.commandClass,
     subCommandArgs,
+    options,
     options?.name,
     subCommandInfo.name,
     newCommandPath,
@@ -307,6 +312,7 @@ function parseWithoutSubCommand(
     argumentDefs,
     result,
     argMap,
+    options,
   );
 
   // Parse global options from remaining arguments
@@ -323,7 +329,7 @@ function parseWithoutSubCommand(
   );
 
   // Validate and set default values
-  validateAndSetDefaults(result, parsedArgs, argumentDefs);
+  validateAndSetDefaults(result, parsedArgs, argumentDefs, options);
 
   return result;
 }
@@ -420,6 +426,7 @@ function validateAndSetDefaults(
   result: ParseResult,
   parsedArgs: ParsedArg[],
   argumentDefs: Map<number, ArgumentDef>,
+  options?: ParseOptions,
 ): void {
   // Set defaults and validate regular options
   for (const argDef of parsedArgs) {
@@ -434,10 +441,11 @@ function validateAndSetDefaults(
           argDef.validators,
         );
         if (validationError) {
-          console.error(
-            `Validation error for --${argDef.name}: ${validationError}`,
+          ErrorHandlers.validationError(
+            `--${argDef.name}`,
+            validationError,
+            options,
           );
-          process.exit(1);
         }
       }
     }
@@ -449,10 +457,7 @@ function validateAndSetDefaults(
       if (argDef.default !== undefined) {
         result[argDef.name] = argDef.default;
       } else if (!argDef.rest) {
-        console.error(
-          `Missing required positional argument at position ${index}: ${argDef.name}`,
-        );
-        process.exit(1);
+        ErrorHandlers.missingRequiredArgument(index, argDef.name, options);
       }
       // Validate positional arguments after setting defaults
       if (argDef.validators && result[argDef.name] !== undefined) {
@@ -461,10 +466,7 @@ function validateAndSetDefaults(
           argDef.validators,
         );
         if (validationError) {
-          console.error(
-            `Validation error for positional argument ${argDef.name}: ${validationError}`,
-          );
-          process.exit(1);
+          ErrorHandlers.validationError(argDef.name, validationError, options);
         }
       }
     }

@@ -27,6 +27,7 @@ import type {
   SubCommand,
 } from "./types.ts";
 import { createColors } from "./colors.ts";
+import { captureHelpText } from "./error-handling.ts";
 
 /**
  * Generates and prints comprehensive help text for a command.
@@ -48,12 +49,13 @@ import { createColors } from "./colors.ts";
  * @param subCommands - Available subcommands (if any)
  * @param commandName - Current command name (for subcommands)
  * @param commandPath - Full command path (e.g., "git commit")
+ * @returns The formatted help text as a string
  *
  * @example
  * ```ts
  * // For main application:
- * printHelp(parsedArgs, argumentDefs, "myapp", "A sample CLI tool");
- * // Output:
+ * const helpText = printHelp(parsedArgs, argumentDefs, "myapp", "A sample CLI tool");
+ * // helpText contains:
  * // myapp
  * //
  * // A sample CLI tool
@@ -83,45 +85,48 @@ export function printHelp(
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
   commandPath?: string,
-): void {
-  const colors = createColors(options?.color);
-  const showDefaults = options?.showDefaults ?? true;
-  // Print application header if available
-  if (options?.name && options?.description) {
-    console.log(colors.bold(colors.brightBlue(options.name)));
-    console.log("");
-    console.log(colors.dim(options.description));
-    console.log("");
-  }
+): string {
+  return captureHelpText(() => {
+    const colors = createColors(options?.color);
+    const showDefaults = options?.showDefaults ?? true;
 
-  // Generate and print usage section
-  printUsageSection(
-    argumentDefs,
-    colors,
-    options?.name,
-    subCommands,
-    commandName,
-    commandPath,
-  );
+    // Print application header if available
+    if (options?.name && options?.description) {
+      console.log(colors.bold(colors.brightBlue(options.name)));
+      console.log("");
+      console.log(colors.dim(options.description));
+      console.log("");
+    }
 
-  // Print available subcommands if any
-  if (subCommands && subCommands.size > 0) {
-    printSubCommandsSection(subCommands, colors);
-  }
+    // Generate and print usage section
+    printUsageSection(
+      argumentDefs,
+      colors,
+      options?.name,
+      subCommands,
+      commandName,
+      commandPath,
+    );
 
-  // Print positional arguments if any
-  if (argumentDefs.size > 0) {
-    printArgumentsSection(argumentDefs, colors, showDefaults);
-  }
+    // Print available subcommands if any
+    if (subCommands && subCommands.size > 0) {
+      printSubCommandsSection(subCommands, colors);
+    }
 
-  // Print options section
-  printOptionsSection(
-    parsedArgs,
-    colors,
-    showDefaults,
-    subCommands,
-    commandName,
-  );
+    // Print positional arguments if any
+    if (argumentDefs.size > 0) {
+      printArgumentsSection(argumentDefs, colors, showDefaults);
+    }
+
+    // Print options section
+    printOptionsSection(
+      parsedArgs,
+      colors,
+      showDefaults,
+      subCommands,
+      commandName,
+    );
+  });
 }
 
 /**

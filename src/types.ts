@@ -151,6 +151,14 @@ export interface ParseOptions {
   showDefaults?: boolean;
   /** Default command to run when no arguments are provided */
   defaultCommand?: string | "help";
+  /** Whether to call process.exit() on parsing errors (default: true) */
+  exitOnError?: boolean;
+  /** Whether to call process.exit() when help is shown (default: true) */
+  exitOnHelp?: boolean;
+  /** Custom error handler called instead of process.exit() when exitOnError is false */
+  onError?: (error: string, exitCode: number) => void;
+  /** Custom help handler called instead of process.exit() when exitOnHelp is false */
+  onHelp?: (helpText: string) => void;
 }
 
 /**

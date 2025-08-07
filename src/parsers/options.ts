@@ -21,7 +21,6 @@
  * 6. Handle special cases like help flags
  */
 
-import process from "node:process";
 import type {
   ArgumentDef,
   ParsedArg,
@@ -31,6 +30,7 @@ import type {
 } from "../types.ts";
 import { validateValue } from "../validation.ts";
 import { printHelp } from "../help.ts";
+import { ErrorHandlers, handleHelpDisplay } from "../error-handling.ts";
 
 /**
  * Parses global CLI options from command line arguments.
@@ -87,7 +87,7 @@ export function parseGlobalOptions(
 
     // Handle help flags specially - show help and exit immediately
     if (arg === "--help" || arg === "-h") {
-      printHelp(
+      const helpText = printHelp(
         parsedArgs,
         argumentDefs,
         options,
@@ -95,7 +95,7 @@ export function parseGlobalOptions(
         commandName,
         commandPath,
       );
-      process.exit(0);
+      handleHelpDisplay(helpText, options);
     }
 
     // Process long flags (--flag)
@@ -109,8 +109,7 @@ export function parseGlobalOptions(
       // Look up the argument definition
       const argDef = argMap.get(key);
       if (!argDef) {
-        console.error(`Unknown argument: --${key}`);
-        process.exit(1);
+        ErrorHandlers.unknownArgument(`--${key}`, options);
       }
 
       // Process the flag based on its type
@@ -122,6 +121,7 @@ export function parseGlobalOptions(
         result,
         i,
         argsToProcess,
+        options,
       );
 
       // Skip the next argument if it was consumed as a flag value
@@ -187,6 +187,7 @@ function processFlagValue(
   result: ParseResult,
   currentIndex: number,
   _argsToProcess: string[],
+  options?: ParseOptions,
 ): number {
   if (argDef.type === "boolean") {
     // Boolean flags: --debug (true) or --debug=false
@@ -201,8 +202,7 @@ function processFlagValue(
 
   // Non-boolean flags must have a value
   if (value === undefined) {
-    console.error(`Missing value for argument: --${key}`);
-    process.exit(1);
+    ErrorHandlers.missingValue(`--${key}`, options);
   }
 
   // TypeScript doesn't understand that process.exit never returns
@@ -210,14 +210,14 @@ function processFlagValue(
 
   // Process value based on argument type
   if (argDef.type === "string[]") {
-    processArrayValue(argDef, key, nonNullValue, "string", result);
+    processArrayValue(argDef, key, nonNullValue, "string", result, options);
   } else if (argDef.type === "number[]") {
-    processArrayValue(argDef, key, nonNullValue, "number", result);
+    processArrayValue(argDef, key, nonNullValue, "number", result, options);
   } else if (argDef.type === "number") {
-    processNumericValue(argDef, key, nonNullValue, result);
+    processNumericValue(argDef, key, nonNullValue, result, options);
   } else {
     // String type (default)
-    processStringValue(argDef, key, nonNullValue, result);
+    processStringValue(argDef, key, nonNullValue, result, options);
   }
 
   // Return new index position
@@ -239,6 +239,7 @@ function processArrayValue(
   value: string,
   elementType: "string" | "number",
   result: ParseResult,
+  options?: ParseOptions,
 ): void {
   const arrayValues = value.split(",");
 
@@ -248,8 +249,7 @@ function processArrayValue(
     for (const val of arrayValues) {
       const num = parseFloat(val.trim());
       if (isNaN(num)) {
-        console.error(`Invalid number in array for --${key}: ${val}`);
-        process.exit(1);
+        ErrorHandlers.invalidArrayNumber(`--${key}`, val, options);
       }
       numbers.push(num);
     }
@@ -257,8 +257,7 @@ function processArrayValue(
     // Validate the entire array
     const validationError = validateValue(numbers, argDef.validators);
     if (validationError) {
-      console.error(`Validation error for --${key}: ${validationError}`);
-      process.exit(1);
+      ErrorHandlers.validationError(`--${key}`, validationError, options);
     }
 
     result[key] = numbers;
@@ -266,8 +265,7 @@ function processArrayValue(
     // Keep as strings and validate
     const validationError = validateValue(arrayValues, argDef.validators);
     if (validationError) {
-      console.error(`Validation error for --${key}: ${validationError}`);
-      process.exit(1);
+      ErrorHandlers.validationError(`--${key}`, validationError, options);
     }
 
     result[key] = arrayValues;
@@ -287,18 +285,17 @@ function processNumericValue(
   key: string,
   value: string,
   result: ParseResult,
+  options?: ParseOptions,
 ): void {
   const num = parseFloat(value);
   if (isNaN(num)) {
-    console.error(`Invalid number for --${key}: ${value}`);
-    process.exit(1);
+    ErrorHandlers.invalidNumber(`--${key}`, value, options);
   }
 
   // Validate the number
   const validationError = validateValue(num, argDef.validators);
   if (validationError) {
-    console.error(`Validation error for --${key}: ${validationError}`);
-    process.exit(1);
+    ErrorHandlers.validationError(`--${key}`, validationError, options);
   }
 
   result[key] = num;
@@ -317,12 +314,12 @@ function processStringValue(
   key: string,
   value: string,
   result: ParseResult,
+  options?: ParseOptions,
 ): void {
   // Validate string values
   const validationError = validateValue(value, argDef.validators);
   if (validationError) {
-    console.error(`Validation error for --${key}: ${validationError}`);
-    process.exit(1);
+    ErrorHandlers.validationError(`--${key}`, validationError, options);
   }
 
   result[key] = value;

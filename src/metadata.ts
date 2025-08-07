@@ -276,6 +276,8 @@ export function extractTypeFromDescriptor(
   }
 
   // No type could be determined - this is an error
+  // All properties without defaults must have explicit @type decorators
+  // During metadata collection, always throw regular errors regardless of options
   throw new Error(
     `Property '${propertyName}' in class '${className}' has no default value and no @type decorator. ` +
       `Either provide a default value or use @type() to specify the type. ` +

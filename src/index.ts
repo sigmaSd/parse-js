@@ -1,8 +1,8 @@
-import process from "node:process";
 import type { ParseOptions, ParseResult, SubCommand } from "./types.ts";
 import { collectArgumentDefs } from "./metadata.ts";
 import { parseArguments } from "./parsers/commands.ts";
 import { printHelp } from "./help.ts";
+import { handleHelpDisplay } from "./error-handling.ts";
 
 /**
  * Main parse function and class decorator factory.
@@ -25,8 +25,8 @@ import { printHelp } from "./help.ts";
  * @param options.description - Application description shown in help text
  * @returns A class decorator function
  *
- * @throws Will exit the process with code 1 on parsing or validation errors
- * @throws Will exit the process with code 0 when help is requested
+ * @throws Will exit the process with code 1 on parsing or validation errors (unless exitOnError is false)
+ * @throws Will exit the process with code 0 when help is requested (unless exitOnHelp is false)
  *
  * @example Simple application:
  * ```ts
@@ -108,13 +108,13 @@ export function parse(
       if (args.length === 0 && options?.defaultCommand) {
         if (options.defaultCommand === "help") {
           // Show help and exit
-          printHelp(
+          const helpText = printHelp(
             parsedArgs,
             argumentDefs,
             options,
             subCommands.size > 0 ? subCommands : undefined,
           );
-          process.exit(0);
+          handleHelpDisplay(helpText, options);
         } else if (subCommands.has(options.defaultCommand)) {
           // Run the default subcommand
           const defaultArgs = [options.defaultCommand];
@@ -265,6 +265,7 @@ export {
   addValidator,
   argument,
   command,
+  type DecoratorContext,
   description,
   required,
   subCommand,
@@ -285,3 +286,12 @@ export {
 } from "./validation.ts";
 export { printHelp } from "./help.ts";
 export { collectArgumentDefs, extractTypeFromDescriptor } from "./metadata.ts";
+export {
+  captureHelpText,
+  ErrorHandlers,
+  ErrorMessages,
+  handleHelpDisplay,
+  handleParsingError,
+  isParseError,
+  ParseError,
+} from "./error-handling.ts";
