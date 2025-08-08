@@ -139,9 +139,18 @@ export function parsePositionalArguments(
         rawRestValues.push(arg);
         flagIndex++;
       } else {
-        // Unknown flag but still processing positionals - add to remaining
+        // Unknown flag - add to remaining for global options parser to handle
         remainingArgs.push(arg);
         flagIndex++;
+
+        // If this flag might expect a value, include that too
+        if (
+          !arg.includes("=") &&
+          flagIndex < flagArgs.length && !flagArgs[flagIndex].startsWith("-")
+        ) {
+          remainingArgs.push(flagArgs[flagIndex]);
+          flagIndex++;
+        }
       }
       continue;
     }
@@ -215,9 +224,10 @@ export function parsePositionalArguments(
         rawRestValues.push(arg);
         flagIndex++;
       } else {
-        // No more positional arguments expected, add to remaining
-        remainingArgs.push(arg);
-        flagIndex++;
+        // No more positional arguments expected - this is an error
+        ErrorHandlers.unknownArgument(arg, options);
+        // If error handler returned (didn't exit/throw), skip processing
+        return remainingArgs;
       }
     }
   }

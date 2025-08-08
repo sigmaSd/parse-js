@@ -316,3 +316,45 @@ Deno.test("rawRest - complex real-world example", () => {
   ]);
   assertEquals(ContainerProxy.debug, false);
 });
+
+Deno.test("unexpected positional arguments should error", () => {
+  assertThrows(
+    () => {
+      @parse(["unexpected", "positional", "args"], {
+        name: "empty-test",
+        description: "Test with no defined positional args",
+        exitOnError: false,
+      })
+      class _EmptyCommand {
+        @description("Enable debug mode")
+        static debug: boolean = false;
+      }
+    },
+    Error,
+    "Unknown argument: unexpected",
+  );
+});
+
+Deno.test("unexpected positional arguments with defined args should error", () => {
+  assertThrows(
+    () => {
+      @parse(["input.txt", "output.txt", "unexpected"], {
+        name: "file-processor",
+        description: "Test with defined positional args",
+        exitOnError: false,
+      })
+      class _FileProcessor {
+        @argument(0, "Input file")
+        static input: string = "";
+
+        @argument(1, "Output file")
+        static output: string = "";
+
+        @description("Enable verbose mode")
+        static verbose: boolean = false;
+      }
+    },
+    Error,
+    "Unknown argument: unexpected",
+  );
+});
