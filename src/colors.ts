@@ -10,8 +10,6 @@
  * - Common color functions for CLI output
  */
 
-import process from "node:process";
-
 /**
  * ANSI color codes for terminal output.
  */
