@@ -151,7 +151,7 @@ export interface ParseOptions {
   name?: string;
   /** Application description shown in help text */
   description?: string;
-  /** Enable colored help output (respects NO_COLOR environment variable) */
+  /** Enable colored help output (no automatic detection) */
   color?: boolean;
   /** Show default values in help text */
   showDefaults?: boolean;

@@ -1795,46 +1795,31 @@ Deno.test("Color support - help output with colors enabled", () => {
   }
 });
 
-Deno.test("Color support - respects NO_COLOR environment variable", () => {
-  // Save original environment
-  const originalNoColor = Deno.env.get("NO_COLOR");
+Deno.test("Color support - disabled when color option is false", () => {
+  mockProcessExit();
 
   try {
-    // Set NO_COLOR environment variable
-    Deno.env.set("NO_COLOR", "1");
-
-    mockProcessExit();
-
-    try {
-      const output = captureConsoleOutput(() => {
-        try {
-          @parse(["--help"], {
-            name: "nocolor",
-            description: "Test NO_COLOR",
-            color: true, // Even with color=true, NO_COLOR should disable it
-          })
-          class _Config {
-            static port: number = 8080;
-          }
-        } catch (_e) {
-          // Expected process.exit call
+    const output = captureConsoleOutput(() => {
+      try {
+        @parse(["--help"], {
+          name: "nocolor",
+          description: "Test color disabled",
+          color: false,
+        })
+        class _NoColorTest {
+          static port: number = 8080;
         }
-      });
+      } catch (_e) {
+        // Expected process.exit call
+      }
+    });
 
-      assertEquals(exitCode, 0);
-      // Colors should NOT be present in output when NO_COLOR is set
-      assertEquals(output.includes("\x1b["), false);
-      assertEquals(output.includes("nocolor"), true);
-    } finally {
-      restoreProcessExit();
-    }
+    assertEquals(exitCode, 0);
+    // Colors should NOT be present in output when color=false
+    assertEquals(output.includes("\x1b["), false);
+    assertEquals(output.includes("nocolor"), true);
   } finally {
-    // Restore original environment
-    if (originalNoColor !== undefined) {
-      Deno.env.set("NO_COLOR", originalNoColor);
-    } else {
-      Deno.env.delete("NO_COLOR");
-    }
+    restoreProcessExit();
   }
 });
 

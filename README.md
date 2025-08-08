@@ -334,8 +334,7 @@ properties.
   - `name?: string` - The name of the application (shown in help)
   - `description?: string` - A brief description of the application (shown in
     help)
-  - `color?: boolean` - Enable colored help output (respects NO_COLOR
-    environment variable)
+  - `color?: boolean` - Enable colored help output (no automatic detection)
   - `showDefaults?: boolean` - Show default values in help text (default: true)
   - `defaultCommand?: string | "help"` - Default command to run when no
     arguments are provided
@@ -1069,7 +1068,7 @@ Options:
 
 ### Colored Help Output
 
-Enable colored help text that respects the NO_COLOR environment variable standard:
+Enable colored help text with simple boolean control:
 
 ```typescript
 @parse(Deno.args, {
@@ -1087,20 +1086,17 @@ class Config {
 ```
 
 **Color behavior:**
-- Colors are automatically disabled if `NO_COLOR` environment variable is set
-- Colors are disabled if stdout is not a TTY (e.g., piped output)
-- Use `color: true` to request colors (still respects NO_COLOR and TTY)
-- Use `color: false` to explicitly disable colors
+- Use `color: true` to enable colored output
+- Use `color: false` or omit the option to disable colors
+- No automatic detection based on environment variables or TTY
+- Users can implement their own color detection wrapper if needed
 
 ```bash
-# Colored help (if terminal supports it)
+# Colored help (when color: true is set)
 deno run app.ts --help
 
-# Disable colors via environment variable
-NO_COLOR=1 deno run app.ts --help
-
-# Disable colors via pipe
-deno run app.ts --help | cat
+# Plain help (default behavior)
+deno run app.ts --help
 ```
 
 ### Show Default Values

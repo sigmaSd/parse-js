@@ -1,13 +1,12 @@
 /**
  * Color utilities for CLI help output with NO_COLOR environment variable support.
  *
- * This module provides ANSI color codes for terminal output while respecting
- * the NO_COLOR environment variable standard (https://no-color.org/).
+ * This module provides ANSI color codes for terminal output.
  *
  * Features:
- * - Automatic color detection based on environment
- * - NO_COLOR environment variable support
- * - Graceful fallback to plain text
+ * - Simple boolean-based color control
+ * - No automatic detection or environment checks
+ * - Users can implement their own color detection logic
  * - Common color functions for CLI output
  */
 
@@ -50,37 +49,14 @@ const COLORS = {
 /**
  * Determines if color output should be enabled.
  *
- * Colors are disabled if:
- * - NO_COLOR environment variable is set (any value)
- * - Terminal doesn't support colors
- * - Color is explicitly disabled
+ * Simply returns the enableColor value - no heuristics or environment checks.
+ * Users can wrap their CLI with their own color detection logic if needed.
  *
  * @param enableColor - Explicit color preference
  * @returns true if colors should be used
  */
 function shouldUseColors(enableColor?: boolean): boolean {
-  // Explicit disable takes precedence
-  if (enableColor === false) {
-    return false;
-  }
-
-  // Check NO_COLOR environment variable
-  if (process.env.NO_COLOR !== undefined) {
-    return false;
-  }
-
-  // Check if stdout is a TTY
-  if (!process.stdout.isTTY) {
-    return false;
-  }
-
-  // If explicitly enabled, use colors
-  if (enableColor === true) {
-    return true;
-  }
-
-  // Default: auto-detect based on environment
-  return process.stdout.isTTY && !process.env.NO_COLOR;
+  return enableColor === true;
 }
 
 /**
@@ -155,6 +131,6 @@ export function createColors(enableColor?: boolean): {
 }
 
 /**
- * Default color instance for convenience.
+ * Default color instance for convenience (colors disabled by default).
  */
 export const colors = createColors();

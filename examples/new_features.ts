@@ -1,6 +1,6 @@
 /**
  * Demonstration of new CLI parsing features:
- * - Colored help output with NO_COLOR support
+ * - Colored help output with simple boolean control
  * - Default values shown in help text
  * - Default command functionality
  */
@@ -69,7 +69,7 @@ class TestCommand {
 @parse(Deno.args, {
   name: "devtool",
   description: "A modern development tool with colored help and smart defaults",
-  color: true, // Enable colored output (respects NO_COLOR)
+  color: true, // Enable colored output
   showDefaults: true, // Show default values in help
   defaultCommand: "help", // Show help when no command is provided
 })
@@ -147,14 +147,11 @@ deno run new_features.ts build src/main.ts --minify --output build
 # Verbose mode
 deno run new_features.ts --verbose serve
 
-# Disable colors
-NO_COLOR=1 deno run new_features.ts
-
 # Help for specific command
 deno run new_features.ts serve --help
 
 Features demonstrated:
-- ✅ Colored help output (respects NO_COLOR env var)
+- ✅ Colored help output (simple boolean control)
 - ✅ Default values shown in help text
 - ✅ Default command (shows help when no args provided)
 - ✅ Nested subcommands with proper help
