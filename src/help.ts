@@ -197,12 +197,16 @@ function printUsageSection(
  * - `[input] [output...]` - optional with rest
  */
 function buildUsageArguments(argumentDefs: Map<number, ArgumentDef>): string {
-  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
-    a - b
-  );
+  // Separate rawRest from regular positional arguments
+  const rawRestArg = argumentDefs.get(-1);
+  const regularArgDefs = Array.from(argumentDefs.entries())
+    .filter(([index]) => index !== -1)
+    .sort(([a], [b]) => a - b);
+
   let usageArgs = "";
 
-  for (const [_index, argDef] of sortedArgDefs) {
+  // Build usage for regular positional arguments
+  for (const [_index, argDef] of regularArgDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
 
     if (argDef.rest) {
@@ -210,6 +214,15 @@ function buildUsageArguments(argumentDefs: Map<number, ArgumentDef>): string {
     } else {
       usageArgs += isRequired ? ` <${argDef.name}>` : ` [${argDef.name}]`;
     }
+  }
+
+  // Add rawRest argument if present
+  if (rawRestArg) {
+    const isRequired = !rawRestArg.default &&
+      !isRequiredByValidator(rawRestArg);
+    usageArgs += isRequired
+      ? ` <${rawRestArg.name}...>`
+      : ` [${rawRestArg.name}...]`;
   }
 
   return usageArgs;
@@ -254,11 +267,14 @@ function printArgumentsSection(
 ): void {
   console.log(colors.bold(colors.brightYellow("Arguments:")));
 
-  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
-    a - b
-  );
+  // Separate rawRest from regular positional arguments
+  const rawRestArg = argumentDefs.get(-1);
+  const regularArgDefs = Array.from(argumentDefs.entries())
+    .filter(([index]) => index !== -1)
+    .sort(([a], [b]) => a - b);
 
-  for (const [_index, argDef] of sortedArgDefs) {
+  // Print regular positional arguments
+  for (const [_index, argDef] of regularArgDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const restText = argDef.rest ? colors.yellow(" (rest)") : "";
@@ -274,6 +290,27 @@ function printArgumentsSection(
 
     if (argDef.description) {
       console.log(`      ${colors.dim(argDef.description)}`);
+    }
+  }
+
+  // Print rawRest argument if present
+  if (rawRestArg) {
+    const isRequired = !rawRestArg.default &&
+      !isRequiredByValidator(rawRestArg);
+    const requiredText = isRequired ? colors.red(" (required)") : "";
+    const rawRestText = colors.yellow(" (raw rest)");
+    const defaultText = showDefaults && rawRestArg.default !== undefined
+      ? colors.dim(` (default: ${JSON.stringify(rawRestArg.default)})`)
+      : "";
+
+    console.log(
+      `  ${
+        colors.brightGreen(rawRestArg.name)
+      }${requiredText}${rawRestText}${defaultText}`,
+    );
+
+    if (rawRestArg.description) {
+      console.log(`      ${colors.dim(rawRestArg.description)}`);
     }
   }
 

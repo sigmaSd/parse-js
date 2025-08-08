@@ -269,6 +269,7 @@ export {
   command,
   type DecoratorContext,
   description,
+  rawRest,
   required,
   subCommand,
   type,

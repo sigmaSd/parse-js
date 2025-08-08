@@ -458,3 +458,65 @@ export function argument(
     context.metadata[context.name] = propertyMetadata;
   };
 }
+
+/**
+ * Raw rest decorator to capture all remaining arguments without parsing flags.
+ *
+ * This decorator creates a special argument that captures all remaining
+ * command line arguments after the last defined positional argument,
+ * without attempting to parse any flags. This is perfect for proxy
+ * commands that need to pass arguments to other tools.
+ *
+ * Key differences from @argument(n, { rest: true }):
+ * - Captures flags as raw strings instead of parsing them
+ * - Doesn't require sequential indexing
+ * - Always captures everything remaining
+ * - Perfect for proxy/wrapper commands
+ *
+ * @param description - Optional description for help text
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * @parse(Deno.args)
+ * class ProxyCommand {
+ *   @argument(0, "Binary name to execute")
+ *   static binary: string;
+ *
+ *   @rawRest("Arguments to pass to the binary")
+ *   static args: string[];
+ * }
+ *
+ * // Usage: myproxy docker run --rm -it ubuntu bash
+ * // binary = "docker"
+ * // args = ["run", "--rm", "-it", "ubuntu", "bash"]
+ * ```
+ */
+export function rawRest(description?: string): (
+  _target: unknown,
+  context: DecoratorContext,
+) => void {
+  return function (
+    _target: unknown,
+    context: DecoratorContext,
+  ): void {
+    if (!context.metadata) {
+      throw new Error(
+        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+      );
+    }
+
+    const propertyMetadata =
+      (context.metadata[context.name] as PropertyMetadata) || {};
+
+    propertyMetadata.rawRest = {
+      description,
+    };
+
+    if (description) {
+      propertyMetadata.description = description;
+    }
+
+    context.metadata[context.name] = propertyMetadata;
+  };
+}

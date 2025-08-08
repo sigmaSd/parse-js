@@ -75,6 +75,8 @@ export function parseGlobalOptions(
   commandName?: string,
   commandPath?: string,
 ): void {
+  // Check if rawRest is present - if so, we should be more lenient with unknown flags
+  const hasRawRest = argumentDefs.has(-1);
   // Only process arguments before "--" separator
   // Arguments after "--" are reserved for positional processing
   const separatorIndex = args.findIndex((arg) => arg === "--");
@@ -111,6 +113,11 @@ export function parseGlobalOptions(
       // Look up the argument definition
       const argDef = argMap.get(key);
       if (!argDef) {
+        // If rawRest is present, unknown flags will be captured by it, so don't error
+        if (hasRawRest) {
+          // Skip this argument - it will be handled by rawRest processing
+          continue;
+        }
         ErrorHandlers.unknownArgument(`--${key}`, options);
         // If error handler returned (didn't exit/throw), skip this argument
         continue;

@@ -1,8 +1,9 @@
 # Configurable Error Handling
 
-The CLI parsing library now supports configurable error handling with two distinct patterns: 
-**Notification Pattern** (default) for backward compatibility, and **Control Pattern** for 
-advanced use cases where custom handlers have complete control over execution flow.
+The CLI parsing library now supports configurable error handling with two
+distinct patterns: **Notification Pattern** (default) for backward
+compatibility, and **Control Pattern** for advanced use cases where custom
+handlers have complete control over execution flow.
 
 ## Overview
 
@@ -16,13 +17,17 @@ By default, the library maintains backward compatibility:
 ### With Configuration Options
 
 **Without Custom Handlers (Notification Pattern):**
+
 - Set `exitOnError: false` to throw `ParseError` instead of exiting
 - Set `exitOnHelp: false` to throw `ParseError` instead of exiting
 
 **With Custom Handlers (Control Pattern):**
+
 - Custom handlers (`onError`, `onHelp`) take **complete control**
-- Exit flags (`exitOnError`, `exitOnHelp`) are **ignored** when custom handlers are provided
-- Handlers decide whether to continue execution, throw errors, or exit the process
+- Exit flags (`exitOnError`, `exitOnHelp`) are **ignored** when custom handlers
+  are provided
+- Handlers decide whether to continue execution, throw errors, or exit the
+  process
 - Perfect for servers, testing, and advanced integration scenarios
 
 ## Configuration Options
@@ -86,7 +91,7 @@ try {
     console.error(`❌ CLI Error: ${error}`);
     // Log to monitoring system
     logger.error({ error, exitCode, timestamp: new Date() });
-    
+
     // Handler decides what to do:
     // - Return (continue execution)
     // - throw new Error() (stop with custom error)
@@ -110,10 +115,10 @@ class Config {
     console.log("=== Custom Help ===");
     console.log(helpText);
     console.log("Visit: https://myapp.com/docs");
-    
+
     // Handler decides what to do:
     // - Return (continue execution)
-    // - throw new Error() (stop with custom error)  
+    // - throw new Error() (stop with custom error)
     // - process.exit(0) (stop with exit)
   },
 })
@@ -179,7 +184,8 @@ try {
 
 ### Server Applications
 
-Servers shouldn't crash when receiving invalid CLI commands. Use Control Pattern for graceful handling:
+Servers shouldn't crash when receiving invalid CLI commands. Use Control Pattern
+for graceful handling:
 
 ```ts
 class WebServer {
@@ -251,9 +257,9 @@ function loadConfig(args: string[]) {
   }
 
   // Always returns - even with invalid config
-  return { 
-    apiKey: Config.apiKey || process.env.API_KEY || "", 
-    port: Config.port 
+  return {
+    apiKey: Config.apiKey || process.env.API_KEY || "",
+    port: Config.port,
   };
 }
 ```
@@ -286,7 +292,7 @@ Choose your migration path based on your needs:
 ### Option 1: Notification Pattern (Simple)
 
 1. **Add `exitOnError: false`** to prevent process exits on errors
-2. **Add `exitOnHelp: false`** to prevent process exits on help  
+2. **Add `exitOnHelp: false`** to prevent process exits on help
 3. **Wrap parsing in try-catch** to handle `ParseError` exceptions
 
 ```ts
@@ -339,22 +345,30 @@ class Config {
 
 ### Pattern Selection
 
-1. **Use Notification Pattern for simple cases** - When you just want exceptions instead of exits
-2. **Use Control Pattern for advanced integration** - Servers, testing, complex error handling
+1. **Use Notification Pattern for simple cases** - When you just want exceptions
+   instead of exits
+2. **Use Control Pattern for advanced integration** - Servers, testing, complex
+   error handling
 
 ### Implementation Guidelines
 
-3. **Use Control Pattern for servers** - Custom handlers prevent crashes from invalid input
-4. **Use custom handlers for logging** - Track parsing errors in monitoring systems
-5. **Provide fallback configurations** - Ensure applications can continue with defaults
-6. **Test error scenarios** - Both patterns work well for testing validation logic
+3. **Use Control Pattern for servers** - Custom handlers prevent crashes from
+   invalid input
+4. **Use custom handlers for logging** - Track parsing errors in monitoring
+   systems
+5. **Provide fallback configurations** - Ensure applications can continue with
+   defaults
+6. **Test error scenarios** - Both patterns work well for testing validation
+   logic
 7. **Preserve exit codes** - Use `error.exitCode` for consistent error reporting
 
 ### Control Pattern Best Practices
 
-8. **Document handler behavior** - Make it clear whether handlers continue, throw, or exit
+8. **Document handler behavior** - Make it clear whether handlers continue,
+   throw, or exit
 9. **Be consistent** - If using Control Pattern, use it for both errors and help
-10. **Consider async handlers** - Control Pattern works well with async operations
+10. **Consider async handlers** - Control Pattern works well with async
+    operations
 
 ## API Reference
 
@@ -392,12 +406,15 @@ interface ParseOptions {
 This configurable error handling system provides two powerful patterns:
 
 - **Notification Pattern**: Simple upgrade from process exits to exceptions
-- **Control Pattern**: Advanced integration where custom handlers have complete control
+- **Control Pattern**: Advanced integration where custom handlers have complete
+  control
 
 The Control Pattern is particularly powerful for:
+
 - Server applications that shouldn't crash
-- Testing frameworks that need predictable behavior  
+- Testing frameworks that need predictable behavior
 - Complex applications requiring custom error recovery
 - Integration with monitoring and logging systems
 
-Both patterns maintain full backward compatibility with existing code while enabling much more flexible integration into larger applications.
+Both patterns maintain full backward compatibility with existing code while
+enabling much more flexible integration into larger applications.

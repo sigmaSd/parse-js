@@ -458,10 +458,13 @@ function validateAndSetDefaults(
     if (result[argDef.name] === undefined) {
       if (argDef.default !== undefined) {
         result[argDef.name] = argDef.default;
-      } else if (!argDef.rest) {
-        ErrorHandlers.missingRequiredArgument(index, argDef.name, options);
-        // If error handler returned (didn't exit/throw), skip processing
-        return;
+      } else if (!argDef.rest && !argDef.rawRest) {
+        // Only require arguments that aren't rest or rawRest
+        if (index !== -1) { // Skip rawRest arguments (index -1)
+          ErrorHandlers.missingRequiredArgument(index, argDef.name, options);
+          // If error handler returned (didn't exit/throw), skip processing
+          return;
+        }
       }
       // Validate positional arguments after setting defaults
       if (argDef.validators && result[argDef.name] !== undefined) {

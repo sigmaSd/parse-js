@@ -98,6 +98,8 @@ export interface ArgumentDef {
   validators?: Validator[];
   /** Whether this captures remaining args */
   rest?: boolean;
+  /** Whether this captures all remaining args without parsing flags */
+  rawRest?: boolean;
   /** Help description */
   description?: string;
 }
@@ -135,6 +137,10 @@ export interface PropertyMetadata {
   subCommand?: new () => unknown;
   /** Positional argument config from @argument() decorator */
   argument?: ArgumentMetadata;
+  /** Raw rest argument config from @rawRest() decorator */
+  rawRest?: {
+    description?: string;
+  };
 }
 
 /**

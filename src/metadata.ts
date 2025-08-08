@@ -143,6 +143,17 @@ export function collectArgumentDefs(
         rest: metadata.argument.rest,
         description: metadata.argument.description,
       });
+    } else if (metadata?.rawRest) {
+      // This is a raw rest argument - store it with a special index
+      // Use -1 as a special index to indicate rawRest
+      argumentDefs.set(-1, {
+        name: propName,
+        type,
+        default: descriptor.value,
+        validators: metadata.validators,
+        rawRest: true,
+        description: metadata.rawRest.description,
+      });
     } else {
       // This is a regular CLI option (--flag)
       parsedArgs.push({
@@ -175,13 +186,18 @@ export function collectArgumentDefs(
 function validatePositionalArguments(
   argumentDefs: Map<number, ArgumentDef>,
 ): void {
-  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
-    a - b
-  );
-  let hasRest = false;
+  // Separate rawRest from regular positional arguments
+  const rawRestArg = argumentDefs.get(-1);
+  const regularArgDefs = Array.from(argumentDefs.entries())
+    .filter(([index]) => index !== -1)
+    .sort(([a], [b]) => a - b);
 
-  for (let i = 0; i < sortedArgDefs.length; i++) {
-    const [index, argDef] = sortedArgDefs[i];
+  let hasRest = false;
+  const hasRawRest = rawRestArg !== undefined;
+
+  // Validate regular positional arguments
+  for (let i = 0; i < regularArgDefs.length; i++) {
+    const [index, argDef] = regularArgDefs[i];
 
     // Check for sequential indices (must be 0, 1, 2, ...)
     if (index !== i) {
@@ -190,7 +206,7 @@ function validatePositionalArguments(
       );
     }
 
-    // Check that rest arguments only appear at the end
+    // Check that rest arguments only appear at the end (before rawRest)
     if (hasRest) {
       throw new Error(
         `Only the last argument can be marked as rest. Found argument at position ${index} after rest argument.`,
@@ -200,6 +216,13 @@ function validatePositionalArguments(
     if (argDef.rest) {
       hasRest = true;
     }
+  }
+
+  // Validate that rawRest doesn't conflict with rest
+  if (hasRest && hasRawRest) {
+    throw new Error(
+      `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
+    );
   }
 }
 

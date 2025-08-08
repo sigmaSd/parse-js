@@ -70,9 +70,12 @@ export function parsePositionalArguments(
   options?: ParseOptions,
 ): string[] {
   const remainingArgs: string[] = [];
-  const sortedArgDefs = Array.from(argumentDefs.entries()).sort(([a], [b]) =>
-    a - b
-  );
+
+  // Separate rawRest from regular positional arguments
+  const rawRestArg = argumentDefs.get(-1);
+  const regularArgDefs = Array.from(argumentDefs.entries())
+    .filter(([index]) => index !== -1)
+    .sort(([a], [b]) => a - b);
 
   let positionalIndex = 0;
 
@@ -91,37 +94,61 @@ export function parsePositionalArguments(
     positionalArgs = [];
   }
 
+  // For rawRest commands, we need to identify which args are positional vs flags
+  // that should be captured by rawRest
+  let rawRestCaptureStarted = false;
+  const rawRestValues: string[] = [];
+
   // Process the mixed section (before "--")
   let flagIndex = 0;
 
   while (flagIndex < flagArgs.length) {
     const arg = flagArgs[flagIndex];
 
+    // If rawRest capture has started, capture everything
+    if (rawRestCaptureStarted && rawRestArg) {
+      rawRestValues.push(arg);
+      flagIndex++;
+      continue;
+    }
+
     // Handle flag arguments and their values
     if (arg.startsWith("--") || arg.startsWith("-")) {
-      remainingArgs.push(arg);
-      flagIndex++;
-
-      // Determine if this flag expects a value and skip it if so
+      // Check if this is a known flag that should be processed globally
       const flagName = arg.startsWith("--")
         ? (arg.includes("=") ? arg.split("=")[0].slice(2) : arg.slice(2))
         : arg.slice(1);
 
       const argDef = argMap.get(flagName);
-      if (
-        argDef && argDef.type !== "boolean" && !arg.includes("=") &&
-        flagIndex < flagArgs.length
-      ) {
-        // This flag expects a separate value argument, skip it
-        remainingArgs.push(flagArgs[flagIndex]);
+      if (argDef) {
+        // This is a known flag - add to remaining for global processing
+        remainingArgs.push(arg);
+        flagIndex++;
+
+        // If it expects a value, include that too
+        if (
+          argDef.type !== "boolean" && !arg.includes("=") &&
+          flagIndex < flagArgs.length && !flagArgs[flagIndex].startsWith("-")
+        ) {
+          remainingArgs.push(flagArgs[flagIndex]);
+          flagIndex++;
+        }
+      } else if (rawRestArg && positionalIndex >= regularArgDefs.length) {
+        // Unknown flag and all positionals satisfied - start rawRest capture
+        rawRestCaptureStarted = true;
+        rawRestValues.push(arg);
+        flagIndex++;
+      } else {
+        // Unknown flag but still processing positionals - add to remaining
+        remainingArgs.push(arg);
         flagIndex++;
       }
       continue;
     }
 
     // This is a positional argument from the mixed section
-    if (positionalIndex < sortedArgDefs.length) {
-      const [, argDef] = sortedArgDefs[positionalIndex];
+    if (positionalIndex < regularArgDefs.length) {
+      const [, argDef] = regularArgDefs[positionalIndex];
 
       if (argDef.rest) {
         // Rest argument: collect all remaining non-flag values
@@ -151,21 +178,104 @@ export function parsePositionalArguments(
         flagIndex++;
       }
     } else {
-      // No more positional arguments expected, add to remaining
-      remainingArgs.push(arg);
-      flagIndex++;
+      // This is a positional argument
+      if (positionalIndex < regularArgDefs.length) {
+        const [, argDef] = regularArgDefs[positionalIndex];
+
+        if (argDef.rest) {
+          // Rest argument: collect all remaining non-flag values
+          const restValues: string[] = [];
+
+          // Collect remaining args from the mixed section
+          while (
+            flagIndex < flagArgs.length && !flagArgs[flagIndex].startsWith("-")
+          ) {
+            restValues.push(flagArgs[flagIndex]);
+            flagIndex++;
+          }
+
+          // Add all pure positional args
+          restValues.push(...positionalArgs);
+
+          // Convert and validate the collected values
+          processRestArgument(argDef, restValues, result, options);
+
+          // Rest argument consumes everything, so we're done with positional processing
+          positionalIndex++;
+          break;
+        } else {
+          // Single positional argument
+          processSingleArgument(argDef, arg, result, options);
+          positionalIndex++;
+          flagIndex++;
+        }
+      } else if (rawRestArg) {
+        // All regular positionals satisfied - start rawRest capture
+        rawRestCaptureStarted = true;
+        rawRestValues.push(arg);
+        flagIndex++;
+      } else {
+        // No more positional arguments expected, add to remaining
+        remainingArgs.push(arg);
+        flagIndex++;
+      }
+    }
+  }
+
+  // If rawRest was active, finalize it
+  if (rawRestArg && (rawRestCaptureStarted || rawRestValues.length > 0)) {
+    // Add any remaining args from pure positional section
+    rawRestValues.push(...positionalArgs);
+
+    // Store the raw rest values
+    result[rawRestArg.name] = rawRestValues;
+
+    // Validate if needed
+    if (rawRestArg.validators) {
+      const validationError = validateValue(
+        rawRestValues,
+        rawRestArg.validators,
+      );
+      if (validationError) {
+        ErrorHandlers.validationError(
+          rawRestArg.name,
+          validationError,
+          options,
+        );
+        return remainingArgs;
+      }
     }
   }
 
   // Process pure positional arguments (after "--")
-  // This behavior is intentional and follows the library's design:
-  // - Arguments after "--" are still processed through the positional argument schema
-  // - This allows rest arguments to capture everything after "--" in a structured way
-  // - While this differs from some CLI conventions, it provides more flexibility
-  // - Standard CLI tools often pass everything after "--" as raw args to subprocesses
-  // - This library processes them through defined positional args for better integration
-  if (positionalIndex < sortedArgDefs.length && positionalArgs.length > 0) {
-    const [, argDef] = sortedArgDefs[positionalIndex];
+  // Handle rawRest first if we have remaining args and all regular positionals are satisfied
+  if (
+    rawRestArg && positionalIndex >= regularArgDefs.length &&
+    positionalArgs.length > 0
+  ) {
+    // If rawRest already has values, append to them, otherwise create new array
+    const existingValues = result[rawRestArg.name] as string[] || [];
+    result[rawRestArg.name] = [...existingValues, ...positionalArgs];
+
+    // Validate the combined values
+    if (rawRestArg.validators) {
+      const validationError = validateValue(
+        result[rawRestArg.name],
+        rawRestArg.validators,
+      );
+      if (validationError) {
+        ErrorHandlers.validationError(
+          rawRestArg.name,
+          validationError,
+          options,
+        );
+        return remainingArgs;
+      }
+    }
+  } else if (
+    positionalIndex < regularArgDefs.length && positionalArgs.length > 0
+  ) {
+    const [, argDef] = regularArgDefs[positionalIndex];
 
     if (argDef.rest) {
       // Rest argument gets all remaining positional args
@@ -174,10 +284,10 @@ export function parsePositionalArguments(
       // Process remaining positional args one by one
       for (
         let i = 0;
-        i < positionalArgs.length && positionalIndex < sortedArgDefs.length;
+        i < positionalArgs.length && positionalIndex < regularArgDefs.length;
         i++
       ) {
-        const [, currentArgDef] = sortedArgDefs[positionalIndex];
+        const [, currentArgDef] = regularArgDefs[positionalIndex];
         processSingleArgument(
           currentArgDef,
           positionalArgs[i],
