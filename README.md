@@ -245,7 +245,6 @@ interface ParseOptions {
 @parse(Deno.args, { name: "process", description: "Process files" })
 class Processor {
   @argument({ description: "Input file" })
-  @required()
   @type("string")
   static input: string;
 
@@ -323,16 +322,16 @@ class Config {
 class ServeCommand {
   @description("Port to serve on")
   static port: number = 3000;
-  
+
   @description("Enable watch mode")
   static watch: boolean = false;
 }
 
-@command 
+@command
 class BuildCommand {
   @description("Enable production mode")
   static production: boolean = false;
-  
+
   @argument({ description: "Output directory" })
   static output: string = "dist";
 }
@@ -345,7 +344,7 @@ class MyApp {
   @subCommand(ServeCommand)
   static serve: ServeCommand;
 
-  @subCommand(BuildCommand) 
+  @subCommand(BuildCommand)
   static build: BuildCommand;
 }
 
