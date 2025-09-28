@@ -458,8 +458,8 @@ function validateAndSetDefaults(
     if (result[argDef.name] === undefined) {
       if (argDef.default !== undefined) {
         result[argDef.name] = argDef.default;
-      } else if (!argDef.rest && !argDef.rawRest) {
-        // Only require arguments that aren't rest or rawRest
+      } else if (!argDef.rest && !argDef.rawRest && !argDef.optional) {
+        // Only require arguments that aren't rest, rawRest, or optional
         ErrorHandlers.missingRequiredArgument(argDef.name, options);
         // If error handler returned (didn't exit/throw), skip processing
         return;

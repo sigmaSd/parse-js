@@ -1715,6 +1715,57 @@ Deno.test("Positional arguments - implicit positioning works correctly", () => {
   assertEquals(_Config.second, "world");
 });
 
+Deno.test("Positional arguments - optional last argument with value", () => {
+  @parse(["input.txt", "output.txt"])
+  class _Config {
+    @argument({ description: "Input file" })
+    @type("string")
+    static input: string;
+
+    @argument({ description: "Output file", optional: true })
+    @type("string")
+    static output: string;
+  }
+
+  assertEquals(_Config.input, "input.txt");
+  assertEquals(_Config.output, "output.txt");
+});
+
+Deno.test("Positional arguments - optional last argument without value", () => {
+  @parse(["input.txt"])
+  class _Config {
+    @argument({ description: "Input file" })
+    @type("string")
+    static input: string;
+
+    @argument({ description: "Output file", optional: true })
+    @type("string")
+    static output: string;
+  }
+
+  assertEquals(_Config.input, "input.txt");
+  assertEquals(_Config.output, undefined);
+});
+
+Deno.test("Positional arguments - optional argument validation error", () => {
+  assertThrows(
+    () => {
+      @parse(["test"])
+      class _Config {
+        @argument({ description: "First", optional: true })
+        @type("string")
+        static first: string;
+
+        @argument({ description: "Second" })
+        @type("string")
+        static second: string;
+      }
+    },
+    Error,
+    "Only the last positional argument can be marked as optional",
+  );
+});
+
 Deno.test("Positional arguments - rest argument not last error", () => {
   assertThrows(
     () => {

@@ -77,6 +77,8 @@ export interface ArgumentMetadata {
   description?: string;
   /** Whether this argument captures all remaining positional args */
   rest?: boolean;
+  /** Whether this argument is optional (can be omitted) */
+  optional?: boolean;
 }
 
 /**
@@ -98,6 +100,8 @@ export interface ArgumentDef {
   rest?: boolean;
   /** Whether this captures all remaining args without parsing flags */
   rawRest?: boolean;
+  /** Whether this argument is optional (can be omitted) */
+  optional?: boolean;
   /** Help description */
   description?: string;
 }

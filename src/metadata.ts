@@ -141,6 +141,7 @@ export function collectArgumentDefs(
         default: descriptor.value,
         validators: metadata.validators,
         rest: metadata.argument.rest,
+        optional: metadata.argument.optional,
         description: metadata.argument.description,
       });
     } else if (metadata?.rawRest) {
@@ -199,6 +200,19 @@ function validatePositionalArguments(
     throw new Error(
       `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
     );
+  }
+
+  // Filter out rawRest arguments for position validation
+  const regularArgs = argumentDefs.filter((def) => !def.rawRest);
+
+  // Validate that only the last argument can be marked as optional
+  for (let i = 0; i < regularArgs.length - 1; i++) {
+    const argDef = regularArgs[i];
+    if (argDef.optional) {
+      throw new Error(
+        `Only the last positional argument can be marked as optional. Found optional argument '${argDef.name}' at position ${i}, but it's not the last argument.`,
+      );
+    }
   }
 
   // Then validate regular positional arguments positions
