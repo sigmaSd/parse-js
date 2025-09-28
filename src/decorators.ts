@@ -392,7 +392,6 @@ export function subCommand<T extends new () => unknown>(
  * @param options - Optional configuration object
  * @param options.description - Optional description for help text
  * @param options.rest - Whether this argument captures all remaining values
- * @param options.optional - Whether this argument is optional (only allowed for last argument)
  * @returns A decorator function
  *
  * @example
@@ -417,15 +416,15 @@ export function subCommand<T extends new () => unknown>(
  *   static verbose: boolean = false;
  * }
  *
- * // Usage: processor input.txt [output.txt] file1.txt file2.txt --verbose
+ * // Usage: processor input.txt output.txt file1.txt file2.txt --verbose
  * // input = "input.txt"
- * // output = "output.txt" or undefined if not provided
+ * // output = "output.txt"
  * // includes = ["file1.txt", "file2.txt"]
  * // verbose = true
  * ```
  */
 export function argument(
-  options?: { rest?: boolean; description?: string; optional?: boolean },
+  options?: { rest?: boolean; description?: string },
 ): (
   _target: unknown,
   context: DecoratorContext,
@@ -446,7 +445,6 @@ export function argument(
     propertyMetadata.argument = {
       description: options?.description,
       rest: options?.rest,
-      optional: options?.optional,
     };
 
     if (options?.description) {
