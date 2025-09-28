@@ -27,11 +27,11 @@ class MyApp {
   static port: number = 8080;
 
   @argument({ description: "Input file" })
-  @required()
+  @type("string")
   static input: string;
 
-  @argument({ description: "Output file", optional: true })
-  static output: string;
+  @argument({ description: "Output file" })
+  static output: string = "output.txt";
 }
 
 // Access parsed values
@@ -313,6 +313,62 @@ class Config {
   @required()
   @type("string")
   static apiKey: string;
+}
+```
+
+### Consuming Parsed Commands
+
+```typescript
+@command
+class ServeCommand {
+  @description("Port to serve on")
+  static port: number = 3000;
+  
+  @description("Enable watch mode")
+  static watch: boolean = false;
+}
+
+@command 
+class BuildCommand {
+  @description("Enable production mode")
+  static production: boolean = false;
+  
+  @argument({ description: "Output directory" })
+  static output: string = "dist";
+}
+
+@parse(Deno.args, { name: "myapp" })
+class MyApp {
+  @description("Enable verbose logging")
+  static verbose: boolean = false;
+
+  @subCommand(ServeCommand)
+  static serve: ServeCommand;
+
+  @subCommand(BuildCommand) 
+  static build: BuildCommand;
+}
+
+// Check which command was used and execute accordingly
+if (MyApp.serve) {
+  console.log(`Starting server on port ${ServeCommand.port}`);
+  if (ServeCommand.watch) {
+    console.log("Watch mode enabled");
+  }
+  // Start your server logic here
+} else if (MyApp.build) {
+  console.log(`Building to ${BuildCommand.output}`);
+  if (BuildCommand.production) {
+    console.log("Production build enabled");
+  }
+  // Run your build logic here
+} else {
+  console.log("No command specified. Use --help for usage.");
+}
+
+// Global options are always available
+if (MyApp.verbose) {
+  console.log("Verbose logging enabled");
 }
 ```
 
