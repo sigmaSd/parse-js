@@ -235,7 +235,7 @@ function collectSubCommands(klass: {
 function applyParsedValues(
   klass: { [key: string]: unknown },
   parsedArgs: Array<{ name: string }>,
-  argumentDefs: Map<number, { name: string }>,
+  argumentDefs: Array<{ name: string }>,
   subCommands: Map<string, SubCommand>,
   parsed: ParseResult,
 ): void {
@@ -247,7 +247,7 @@ function applyParsedValues(
   }
 
   // Apply positional argument values
-  for (const [_index, argDef] of argumentDefs) {
+  for (const argDef of argumentDefs) {
     if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
       klass[argDef.name] = parsed[argDef.name];
     }

@@ -1,7 +1,5 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.208.0/assert/mod.ts";
+// deno-lint-ignore-file no-import-prefix
+import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
 import {
   argument,
   command,
@@ -19,7 +17,7 @@ Deno.test("rawRest - basic functionality", () => {
     exitOnError: false,
   })
   class ProxyCommand {
-    @argument(0, "Binary name to execute")
+    @argument({ description: "Binary name to execute" })
     static binary: string = "";
 
     @rawRest("Arguments to pass to the binary")
@@ -37,10 +35,10 @@ Deno.test("rawRest - multiple positional args then rawRest", () => {
     exitOnError: false,
   })
   class ChefCommand {
-    @argument(0, "Command to run")
+    @argument({ description: "Command to run" })
     static command: string = "";
 
-    @argument(1, "Binary name")
+    @argument({ description: "Binary name" })
     static binary: string = "";
 
     @rawRest("Arguments for the binary")
@@ -59,10 +57,10 @@ Deno.test("rawRest - with no remaining args", () => {
     exitOnError: false,
   })
   class NpmCommand {
-    @argument(0, "Command")
+    @argument({ description: "Command" })
     static cmd: string = "";
 
-    @argument(1, "Script name")
+    @argument({ description: "Script name" })
     static script: string = "start";
 
     @rawRest("Script arguments")
@@ -84,10 +82,10 @@ Deno.test("rawRest - captures flags that would normally be parsed", () => {
     },
   )
   class DenoCommand {
-    @argument(0, "Runtime")
+    @argument({ description: "Runtime" })
     static runtime: string = "";
 
-    @argument(1, "Subcommand")
+    @argument({ description: "Subcommand" })
     static subcommand: string = "";
 
     @rawRest("Script and arguments")
@@ -111,10 +109,10 @@ Deno.test("rawRest - with separator", () => {
     exitOnError: false,
   })
   class SeparatorCommand {
-    @argument(0, "Tool name")
+    @argument({ description: "Tool name" })
     static tool: string = "";
 
-    @argument(1, "Command")
+    @argument({ description: "Command" })
     static cmd: string = "";
 
     @rawRest("Raw arguments")
@@ -133,7 +131,7 @@ Deno.test("rawRest - empty command line uses defaults", () => {
     exitOnError: false,
   })
   class EmptyCommand {
-    @argument(0, "Optional command")
+    @argument({ description: "Optional command" })
     static cmd: string = "default";
 
     @rawRest("Optional arguments")
@@ -151,7 +149,7 @@ Deno.test("rawRest - with regular options mixed in", () => {
     exitOnError: false,
   })
   class MixedCommand {
-    @argument(0, "Tool name")
+    @argument({ description: "Tool name" })
     static tool: string = "";
 
     @description("Enable verbose output")
@@ -173,7 +171,7 @@ Deno.test("rawRest - single argument before rawRest", () => {
     exitOnError: false,
   })
   class ExecCommand {
-    @argument(0, "Command to execute")
+    @argument({ description: "Command to execute" })
     static command: string = "";
 
     @rawRest("Command arguments")
@@ -187,7 +185,7 @@ Deno.test("rawRest - single argument before rawRest", () => {
 Deno.test("rawRest - with subcommands", () => {
   @command
   class RunCommand {
-    @argument(0, "Binary to execute")
+    @argument({ description: "Binary to execute" })
     static binary: string = "";
 
     @rawRest("Arguments for the binary")
@@ -228,10 +226,10 @@ Deno.test("rawRest - error when used with rest argument", () => {
         exitOnError: false,
       })
       class _ConflictCommand {
-        @argument(0, "Input")
+        @argument({ description: "Input" })
         static input: string = "";
 
-        @argument(1, "Files", { rest: true })
+        @argument({ description: "Files", rest: true })
         @type("string[]")
         static files: string[] = [];
 
@@ -240,7 +238,7 @@ Deno.test("rawRest - error when used with rest argument", () => {
       }
     },
     Error,
-    "Cannot use both @argument(n, {rest: true}) and @rawRest()",
+    "Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.",
   );
 });
 
@@ -260,7 +258,7 @@ Deno.test("rawRest - with validation", () => {
     exitOnError: false,
   })
   class ValidationCommand {
-    @argument(0, "Command")
+    @argument({ description: "Command" })
     static cmd: string = "";
 
     @rawRest("Arguments (min 0)")
@@ -289,10 +287,10 @@ Deno.test("rawRest - complex real-world example", () => {
     exitOnError: false,
   })
   class ContainerProxy {
-    @argument(0, "Container runtime")
+    @argument({ description: "Container runtime" })
     static runtime: string = "";
 
-    @argument(1, "Runtime command")
+    @argument({ description: "Runtime command" })
     static runtimeCmd: string = "";
 
     @rawRest("All container and command arguments")
@@ -344,10 +342,10 @@ Deno.test("unexpected positional arguments with defined args should error", () =
         exitOnError: false,
       })
       class _FileProcessor {
-        @argument(0, "Input file")
+        @argument({ description: "Input file" })
         static input: string = "";
 
-        @argument(1, "Output file")
+        @argument({ description: "Output file" })
         static output: string = "";
 
         @description("Enable verbose mode")

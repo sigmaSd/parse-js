@@ -80,7 +80,7 @@ import { captureHelpText } from "./error-handling.ts";
  */
 export function printHelp(
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
@@ -114,7 +114,7 @@ export function printHelp(
     }
 
     // Print positional arguments if any
-    if (argumentDefs.size > 0) {
+    if (argumentDefs.length > 0) {
       printArgumentsSection(argumentDefs, colors, showDefaults);
     }
 
@@ -138,7 +138,7 @@ export function printHelp(
  * - `docker container ls <command> [options]`
  */
 function printUsageSection(
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   colors: ReturnType<typeof createColors>,
   appName?: string,
   subCommands?: Map<string, SubCommand>,
@@ -196,17 +196,15 @@ function printUsageSection(
  * - `<files...>` - rest arguments
  * - `[input] [output...]` - optional with rest
  */
-function buildUsageArguments(argumentDefs: Map<number, ArgumentDef>): string {
+function buildUsageArguments(argumentDefs: ArgumentDef[]): string {
   // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.get(-1);
-  const regularArgDefs = Array.from(argumentDefs.entries())
-    .filter(([index]) => index !== -1)
-    .sort(([a], [b]) => a - b);
+  const rawRestArg = argumentDefs.find((def) => def.rawRest);
+  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
 
   let usageArgs = "";
 
   // Build usage for regular positional arguments
-  for (const [_index, argDef] of regularArgDefs) {
+  for (const argDef of regularArgDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
 
     if (argDef.rest) {
@@ -261,20 +259,18 @@ function printSubCommandsSection(
  * Prints the positional arguments section.
  */
 function printArgumentsSection(
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   colors: ReturnType<typeof createColors>,
   showDefaults: boolean,
 ): void {
   console.log(colors.bold(colors.brightYellow("Arguments:")));
 
   // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.get(-1);
-  const regularArgDefs = Array.from(argumentDefs.entries())
-    .filter(([index]) => index !== -1)
-    .sort(([a], [b]) => a - b);
+  const rawRestArg = argumentDefs.find((def) => def.rawRest);
+  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
 
   // Print regular positional arguments
-  for (const [_index, argDef] of regularArgDefs) {
+  for (const argDef of regularArgDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const restText = argDef.rest ? colors.yellow(" (rest)") : "";

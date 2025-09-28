@@ -7,7 +7,7 @@ import {
   required,
   subCommand,
   type,
-} from "jsr:@sigma/parse";
+} from "@sigma/parse";
 import process from "node:process";
 
 ////////////////
@@ -107,15 +107,15 @@ class TestCommand {
 
 @command
 class ProcessCommand {
-  @argument(0, "Input file to process")
+  @argument({ description: "Input file to process" })
   @required()
   @type("string")
   static input: string;
 
-  @argument(1, "Output file path")
+  @argument({ description: "Output file path" })
   static output: string = "processed.txt";
 
-  @argument(2, "Additional files to include", { rest: true })
+  @argument({ description: "Additional files to include", rest: true })
   @type("string[]")
   static files: string[] = [];
 

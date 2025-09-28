@@ -157,7 +157,7 @@ export function parseCommandClass(
 export function parseArguments(
   args: string[],
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
@@ -236,7 +236,7 @@ function findSubCommand(
 function parseWithSubCommand(
   args: string[],
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   argMap: Map<string, ParsedArg>,
   result: ParseResult,
   subCommandInfo: { index: number; name: string; command: SubCommand },
@@ -298,7 +298,7 @@ function parseWithSubCommand(
 function parseWithoutSubCommand(
   args: string[],
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   argMap: Map<string, ParsedArg>,
   result: ParseResult,
   options?: ParseOptions,
@@ -389,7 +389,7 @@ function collectSubCommands(klass: {
 function applyParsedValues(
   klass: { [key: string]: unknown },
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   subCommands: Map<string, SubCommand>,
   parsed: ParseResult,
 ): void {
@@ -401,7 +401,7 @@ function applyParsedValues(
   }
 
   // Apply positional argument values
-  for (const [_index, argDef] of argumentDefs) {
+  for (const argDef of argumentDefs) {
     if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
       klass[argDef.name] = parsed[argDef.name];
     }
@@ -425,7 +425,7 @@ function applyParsedValues(
 function validateAndSetDefaults(
   result: ParseResult,
   parsedArgs: ParsedArg[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   options?: ParseOptions,
 ): void {
   // Set defaults and validate regular options
@@ -454,17 +454,15 @@ function validateAndSetDefaults(
   }
 
   // Validate and set defaults for positional arguments
-  for (const [index, argDef] of argumentDefs) {
+  for (const [_index, argDef] of argumentDefs.entries()) {
     if (result[argDef.name] === undefined) {
       if (argDef.default !== undefined) {
         result[argDef.name] = argDef.default;
       } else if (!argDef.rest && !argDef.rawRest) {
         // Only require arguments that aren't rest or rawRest
-        if (index !== -1) { // Skip rawRest arguments (index -1)
-          ErrorHandlers.missingRequiredArgument(index, argDef.name, options);
-          // If error handler returned (didn't exit/throw), skip processing
-          return;
-        }
+        ErrorHandlers.missingRequiredArgument(argDef.name, options);
+        // If error handler returned (didn't exit/throw), skip processing
+        return;
       }
       // Validate positional arguments after setting defaults
       if (argDef.validators && result[argDef.name] !== undefined) {

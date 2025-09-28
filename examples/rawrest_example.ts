@@ -36,7 +36,7 @@ console.log("=== Example 1: Simple Proxy Command ===");
   },
 )
 class ContainerProxy {
-  @argument(0, "Container runtime (docker, podman, etc.)")
+  @argument({ description: "Container runtime (docker, podman, etc.)" })
   static runtime: string = "";
 
   @rawRest("All arguments to pass to the container runtime")
@@ -75,7 +75,7 @@ console.log("=== Example 2: Development Tool Proxy ===");
 
 @command
 class RunCommand {
-  @argument(0, "Script or binary name")
+  @argument({ description: "Script or binary name" })
   static name: string = "";
 
   @rawRest("Arguments to pass to the script/binary")
@@ -163,10 +163,10 @@ console.log("=== Example 3: Package Manager Proxy ===");
   exitOnError: false,
 })
 class PackageProxy {
-  @argument(0, "Package manager (npm, yarn, pnpm, bun)")
+  @argument({ description: "Package manager (npm, yarn, pnpm, bun)" })
   static manager: string = "";
 
-  @argument(1, "Command (install, run, build, etc.)")
+  @argument({ description: "Command (install, run, build, etc.)" })
   static command: string = "";
 
   @rawRest("All arguments for the package manager")
@@ -224,7 +224,7 @@ try {
     exitOnError: false,
   })
   class ValidatedProxy {
-    @argument(0, "Execution mode")
+    @argument({ description: "Execution mode" })
     @type("string")
     // Note: You would use @addValidator(validCommand()) here
     // but for this example we'll keep it simple
@@ -282,7 +282,7 @@ console.log("=== Example 5: CI/CD Pipeline Step ===");
   exitOnError: false,
 })
 class PipelineStep {
-  @argument(0, "Step type (build, test, deploy, etc.)")
+  @argument({ description: "Step type (build, test, deploy, etc.)" })
   static stepType: string = "";
 
   @rawRest("Tool-specific command and arguments")

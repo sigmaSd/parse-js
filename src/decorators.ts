@@ -389,9 +389,8 @@ export function subCommand<T extends new () => unknown>(
  * - Rest arguments that capture multiple values
  * - Integration with type inference and validation
  *
- * @param index - The zero-based position index of the argument
- * @param description - Optional description for help text
  * @param options - Optional configuration object
+ * @param options.description - Optional description for help text
  * @param options.rest - Whether this argument captures all remaining values
  * @returns A decorator function
  *
@@ -400,15 +399,15 @@ export function subCommand<T extends new () => unknown>(
  * @parse(Deno.args)
  * class FileProcessor {
  *   // Required first argument
- *   @argument(0, "Input file to process")
+ *   @argument({ description: "Input file to process" })
  *   static input: string;
  *
  *   // Optional second argument with default
- *   @argument(1, "Output file (defaults to input.out)")
+ *   @argument({ description: "Output file (defaults to input.out)" })
  *   static output: string = "";
  *
  *   // Rest argument captures remaining files
- *   @argument(2, "Additional files to include", { rest: true })
+ *   @argument({ description: "Additional files to include", rest: true })
  *   @type("string[]")
  *   static includes: string[] = [];
  *
@@ -425,9 +424,7 @@ export function subCommand<T extends new () => unknown>(
  * ```
  */
 export function argument(
-  index: number,
-  description?: string,
-  options?: { rest?: boolean },
+  options?: { rest?: boolean; description?: string },
 ): (
   _target: unknown,
   context: DecoratorContext,
@@ -446,13 +443,12 @@ export function argument(
       (context.metadata[context.name] as PropertyMetadata) || {};
 
     propertyMetadata.argument = {
-      index,
-      description,
+      description: options?.description,
       rest: options?.rest,
     };
 
-    if (description) {
-      propertyMetadata.description = description;
+    if (options?.description) {
+      propertyMetadata.description = options.description;
     }
 
     context.metadata[context.name] = propertyMetadata;

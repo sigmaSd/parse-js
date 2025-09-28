@@ -82,10 +82,10 @@ export function collectArgumentDefs(
   klass: new () => unknown,
 ): {
   parsedArgs: ParsedArg[];
-  argumentDefs: Map<number, ArgumentDef>;
+  argumentDefs: ArgumentDef[];
 } {
   const parsedArgs: ParsedArg[] = [];
-  const argumentDefs = new Map<number, ArgumentDef>();
+  const argumentDefs: ArgumentDef[] = [];
 
   // Get all static property names from the class
   const propertyNames = Object.getOwnPropertyNames(klass);
@@ -134,8 +134,8 @@ export function collectArgumentDefs(
 
     // Categorize the property based on its metadata
     if (metadata?.argument) {
-      // This is a positional argument - store it by index
-      argumentDefs.set(metadata.argument.index, {
+      // This is a positional argument
+      argumentDefs.push({
         name: propName,
         type,
         default: descriptor.value,
@@ -144,9 +144,8 @@ export function collectArgumentDefs(
         description: metadata.argument.description,
       });
     } else if (metadata?.rawRest) {
-      // This is a raw rest argument - store it with a special index
-      // Use -1 as a special index to indicate rawRest
-      argumentDefs.set(-1, {
+      // This is a raw rest argument
+      argumentDefs.push({
         name: propName,
         type,
         default: descriptor.value,
@@ -176,45 +175,22 @@ export function collectArgumentDefs(
  * Validates that positional arguments are properly configured.
  *
  * This function ensures that:
- * - Positional argument indices are sequential (0, 1, 2, ...)
  * - Only the last positional argument can be marked as "rest"
- * - There are no gaps in the sequence
  *
- * @param argumentDefs - Map of positional arguments indexed by position
+ * @param argumentDefs - Array of positional arguments
  * @throws Error if validation fails
  */
 function validatePositionalArguments(
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
 ): void {
-  // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.get(-1);
-  const regularArgDefs = Array.from(argumentDefs.entries())
-    .filter(([index]) => index !== -1)
-    .sort(([a], [b]) => a - b);
-
   let hasRest = false;
-  const hasRawRest = rawRestArg !== undefined;
+  const hasRawRest = argumentDefs.some((def) => def.rawRest);
 
-  // Validate regular positional arguments
-  for (let i = 0; i < regularArgDefs.length; i++) {
-    const [index, argDef] = regularArgDefs[i];
-
-    // Check for sequential indices (must be 0, 1, 2, ...)
-    if (index !== i) {
-      throw new Error(
-        `Argument positions must be sequential starting from 0. Missing argument at position ${i}.`,
-      );
-    }
-
-    // Check that rest arguments only appear at the end (before rawRest)
-    if (hasRest) {
-      throw new Error(
-        `Only the last argument can be marked as rest. Found argument at position ${index} after rest argument.`,
-      );
-    }
-
+  // First, check for rest/rawRest conflicts
+  for (const argDef of argumentDefs) {
     if (argDef.rest) {
       hasRest = true;
+      break;
     }
   }
 
@@ -223,6 +199,28 @@ function validatePositionalArguments(
     throw new Error(
       `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
     );
+  }
+
+  // Then validate regular positional arguments positions
+  hasRest = false; // Reset for position validation
+  for (let i = 0; i < argumentDefs.length; i++) {
+    const argDef = argumentDefs[i];
+
+    // Skip rawRest arguments in position validation
+    if (argDef.rawRest) {
+      continue;
+    }
+
+    // Check that rest arguments only appear at the end (before rawRest)
+    if (hasRest) {
+      throw new Error(
+        `Only the last argument can be marked as rest. Found argument at position ${i} after rest argument.`,
+      );
+    }
+
+    if (argDef.rest) {
+      hasRest = true;
+    }
   }
 }
 

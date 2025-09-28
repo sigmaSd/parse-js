@@ -64,7 +64,7 @@ import { ErrorHandlers } from "../error-handling.ts";
  */
 export function parsePositionalArguments(
   args: string[],
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   result: ParseResult,
   argMap: Map<string, ParsedArg>,
   options?: ParseOptions,
@@ -72,10 +72,8 @@ export function parsePositionalArguments(
   const remainingArgs: string[] = [];
 
   // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.get(-1);
-  const regularArgDefs = Array.from(argumentDefs.entries())
-    .filter(([index]) => index !== -1)
-    .sort(([a], [b]) => a - b);
+  const rawRestArg = argumentDefs.find((def) => def.rawRest);
+  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
 
   let positionalIndex = 0;
 
@@ -157,7 +155,7 @@ export function parsePositionalArguments(
 
     // This is a positional argument from the mixed section
     if (positionalIndex < regularArgDefs.length) {
-      const [, argDef] = regularArgDefs[positionalIndex];
+      const argDef = regularArgDefs[positionalIndex];
 
       if (argDef.rest) {
         // Rest argument: collect all remaining non-flag values
@@ -189,7 +187,7 @@ export function parsePositionalArguments(
     } else {
       // This is a positional argument
       if (positionalIndex < regularArgDefs.length) {
-        const [, argDef] = regularArgDefs[positionalIndex];
+        const argDef = regularArgDefs[positionalIndex];
 
         if (argDef.rest) {
           // Rest argument: collect all remaining non-flag values
@@ -285,7 +283,7 @@ export function parsePositionalArguments(
   } else if (
     positionalIndex < regularArgDefs.length && positionalArgs.length > 0
   ) {
-    const [, argDef] = regularArgDefs[positionalIndex];
+    const argDef = regularArgDefs[positionalIndex];
 
     if (argDef.rest) {
       // Rest argument gets all remaining positional args
@@ -297,7 +295,7 @@ export function parsePositionalArguments(
         i < positionalArgs.length && positionalIndex < regularArgDefs.length;
         i++
       ) {
-        const [, currentArgDef] = regularArgDefs[positionalIndex];
+        const currentArgDef = regularArgDefs[positionalIndex];
         processSingleArgument(
           currentArgDef,
           positionalArgs[i],

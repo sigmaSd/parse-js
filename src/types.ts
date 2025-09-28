@@ -73,8 +73,6 @@ export interface ParsedArg {
  * like: `myapp input.txt output.txt`
  */
 export interface ArgumentMetadata {
-  /** Zero-based position index (0 = first argument, 1 = second, etc.) */
-  index: number;
   /** Optional help description */
   description?: string;
   /** Whether this argument captures all remaining positional args */

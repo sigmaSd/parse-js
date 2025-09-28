@@ -1,7 +1,5 @@
-import {
-  assertEquals,
-  assertThrows,
-} from "https://deno.land/std@0.208.0/assert/mod.ts";
+// deno-lint-ignore-file no-import-prefix
+import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
 import {
   argument,
   command,
@@ -13,7 +11,7 @@ import {
 
 @command
 class BuildCommand {
-  @argument(0, "Input directory")
+  @argument({ description: "Input directory" })
   static input: string = "";
 
   @description("Enable production build")
@@ -95,10 +93,10 @@ Deno.test("defined positional arguments should work correctly", () => {
     exitOnError: false,
   })
   class FileTest {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     static input: string = "";
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "";
 
     @description("Enable verbose mode")
@@ -119,10 +117,10 @@ Deno.test("too many positional arguments should error", () => {
         exitOnError: false,
       })
       class _TooManyTest {
-        @argument(0, "Input file")
+        @argument({ description: "Input file" })
         static input: string = "";
 
-        @argument(1, "Output file")
+        @argument({ description: "Output file" })
         static output: string = "";
       }
     },
@@ -157,10 +155,10 @@ Deno.test("mix of valid positional and flags should work", () => {
     exitOnError: false,
   })
   class MixedTest {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     static input: string = "";
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "";
 
     @description("Enable verbose mode")
@@ -179,10 +177,10 @@ Deno.test("rest arguments should work", () => {
     exitOnError: false,
   })
   class RestTest {
-    @argument(0, "First file")
+    @argument({ description: "First file" })
     static first: string = "";
 
-    @argument(1, "Additional files", { rest: true })
+    @argument({ description: "Additional files", rest: true })
     @type("string[]")
     static files: string[] = [];
   }
@@ -198,10 +196,10 @@ Deno.test("optional positional arguments should work", () => {
     exitOnError: false,
   })
   class OptionalTest {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     static input: string = "";
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "default.txt";
   }
 
@@ -216,10 +214,10 @@ Deno.test("separator should work correctly", () => {
     exitOnError: false,
   })
   class SeparatorTest {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     static input: string = "";
 
-    @argument(1, "Extra arg")
+    @argument({ description: "Extra arg" })
     static extra: string = "";
 
     @description("Enable verbose mode")

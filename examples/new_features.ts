@@ -13,7 +13,7 @@ import {
   required,
   subCommand,
   type,
-} from "jsr:@sigma/parse";
+} from "@sigma/parse";
 
 // Define subcommands
 @command
@@ -27,7 +27,7 @@ class ServeCommand {
   @description("Enable HTTPS")
   static ssl: boolean = false;
 
-  @argument(0, "Directory to serve")
+  @argument({ description: "Directory to serve" })
   static directory: string = ".";
 }
 
@@ -43,12 +43,12 @@ class BuildCommand {
   @type("string")
   static target: string = "es2020";
 
-  @argument(0, "Entry file")
+  @argument({ description: "Entry file" })
   @required()
   @type("string")
   static entry: string;
 
-  @argument(1, "Additional files", { rest: true })
+  @argument({ description: "Additional files", rest: true })
   @type("string[]")
   static files: string[] = [];
 }

@@ -69,14 +69,14 @@ export function parseGlobalOptions(
   parsedArgs: ParsedArg[],
   result: ParseResult,
   argMap: Map<string, ParsedArg>,
-  argumentDefs: Map<number, ArgumentDef>,
+  argumentDefs: ArgumentDef[],
   options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
   commandPath?: string,
 ): void {
   // Check if rawRest is present - if so, we should be more lenient with unknown flags
-  const hasRawRest = argumentDefs.has(-1);
+  const hasRawRest = argumentDefs.some((def) => def.rawRest);
   // Only process arguments before "--" separator
   // Arguments after "--" are reserved for positional processing
   const separatorIndex = args.findIndex((arg) => arg === "--");

@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-import-prefix
 /**
  * Type validation and CLI argument behavior tests.
  *
@@ -27,13 +28,13 @@ import {
   required,
   subCommand,
   type,
-} from "jsr:@sigma/parse";
+} from "@sigma/parse";
 
 Deno.test("Strict type validation - require @type for all properties without defaults", () => {
   // This should work - explicit type specified
   @command
   class _WorkingCommand {
-    @argument(0, "Files to process", { rest: true })
+    @argument({ description: "Files to process", rest: true })
     @type("string[]")
     static files: string[];
   }
@@ -43,7 +44,7 @@ Deno.test("Strict type validation - require @type for all properties without def
     () => {
       @command
       class FailingCommand {
-        @argument(0, "Files to process", { rest: true })
+        @argument({ description: "Files to process", rest: true })
         static files: string[]; // No @type, no default - should require @type
       }
 
@@ -64,7 +65,7 @@ Deno.test("Type validation - properties with defaults should work", () => {
   // This should work - type inferred from default value
   @command
   class CommandWithDefault {
-    @argument(0, "Files to process", { rest: true })
+    @argument({ description: "Files to process", rest: true })
     static files: string[] = [];
   }
 
@@ -95,12 +96,12 @@ Deno.test("-- separator: current behavior vs expected behavior", () => {
   // Current behavior: everything after -- gets processed through positional args
   @command
   class CurrentCommand {
-    @argument(0, "Binary")
+    @argument({ description: "Binary" })
     @required()
     @type("string")
     static binary: string;
 
-    @argument(1, "Args", { rest: true })
+    @argument({ description: "Args", rest: true })
     @type("string[]")
     static args: string[] = [];
   }
@@ -130,12 +131,12 @@ Deno.test("-- separator: current behavior vs expected behavior", () => {
 Deno.test("-- separator: what happens without rest argument", () => {
   @command
   class LimitedCommand {
-    @argument(0, "Binary")
+    @argument({ description: "Binary" })
     @required()
     @type("string")
     static binary: string;
 
-    @argument(1, "First arg")
+    @argument({ description: "First arg" })
     static firstArg: string = "";
   }
 
@@ -169,12 +170,12 @@ Deno.test("-- separator: documented intentional behavior", () => {
 
   @command
   class DocCommand {
-    @argument(0, "Command to run")
+    @argument({ description: "Command to run" })
     @required()
     @type("string")
     static cmd: string;
 
-    @argument(1, "Arguments for the command", { rest: true })
+    @argument({ description: "Arguments for the command", rest: true })
     @type("string[]")
     static args: string[] = [];
   }
@@ -211,7 +212,7 @@ Deno.test("Proposed: -- separator should provide raw access", () => {
 
   @command
   class ProposedCommand {
-    @argument(0, "Binary")
+    @argument({ description: "Binary" })
     @required()
     @type("string")
     static binary: string;
@@ -247,7 +248,7 @@ Deno.test("Reserved property names - user-defined length and name work correctly
   // are correctly distinguished from built-in class properties
   @command
   class ReservedNamesCommand {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     @type("string")
     static input: string;
 

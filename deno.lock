@@ -5,9 +5,12 @@
     "jsr:@cliffy/flags@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/internal@1.0.0-rc.8": "1.0.0-rc.8",
     "jsr:@cliffy/table@1.0.0-rc.8": "1.0.0-rc.8",
-    "jsr:@std/assert@1": "1.0.13",
+    "jsr:@std/assert@1": "1.0.14",
+    "jsr:@std/assert@1.0.14": "1.0.14",
     "jsr:@std/cli@*": "1.0.21",
+    "jsr:@std/cli@1": "1.0.21",
     "jsr:@std/fmt@~1.0.2": "1.0.8",
+    "jsr:@std/internal@^1.0.10": "1.0.10",
     "jsr:@std/internal@^1.0.6": "1.0.10",
     "jsr:@std/text@~1.0.7": "1.0.15",
     "npm:@types/node@*": "22.15.15"
@@ -41,7 +44,13 @@
     "@std/assert@1.0.13": {
       "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29",
       "dependencies": [
-        "jsr:@std/internal"
+        "jsr:@std/internal@^1.0.6"
+      ]
+    },
+    "@std/assert@1.0.14": {
+      "integrity": "68d0d4a43b365abc927f45a9b85c639ea18a9fab96ad92281e493e4ed84abaa4",
+      "dependencies": [
+        "jsr:@std/internal@^1.0.10"
       ]
     },
     "@std/cli@1.0.21": {

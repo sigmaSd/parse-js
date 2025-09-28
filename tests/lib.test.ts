@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-import-prefix
 import {
   assertEquals,
   assertStringIncludes,
@@ -13,7 +14,7 @@ import {
   required,
   subCommand,
   type,
-} from "jsr:@sigma/parse";
+} from "@sigma/parse";
 import { createColors } from "../src/colors.ts";
 
 // Test helper to capture console output
@@ -1022,15 +1023,15 @@ Deno.test("parseArguments handles flags after rest arguments", () => {
 
   @command
   class ProcessCommand {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     @required()
     @type("string")
     static input: string;
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "output.txt";
 
-    @argument(2, "Additional files", { rest: true })
+    @argument({ description: "Additional files", rest: true })
     @type("string[]")
     static files: string[] = [];
 
@@ -1077,11 +1078,11 @@ Deno.test("parseArguments handles flags after rest arguments", () => {
 Deno.test("parseArguments handles mixed flags and rest arguments", () => {
   @command
   class TestCommand {
-    @argument(0, "First arg")
+    @argument({ description: "First arg" })
     @type("string")
     static first: string;
 
-    @argument(1, "Rest args", { rest: true })
+    @argument({ description: "Rest args", rest: true })
     @type("string[]")
     static rest: string[] = [];
 
@@ -1131,11 +1132,11 @@ Deno.test("parseArguments handles flags validation after rest arguments", () => 
 
   @command
   class ValidatedCommand {
-    @argument(0, "Input")
+    @argument({ description: "Input" })
     @type("string")
     static input: string;
 
-    @argument(1, "Files", { rest: true })
+    @argument({ description: "Files", rest: true })
     @type("string[]")
     static files: string[] = [];
 
@@ -1180,12 +1181,12 @@ Deno.test("parseArguments handles flags validation after rest arguments", () => 
 Deno.test("-- separator stops flag parsing", () => {
   @command
   class RunCommand {
-    @argument(0, "Binary to run")
+    @argument({ description: "Binary to run" })
     @required()
     @type("string")
     static binary: string;
 
-    @argument(1, "Arguments to pass", { rest: true })
+    @argument({ description: "Arguments to pass", rest: true })
     @type("string[]")
     static args: string[] = [];
 
@@ -1222,11 +1223,11 @@ Deno.test("-- separator stops flag parsing", () => {
 Deno.test("-- separator with mixed arguments", () => {
   @command
   class ExecCommand {
-    @argument(0, "Command")
+    @argument({ description: "Command" })
     @type("string")
     static command: string;
 
-    @argument(1, "Args", { rest: true })
+    @argument({ description: "Args", rest: true })
     @type("string[]")
     static args: string[] = [];
 
@@ -1573,12 +1574,12 @@ Deno.test("Reserved property names - built-in vs user-defined detection", () => 
 Deno.test("Positional arguments - basic usage", () => {
   @parse(["source.txt", "dest.txt"])
   class Config {
-    @argument(0, "Source file path")
+    @argument({ description: "Source file path" })
     @required()
     @type("string")
     static source: string;
 
-    @argument(1, "Destination file path")
+    @argument({ description: "Destination file path" })
     static dest: string = "output.txt";
 
     static verbose: boolean = false;
@@ -1592,11 +1593,11 @@ Deno.test("Positional arguments - basic usage", () => {
 Deno.test("Positional arguments - with options", () => {
   @parse(["input.txt", "output.txt", "--verbose"])
   class Config {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     @type("string")
     static input: string;
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "default.txt";
 
     static verbose: boolean = false;
@@ -1610,11 +1611,11 @@ Deno.test("Positional arguments - with options", () => {
 Deno.test("Positional arguments - mixed with options", () => {
   @parse(["--debug", "source.txt", "--force", "dest.txt"])
   class Config {
-    @argument(0, "Source file")
+    @argument({ description: "Source file" })
     @type("string")
     static source: string;
 
-    @argument(1, "Destination file")
+    @argument({ description: "Destination file" })
     @type("string")
     static dest: string;
 
@@ -1631,11 +1632,11 @@ Deno.test("Positional arguments - mixed with options", () => {
 Deno.test("Positional arguments - rest arguments", () => {
   @parse(["first.txt", "second.txt", "third.txt", "fourth.txt"])
   class Config {
-    @argument(0, "First file")
+    @argument({ description: "First file" })
     @type("string")
     static first: string;
 
-    @argument(1, "Additional files", { rest: true })
+    @argument({ description: "Additional files", rest: true })
     @type("string[]")
     static files: string[];
   }
@@ -1647,14 +1648,14 @@ Deno.test("Positional arguments - rest arguments", () => {
 Deno.test("Positional arguments - with default values", () => {
   @parse(["input.txt"])
   class Config {
-    @argument(0, "Input file")
+    @argument({ description: "Input file" })
     @type("string")
     static input: string;
 
-    @argument(1, "Output file")
+    @argument({ description: "Output file" })
     static output: string = "default_output.txt";
 
-    @argument(2, "Additional files", { rest: true })
+    @argument({ description: "Additional files", rest: true })
     @type("string[]")
     static files: string[] = [];
   }
@@ -1667,10 +1668,10 @@ Deno.test("Positional arguments - with default values", () => {
 Deno.test("Positional arguments - number types", () => {
   @parse(["42", "3.14"])
   class Config {
-    @argument(0, "Integer value")
+    @argument({ description: "Integer value" })
     static count: number = 0;
 
-    @argument(1, "Float value")
+    @argument({ description: "Float value" })
     static ratio: number = 1.0;
   }
 
@@ -1690,7 +1691,7 @@ Deno.test("Positional arguments - with validation", () => {
 
   @parse(["5"])
   class Config {
-    @argument(0, "Count value")
+    @argument({ description: "Count value" })
     @min(1)
     static count: number = 0;
   }
@@ -1698,23 +1699,20 @@ Deno.test("Positional arguments - with validation", () => {
   assertEquals(Config.count, 5);
 });
 
-Deno.test("Positional arguments - sequential position validation error", () => {
-  assertThrows(
-    () => {
-      @parse(["test"])
-      class _Config {
-        @argument(0, "First")
-        @type("string")
-        static first: string;
+Deno.test("Positional arguments - implicit positioning works correctly", () => {
+  @parse(["hello", "world"])
+  class _Config {
+    @argument({ description: "First" })
+    @type("string")
+    static first: string;
 
-        @argument(2, "Third") // Error: should be position 1
-        @type("string")
-        static third: string;
-      }
-    },
-    Error,
-    "Argument positions must be sequential starting from 0",
-  );
+    @argument({ description: "Second" })
+    @type("string")
+    static second: string;
+  }
+
+  assertEquals(_Config.first, "hello");
+  assertEquals(_Config.second, "world");
 });
 
 Deno.test("Positional arguments - rest argument not last error", () => {
@@ -1722,24 +1720,24 @@ Deno.test("Positional arguments - rest argument not last error", () => {
     () => {
       @parse(["test"])
       class _Config {
-        @argument(0, "Files", { rest: true })
+        @argument({ description: "Files", rest: true })
         @type("string[]")
         static files: string[];
 
-        @argument(1, "Output") // Error: rest must be last
+        @argument({ description: "Output" }) // Error: rest must be last
         @type("string")
         static output: string;
       }
     },
     Error,
-    "Only the last argument can be marked as rest",
+    "Only the last argument can be marked as rest. Found argument at position 1 after rest argument.",
   );
 });
 
 Deno.test("Positional arguments - with subcommands", () => {
   @command
   class RunCommand {
-    @argument(0, "Script path")
+    @argument({ description: "Script path" })
     @type("string")
     static script: string;
 
@@ -1843,7 +1841,7 @@ Deno.test("Show defaults - help output includes default values", () => {
           @description("Debug mode")
           static debug: boolean = false;
 
-          @argument(0, "Input file")
+          @argument({ description: "Input file" })
           static input: string = "input.txt";
         }
       } catch (_e) {

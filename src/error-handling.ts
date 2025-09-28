@@ -184,8 +184,8 @@ export const ErrorMessages = {
   validationError: (arg: string, validationMessage: string): string =>
     `Validation error for ${arg}: ${validationMessage}`,
 
-  missingRequiredArgument: (position: number, name: string): string =>
-    `Missing required positional argument at position ${position}: ${name}`,
+  missingRequiredArgument: (name: string): string =>
+    `Missing required positional argument: ${name}`,
 
   missingTypeInformation: (property: string, className: string): string =>
     `Property '${property}' in class '${className}' has no default value and no @type decorator. ` +
@@ -253,12 +253,11 @@ export const ErrorHandlers = {
     ),
 
   missingRequiredArgument: (
-    position: number,
     name: string,
     options?: ParseOptions,
   ): void =>
     handleParsingError(
-      ErrorMessages.missingRequiredArgument(position, name),
+      ErrorMessages.missingRequiredArgument(name),
       options,
       "missing_required_argument",
       { argumentName: name },

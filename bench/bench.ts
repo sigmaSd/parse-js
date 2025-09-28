@@ -1,4 +1,5 @@
-import { parseArgs } from "jsr:@std/cli/parse-args";
+// deno-lint-ignore-file no-import-prefix
+import { parseArgs } from "jsr:@std/cli@1/parse-args";
 import { argument, parse, subCommand, type } from "@sigma/parse";
 import { Command } from "jsr:@cliffy/command@1.0.0-rc.8";
 
@@ -10,13 +11,13 @@ Deno.bench("std parseArgs", { group: "parse" }, () => {
 
 Deno.bench("sigma parse", { group: "parse" }, () => {
   class RunCommand {
-    @argument(0, "script to run")
+    @argument({ description: "script to run" })
     @type("string")
     static script: string;
 
     static A: boolean = false;
 
-    @argument(1, "script arguments", { rest: true })
+    @argument({ description: "script arguments", rest: true })
     @type("string[]")
     static args: string[];
   }

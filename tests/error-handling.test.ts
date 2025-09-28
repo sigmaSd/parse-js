@@ -1,3 +1,4 @@
+// deno-lint-ignore-file no-import-prefix
 import {
   assertEquals,
   assertInstanceOf,
@@ -15,7 +16,7 @@ import {
   required,
   subCommand,
   type,
-} from "jsr:@sigma/parse";
+} from "@sigma/parse";
 import process from "node:process";
 
 Deno.test("Error handling - default behavior (exitOnError: true)", () => {
@@ -210,7 +211,7 @@ Deno.test("Error handling - positional argument errors", () => {
         exitOnError: false,
       })
       class _Config {
-        @argument(0, "Number input")
+        @argument({ description: "Number input" })
         static input: number = 0;
       }
     },
