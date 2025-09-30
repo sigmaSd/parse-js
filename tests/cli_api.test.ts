@@ -372,3 +372,71 @@ Deno.test("Args API - nested subcommands with perfect type safety", () => {
   assertEquals(result.deploy!.database!.host, "prod-db.example.com");
   assertEquals(result.deploy!.database!.port, 3306);
 });
+
+Deno.test("Args API - defaultCommand: 'help'", () => {
+  @cli({
+    name: "helpdefault",
+    description: "Test default help command",
+    defaultCommand: "help",
+    exitOnHelp: false,
+  })
+  class HelpDefault extends Args {
+    @description("Some option")
+    option: string = "default";
+  }
+
+  // Should show help when no arguments provided
+  // The parser will throw an error because exitOnHelp is false but help is triggered
+  assertThrows(() => {
+    HelpDefault.parse([]);
+  });
+});
+
+Deno.test("Args API - defaultCommand with subcommand", () => {
+  @command
+  class ServeCommand {
+    @description("Port to serve on")
+    port: number = 3000;
+
+    @description("Host to bind to")
+    host: string = "localhost";
+  }
+
+  @cli({
+    name: "defaultsubcmd",
+    description: "Test default subcommand",
+    defaultCommand: "serve",
+    exitOnError: false,
+  })
+  class DefaultSubCmd extends Args {
+    @description("Verbose output")
+    verbose: boolean = false;
+
+    @description("Start the server")
+    @subCommand(ServeCommand)
+    serve?: ServeCommand;
+  }
+
+  // Should execute the serve subcommand when no arguments provided
+  const result = DefaultSubCmd.parse([]);
+
+  assertEquals(result.verbose, false);
+  assertEquals(result.serve !== undefined, true);
+  assertEquals(result.serve!.port, 3000);
+  assertEquals(result.serve!.host, "localhost");
+});
+
+Deno.test("Args API - no defaultCommand behavior", () => {
+  @cli({
+    name: "nodefault",
+    description: "Test without default command",
+  })
+  class NoDefault extends Args {
+    @description("Some option")
+    option: string = "default";
+  }
+
+  // Should return defaults when no arguments and no defaultCommand
+  const result = NoDefault.parse([]);
+  assertEquals(result.option, "default");
+});

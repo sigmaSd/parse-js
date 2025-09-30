@@ -480,6 +480,73 @@ function parseInstanceBased(
   const rawRestArg = argumentDefs.find((def) => def.rawRest);
   const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
 
+  // Handle defaultCommand when no arguments are provided
+  if (args.length === 0 && options?.defaultCommand) {
+    if (options.defaultCommand === "help") {
+      // Show help
+      const helpText = printHelp(
+        parsedArgs as Array<
+          {
+            name: string;
+            type: SupportedType;
+            description?: string;
+            default?: string | number | boolean | string[] | number[];
+            validators?: Array<(value: unknown) => string | null>;
+          }
+        >,
+        argumentDefs as Array<
+          {
+            name: string;
+            type: SupportedType;
+            description?: string;
+            default?: string | number | boolean | string[] | number[];
+            validators?: Array<(value: unknown) => string | null>;
+            rest?: boolean;
+            rawRest?: boolean;
+          }
+        >,
+        options,
+        subCommands,
+        options?.name || "cli",
+        "",
+      );
+      handleHelpDisplay(helpText, options);
+      return result;
+    } else if (subCommands.has(options.defaultCommand)) {
+      // Execute the default subcommand
+      const subCommand = subCommands.get(options.defaultCommand)!;
+
+      if (
+        "parse" in subCommand.commandClass &&
+        typeof (subCommand.commandClass as {
+            parse?: (args: string[]) => unknown;
+          }).parse === "function"
+      ) {
+        // Subcommand extends Args, use its parse method
+        result[options.defaultCommand] = (subCommand.commandClass as {
+          parse: (args: string[]) => unknown;
+        }).parse([]);
+      } else {
+        // Plain subcommand class, use instance-based parsing and return typed instance
+        const subInstance = new subCommand.commandClass() as Record<
+          string,
+          unknown
+        >;
+        const parsedValues = parseInstanceBased(
+          subInstance,
+          [],
+          options,
+        );
+
+        // Create a new instance and assign the parsed values to it
+        const typedResult = new subCommand.commandClass();
+        Object.assign(typedResult as Record<string, unknown>, parsedValues);
+        result[options.defaultCommand] = typedResult;
+      }
+      return result;
+    }
+  }
+
   // Simple argument parsing (basic implementation)
   let i = 0;
   let positionalIndex = 0;
