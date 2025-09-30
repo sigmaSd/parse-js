@@ -5,34 +5,38 @@
  *
  * @example Basic usage
  * ```ts
- * import { Args, cli, description, required, type } from "https://deno.land/x/args/mod.ts";
+ * import { Args, cli, description, required, type } from "./mod.ts";
  *
  * @cli({ name: "calculator", description: "A simple calculator" })
  * class Calculator extends Args {
  *   @description("First number")
  *   @type("number")
  *   @required()
- *   a: number = 0;
+ *   a?: number;
  *
  *   @description("Second number")
  *   @type("number")
  *   @required()
- *   b: number = 0;
+ *   b?: number;
  *
  *   @description("Operation to perform")
- *   operation: string = "add";
+ *   operation = "add";
  * }
  *
- * const args = Calculator.parse(Deno.args);
- * console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
+ * const args = Calculator.parse(["--a", "10", "--b", "5"]);
+ * if (args.a !== undefined && args.b !== undefined) {
+ *   console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
+ * }
  * ```
  *
  * @example With subcommands
  * ```ts
+ * import { Args, cli, command, description, subCommand } from "./mod.ts";
+ *
  * @command
  * class ServeCommand {
  *   @description("Port to serve on")
- *   port: number = 3000;
+ *   port = 3000;
  * }
  *
  * @cli({ name: "myapp", description: "My application" })
@@ -43,7 +47,9 @@
  * }
  *
  * const args = MyApp.parse(["serve", "--port", "8080"]);
- * console.log(args.serve.port); // 8080 - Perfect type safety!
+ * if (args.serve) {
+ *   console.log(args.serve.port); // 8080 - Perfect type safety!
+ * }
  * ```
  */
 

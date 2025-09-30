@@ -25,8 +25,8 @@ import {
   type,
 } from "@sigma/parse";
 
-@cli({ name: "calculator", description: "a simple calculator" })
-class calculator extends Args {
+@cli({ name: "calculator", description: "A simple calculator" })
+class Calculator extends Args {
   @argument({ description: "first number" })
   @type("number")
   @required()
@@ -41,14 +41,14 @@ class calculator extends Args {
   operation = "add";
 }
 
-// parse command line arguments
-const args = calculator.parse(Deno.args);
+// Parse command line arguments
+const args = Calculator.parse(["10", "5"]);
 
-// handle potentially undefined values
+// Handle potentially undefined values
 if (args.a !== undefined && args.b !== undefined) {
   console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
 } else {
-  console.error("both numbers are required");
+  console.error("Both numbers are required");
 }
 ```
 
@@ -66,6 +66,8 @@ deno run calculator.ts 10 5 --operation add
 Your main command class must extend `Args` to get the static `parse` method:
 
 ```typescript
+import { Args, cli, description } from "@sigma/parse";
+
 @cli({ name: "myapp", description: "My application" })
 class MyApp extends Args {
   @description("Enable verbose logging")
@@ -84,6 +86,8 @@ console.log(args.verbose, args.port); // Fully typed!
 Subcommands are plain classes (no need to extend `Args`):
 
 ```typescript
+import { Args, cli, command, description, subCommand } from "@sigma/parse";
+
 @command
 class ServeCommand {
   @description("Port to serve on")
@@ -101,7 +105,9 @@ class MyApp extends Args {
 }
 
 const args = MyApp.parse(["serve", "--port", "8080", "--dev"]);
-console.log(args.serve.port, args.serve.dev); // Perfect type safety!
+if (args.serve) {
+  console.log(args.serve.port, args.serve.dev); // Perfect type safety!
+}
 ```
 
 ## Decorators
@@ -146,10 +152,11 @@ apiKey?: string;
 - Don't need `@type` decorator (inferred from default)
 - Use assignment syntax: `property = defaultValue`
 
-```typescript
-verbose = false; // inferred as boolean
-port = 8080; // inferred as number
-mode = "development"; // inferred as string
+```typescript ignore
+// Within a class context:
+// verbose = false; // inferred as boolean
+// port = 8080; // inferred as number
+// mode = "development"; // inferred as string
 ```
 
 ### Type Validation
@@ -221,7 +228,7 @@ class DeployCommand extends Args {
 }
 
 // Parse arguments
-const args = DeployCommand.parse(Deno.args);
+const args = DeployCommand.parse(["myapp", "prod", "--apiKey", "secret123"]);
 
 // Type-safe usage with proper undefined checking
 if (args.appName && args.environment && args.apiKey) {
@@ -295,7 +302,7 @@ class Server extends Args {
   apiKey?: string;
 }
 
-const config = Server.parse(Deno.args);
+const config = Server.parse(["--apiKey", "secret123"]);
 if (config.apiKey) {
   console.log(`Starting server on ${config.host}:${config.port}`);
   console.log(`API Key: ${config.apiKey.substring(0, 4)}...`);
@@ -373,6 +380,8 @@ if (serveResult.serve) {
 ### Positional Arguments
 
 ```typescript
+import { Args, cli, argument, description, type, required, addValidator, oneOf } from "@sigma/parse";
+
 @cli({ name: "file-processor", description: "Process files" })
 class FileProcessor extends Args {
   @argument({ description: "Input file to process" })
@@ -414,7 +423,9 @@ if (args.input) {
 
 ### Array Types
 
-```typescript
+```typescript ignore
+import { Args, cli, description, type } from "@sigma/parse";
+
 @cli({ name: "tagger", description: "Tag manager" })
 class Tagger extends Args {
   @description("List of tags")
@@ -446,8 +457,11 @@ if (args.priorities) {
 
 ### Built-in Validators
 
-```typescript
+```typescript ignore
 import {
+  Args,
+  cli,
+  addValidator,
   arrayLength,
   integer,
   length,
@@ -456,6 +470,7 @@ import {
   oneOf,
   pattern,
   range,
+  type,
 } from "@sigma/parse";
 
 @cli({ name: "example", description: "Validation example" })
@@ -480,8 +495,8 @@ class Example extends Args {
 
 ### Custom Validators
 
-```typescript
-import { addValidator } from "@sigma/parse";
+```typescript ignore
+import { Args, cli, description, type, required, addValidator } from "@sigma/parse";
 
 // Custom validator function
 function email() {
@@ -507,7 +522,7 @@ class User extends Args {
 
 The `@cli` decorator accepts a full options object:
 
-```typescript
+```typescript ignore
 @cli({
   name: "myapp", // Application name
   description: "My app", // Description for help
@@ -516,8 +531,8 @@ The `@cli` decorator accepts a full options object:
   defaultCommand: "help", // Default command when no args
   exitOnError: true, // Exit process on errors
   exitOnHelp: true, // Exit process when showing help
-  onError: (error, code) => {}, // Custom error handler
-  onHelp: (helpText) => {}, // Custom help handler
+  onError: (error: any, code: number) => {}, // Custom error handler
+  onHelp: (helpText: string) => {}, // Custom help handler
 })
 class MyApp extends Args {
   // ...
@@ -552,7 +567,7 @@ Commands:
 
 ## Error Handling
 
-```typescript
+```typescript ignore
 try {
   const args = MyApp.parse(Deno.args);
   // ... use args
@@ -571,7 +586,7 @@ If you're migrating from a decorator-based static property system:
 
 **Before:**
 
-```typescript
+```typescript ignore
 @parse(Deno.args, { name: "myapp" })
 class MyApp {
   static verbose = false;
@@ -581,7 +596,7 @@ class MyApp {
 
 **After:**
 
-```typescript
+```typescript ignore
 @cli({ name: "myapp" })
 class MyApp extends Args {
   verbose = false;

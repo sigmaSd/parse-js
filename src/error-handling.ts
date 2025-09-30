@@ -83,15 +83,13 @@ export class ParseError extends Error {
  * @param exitCode - Exit code to use (default: 1)
  *
  * @example
- * ```ts
- * // With default behavior (exits process)
- * handleParsingError("Unknown argument: --invalid", options);
- *
+ * ```ts ignore
  * // With custom error handler
  * const options = {
  *   exitOnError: false,
- *   onError: (error, code) => console.error(`Parse error: ${error}`)
+ *   onError: (error: any, code: number) => console.error(`Parse error: ${error}`)
  * };
+ * handleParsingError("Unknown argument: --invalid", options);
  * handleParsingError("Validation failed", options);
  * ```
  */
@@ -132,15 +130,15 @@ export function handleParsingError(
  * @param options - Parse options containing help handling configuration
  *
  * @example
- * ```ts
- * // With default behavior (prints help and exits)
+ * ```ts ignore
+ * // Define help options with custom handler
  * handleHelpDisplay(helpText, options);
  *
- * // With custom help handler
  * const options = {
  *   exitOnHelp: false,
  *   onHelp: (text) => myCustomHelpDisplay(text)
  * };
+ *
  * handleHelpDisplay(helpText, options);
  * ```
  */
@@ -286,7 +284,7 @@ export const ErrorHandlers = {
  * @returns The help text as a string
  *
  * @example
- * ```ts
+ * ```ts ignore
  * const helpText = captureHelpText(() => {
  *   printHelp(parsedArgs, argumentDefs, options);
  * });
@@ -316,12 +314,12 @@ export function captureHelpText(helpGeneratorFn: () => void): string {
  * @returns True if the error is a ParseError
  *
  * @example
- * ```ts
+ * ```ts ignore
  * try {
  *   parseArguments(args);
  * } catch (error) {
  *   if (isParseError(error)) {
- *     console.log(`Parse error of type ${error.type}: ${error.message}`);
+ *     console.error(`Parse error (${error.type}): ${error.message}`);
  *   }
  * }
  * ```

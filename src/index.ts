@@ -46,17 +46,18 @@ export class Args {
  *
  * @example
  * ```ts
+ * import { Args, cli, description, type } from "./index.ts";
+ *
  * @cli({ name: "calculator", description: "A simple calculator application" })
  * class Calculator extends Args {
  *   @description("First number")
- *   a: number = 0;
+ *   a = 0;
  *
  *   @description("Second number")
- *   b: number = 0;
+ *   b = 0;
  *
  *   @description("Operation to perform")
- *   @type("string")
- *   operation: string = "add";
+ *   operation = "add";
  * }
  *
  * const args = Calculator.parse(Deno.args);
@@ -109,54 +110,59 @@ function cli(
  *
  * @example Simple application:
  * ```ts
- * @parse(Deno.args, { name: "calculator", description: "A simple calculator" })
- * class Calculator {
+ * import { Args, cli, description, type, addValidator, oneOf } from "@sigma/parse";
+ *
+ * @cli({ name: "calculator", description: "A simple calculator" })
+ * class Calculator extends Args {
  *   @description("First number")
- *   static a: number = 0;
+ *   a = 0;
  *
  *   @description("Second number")
- *   static b: number = 0;
+ *   b = 0;
  *
  *   @description("Operation to perform")
- *   @type("string")
  *   @addValidator(oneOf(["add", "subtract", "multiply", "divide"]))
- *   static operation: string = "add";
+ *   operation = "add";
  * }
  * ```
  *
  * @example With validation:
  * ```ts
- * @parse(Deno.args)
- * class ServerConfig {
+ * import { Args, cli, description, addValidator, range, oneOf } from "@sigma/parse";
+ *
+ * @cli({ name: "server" })
+ * class ServerConfig extends Args {
  *   @description("Port number (1-65535)")
  *   @addValidator(range(1, 65535))
- *   static port: number = 8080;
+ *   port = 8080;
  *
  *   @description("Server environment")
  *   @addValidator(oneOf(["development", "staging", "production"]))
- *   static env: string = "development";
+ *   env = "development";
  * }
  * ```
  *
  * @example Complex application with subcommands:
  * ```ts
+ * import { Args, cli, command, description, subCommand } from "@sigma/parse";
+ *
  * @command
  * class DeployCommand {
  *   @description("Deployment environment")
- *   static env: string = "staging";
+ *   env = "staging";
  *
  *   @description("Skip confirmation prompts")
- *   static force: boolean = false;
+ *   force = false;
  * }
  *
- * @parse(Deno.args, { name: "myapp", description: "Application deployment tool" })
- * class MyApp {
+ * @cli({ name: "myapp", description: "Application deployment tool" })
+ * class MyApp extends Args {
  *   @description("Enable verbose logging")
- *   static verbose: boolean = false;
+ *   verbose = false;
  *
  *   @description("Deploy the application")
  *   @subCommand(DeployCommand)
- *   static deploy: DeployCommand;
+ *   deploy?: DeployCommand;
  * }
  * ```
  */

@@ -74,17 +74,22 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
  * @returns An instance of the command class with parsed values
  *
  * @example
- * ```ts
+ * ```ts ignore
+ * import { command, description } from "@sigma/parse";
+ *
  * @command
  * class BuildCommand {
- *   static production: boolean = false;
- *   static output: string = "dist";
+ *   @description("Enable production optimizations")
+ *   production = false;
+ *
+ *   @description("Output directory")
+ *   output = "dist";
  * }
  *
  * const instance = parseCommandClass(
  *   BuildCommand,
  *   ["--production", "--output", "build"],
- *   "myapp",
+ *   { name: "myapp" },
  *   "build",
  *   "myapp build"
  * );

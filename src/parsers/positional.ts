@@ -53,7 +53,7 @@ import { ErrorHandlers } from "../error-handling.ts";
  * @returns Array of remaining arguments that weren't consumed as positional
  *
  * @example
- * ```ts
+ * ```ts ignore
  * // Command: myapp --verbose file1.txt file2.txt -- extra1 extra2
  * // argumentDefs: { 0: {name: "input", type: "string"}, 1: {name: "files", type: "string[]", rest: true} }
  * const remaining = parsePositionalArguments(args, argumentDefs, result, argMap);

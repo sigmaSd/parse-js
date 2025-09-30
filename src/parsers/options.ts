@@ -56,9 +56,10 @@ import { ErrorHandlers, handleHelpDisplay } from "../error-handling.ts";
  * @param commandPath - Full command path (for nested help)
  *
  * @example
- * ```ts
+ * ```ts ignore
+ * // This function is used internally by the parser
  * // Command: myapp --port 3000 --debug --tags=web,api
- * parseGlobalOptions(args, parsedArgs, result, argMap, ...);
+ * // After parsing:
  * // result.port = 3000
  * // result.debug = true
  * // result.tags = ["web", "api"]
