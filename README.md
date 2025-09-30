@@ -16,14 +16,7 @@ inheritance.
 ## Quick Start
 
 ```typescript
-import {
-  Args,
-  argument,
-  cli,
-  description,
-  required,
-  type,
-} from "@sigma/parse";
+import { Args, argument, cli, description, required, type } from "@sigma/parse";
 
 @cli({ name: "calculator", description: "A simple calculator" })
 class Calculator extends Args {
@@ -179,18 +172,19 @@ apiKey = "";
 
 ## Comprehensive Example
 
-Here's a complete example showing positional arguments, flag arguments, and proper type safety:
+Here's a complete example showing positional arguments, flag arguments, and
+proper type safety:
 
 ```typescript
 import {
+  addValidator,
   Args,
   argument,
   cli,
   description,
+  oneOf,
   required,
   type,
-  addValidator,
-  oneOf,
 } from "@sigma/parse";
 
 @cli({ name: "deploy", description: "Deploy application to server" })
@@ -254,6 +248,7 @@ if (args.appName && args.environment && args.apiKey) {
 ```
 
 Usage examples:
+
 ```bash
 # Positional args first, then flags
 deploy myapp prod v1.2.3 --apiKey secret123 --verbose --instances 3
@@ -380,7 +375,16 @@ if (serveResult.serve) {
 ### Positional Arguments
 
 ```typescript
-import { Args, cli, argument, description, type, required, addValidator, oneOf } from "@sigma/parse";
+import {
+  addValidator,
+  Args,
+  argument,
+  cli,
+  description,
+  oneOf,
+  required,
+  type,
+} from "@sigma/parse";
 
 @cli({ name: "file-processor", description: "Process files" })
 class FileProcessor extends Args {
@@ -459,10 +463,10 @@ if (args.priorities) {
 
 ```typescript ignore
 import {
-  Args,
-  cli,
   addValidator,
+  Args,
   arrayLength,
+  cli,
   integer,
   length,
   max,
@@ -496,7 +500,14 @@ class Example extends Args {
 ### Custom Validators
 
 ```typescript ignore
-import { Args, cli, description, type, required, addValidator } from "@sigma/parse";
+import {
+  addValidator,
+  Args,
+  cli,
+  description,
+  required,
+  type,
+} from "@sigma/parse";
 
 // Custom validator function
 function email() {
