@@ -5,13 +5,13 @@ inheritance.
 
 ## Features
 
-- 🚀 **Perfect Type Safety** - No `as any` casting needed
-- 🎯 **Clean API** - `MyApp.parse(args)` with direct property access
-- 🏗️ **Decorator-Based** - Use `@cli`, `@description`, `@required`, etc.
-- 📦 **Subcommands** - Hierarchical command structure with full type safety
-- ✅ **Validation** - Built-in and custom validators
-- 🔧 **Instance Properties** - Natural, intuitive property definitions
-- 📚 **Self-Contained** - Each command class handles its own parsing
+- **Perfect Type Safety**
+- **Clean API** - `MyApp.parse(args)` with direct property access
+- **Decorator-Based** - Use `@cli`, `@description`, `@required`, etc.
+- **Subcommands** - Hierarchical command structure with full type safety
+- **Validation** - Built-in and custom validators
+- **Instance Properties** - Natural, intuitive property definitions
+- **Self-Contained** - Each command class handles its own parsing
 
 ## Quick Start
 
