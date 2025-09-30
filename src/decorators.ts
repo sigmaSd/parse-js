@@ -45,20 +45,22 @@ export interface DecoratorContext {
  *
  * @example
  * ```ts
- * @parse(Deno.args)
- * class Config {
+ * import { Args, cli, type, required } from "@sigma/parse";
+ *
+ * @cli({ name: "config" })
+ * class Config extends Args {
  *   // Explicit type for property without default
  *   @type("number")
  *   @required()
- *   static timeout: number;
+ *   timeout?: number;
  *
  *   // Override default-inferred type
  *   @type("string[]")
- *   static tags: string[] = [];
+ *   tags: string[] = [];
  *
  *   // Ensure numeric parsing even with string default
  *   @type("number")
- *   static port: number | string = "8080";
+ *   port = "8080";
  * }
  * ```
  */
@@ -96,16 +98,20 @@ export function type(
  *
  * @example
  * ```ts
- * @parse(Deno.args)
- * class Config {
+ * import { Args, cli, description, argument, type, required } from "@sigma/parse";
+ *
+ * @cli({ name: "config" })
+ * class Config extends Args {
  *   @description("The port number to listen on")
- *   static port: number = 8080;
+ *   port = 8080;
  *
  *   @description("Enable verbose logging output")
- *   static verbose: boolean = false;
+ *   verbose = false;
  *
- *   @argument(0, "Input file to process")
- *   static input: string;
+ *   @argument({ description: "Input file to process" })
+ *   @type("string")
+ *   @required()
+ *   input?: string;
  * }
  * ```
  */
@@ -142,7 +148,9 @@ export function description(text: string): (
  * @returns A decorator function
  *
  * @example
- * ```ts
+ * ```ts ignore
+ * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ *
  * // Create custom validators
  * function min(minValue: number) {
  *   return addValidator((value: unknown) => {
@@ -162,15 +170,17 @@ export function description(text: string): (
  *   });
  * }
  *
- * @parse(Deno.args)
- * class Config {
+ * @cli({ name: "config" })
+ * class Config extends Args {
  *   @type("number")
+ *   @required()
  *   @addValidator(min(1))
- *   static port: number;
+ *   port?: number;
  *
  *   @type("string")
+ *   @required()
  *   @addValidator(email())
- *   static adminEmail: string;
+ *   adminEmail?: string;
  * }
  * ```
  */
@@ -211,19 +221,21 @@ export function addValidator(validator: Validator): (
  *
  * @example
  * ```ts
- * @parse(Deno.args)
- * class Config {
+ * import { Args, cli, type, required } from "@sigma/parse";
+ *
+ * @cli({ name: "config" })
+ * class Config extends Args {
  *   // Required with explicit type
  *   @type("string")
  *   @required()
- *   static apiKey: string;
+ *   apiKey?: string;
  *
  *   // Required with default (makes the default required if not overridden)
  *   @required()
- *   static environment: string = "development";
+ *   environment = "development";
  *
  *   // Optional with default
- *   static port: number = 3000;
+ *   port = 3000;
  * }
  * ```
  */
@@ -251,14 +263,21 @@ export function required(): (
  *
  * @example
  * ```ts
- * @validate((value: string) => value.includes("@"), "must be a valid email")
- * static email: string = "user@example.com";
+ * import { Args, cli, validate } from "@sigma/parse";
  *
- * @validate((value: number) => value % 2 === 0, "must be an even number")
- * static threads: number = 4;
+ * @cli({ name: "example" })
+ * class Config extends Args {
+ *   @validate((value: string) => value.includes("@"), "must be a valid email")
+ *   email = "user@example.com";
  *
- * @validate((value: string) => value.length >= 8, "must be at least 8 characters")
- * static password: string;
+ *   @validate((value: number) => value % 2 === 0, "must be an even number")
+ *   threads = 4;
+ *
+ *   @validate((value: string) => value.length >= 8, "must be at least 8 characters")
+ *   @type("string")
+ *   @required()
+ *   password?: string;
+ * }
  * ```
  */
 export function validate<T>(
@@ -289,25 +308,28 @@ export function validate<T>(
  *
  * @example
  * ```ts
+ * import { command, description, argument, type } from "@sigma/parse";
+ *
  * @command
  * class BuildCommand {
  *   @description("Enable production build optimizations")
- *   static production: boolean = false;
+ *   production = false;
  *
  *   @description("Output directory for built files")
- *   static output: string = "dist";
+ *   output = "dist";
  *
- *   @argument(0, "Project directory to build")
- *   static project: string = ".";
+ *   @argument({ description: "Project directory to build" })
+ *   @type("string")
+ *   project = ".";
  * }
  *
  * @command
  * class ServeCommand {
  *   @description("Port to serve on")
- *   static port: number = 3000;
+ *   port = 3000;
  *
  *   @description("Enable development mode")
- *   static dev: boolean = false;
+ *   dev = false;
  * }
  * ```
  */
@@ -331,20 +353,22 @@ export function command<T extends new () => unknown>(
  * @returns A decorator function
  *
  * @example
- * ```ts
- * @parse(Deno.args)
- * class MyApp {
+ * ```ts ignore
+ * import { Args, cli, description, subCommand } from "@sigma/parse";
+ *
+ * @cli({ name: "myapp" })
+ * class MyApp extends Args {
  *   @description("Build the project")
  *   @subCommand(BuildCommand)
- *   static build: BuildCommand;
+ *   build?: BuildCommand;
  *
  *   @description("Start the development server")
  *   @subCommand(ServeCommand)
- *   static serve: ServeCommand;
+ *   serve?: ServeCommand;
  *
  *   @description("Run tests")
  *   @subCommand(TestCommand)
- *   static test: TestCommand;
+ *   test?: TestCommand;
  * }
  *
  * // Usage: myapp build --production
@@ -396,24 +420,29 @@ export function subCommand<T extends new () => unknown>(
  *
  * @example
  * ```ts
- * @parse(Deno.args)
- * class FileProcessor {
+ * import { Args, cli, argument, type, required, description } from "@sigma/parse";
+ *
+ * @cli({ name: "processor" })
+ * class FileProcessor extends Args {
  *   // Required first argument
  *   @argument({ description: "Input file to process" })
- *   static input: string;
+ *   @type("string")
+ *   @required()
+ *   input?: string;
  *
- *   // Optional last argument (no default needed)
- *   @argument({ description: "Output file", optional: true })
- *   static output: string;
+ *   // Optional second argument
+ *   @argument({ description: "Output file" })
+ *   @type("string")
+ *   output?: string;
  *
  *   // Rest argument captures remaining files
  *   @argument({ description: "Additional files to include", rest: true })
  *   @type("string[]")
- *   static includes: string[] = [];
+ *   includes?: string[];
  *
  *   // Regular options still work
  *   @description("Enable verbose output")
- *   static verbose: boolean = false;
+ *   verbose = false;
  * }
  *
  * // Usage: processor input.txt output.txt file1.txt file2.txt --verbose
@@ -474,13 +503,18 @@ export function argument(
  *
  * @example
  * ```ts
- * @parse(Deno.args)
- * class ProxyCommand {
- *   @argument(0, "Binary name to execute")
- *   static binary: string;
+ * import { Args, cli, argument, rawRest, type, required } from "@sigma/parse";
+ *
+ * @cli({ name: "myproxy" })
+ * class ProxyCommand extends Args {
+ *   @argument({ description: "Binary name to execute" })
+ *   @type("string")
+ *   @required()
+ *   binary?: string;
  *
  *   @rawRest("Arguments to pass to the binary")
- *   static args: string[];
+ *   @type("string[]")
+ *   args?: string[];
  * }
  *
  * // Usage: myproxy docker run --rm -it ubuntu bash

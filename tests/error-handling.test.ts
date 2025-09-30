@@ -6,57 +6,61 @@ import {
 } from "jsr:@std/assert@1";
 import {
   addValidator,
+  Args,
   argument,
+  cli,
   command,
   handleHelpDisplay,
   handleParsingError,
   isParseError,
-  parse,
   ParseError,
   required,
   subCommand,
   type,
-} from "@sigma/parse";
-import process from "node:process";
+} from "../src/index.ts";
 
 Deno.test("Error handling - default behavior (exitOnError: true)", () => {
-  // Mock process.exit to capture calls
+  // Mock Deno.exit to capture calls
   let exitCode: number | undefined;
-  const originalExit = process.exit;
+  const originalExit = Deno.exit;
 
-  process.exit = ((code?: number) => {
+  Deno.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Process exit called with code ${exitCode}`);
-  }) as typeof process.exit;
+    throw new Error(`Deno exit called with code ${exitCode}`);
+  }) as typeof Deno.exit;
 
   try {
+    @cli({ name: "test" })
+    class Config extends Args {
+      port: number = 8080;
+    }
+
     assertThrows(
       () => {
-        @parse(["--unknown"], { name: "test" })
-        class _Config {
-          static port: number = 8080;
-        }
+        Config.parse(["--unknown"]);
       },
       Error,
-      "Process exit called with code 1",
+      "Deno exit called with code 1",
     );
 
     assertEquals(exitCode, 1);
   } finally {
-    process.exit = originalExit;
+    Deno.exit = originalExit;
   }
 });
 
 Deno.test("Error handling - disable exit behavior (exitOnError: false)", () => {
+  @cli({
+    name: "test",
+    exitOnError: false,
+  })
+  class Config extends Args {
+    port: number = 8080;
+  }
+
   assertThrows(
     () => {
-      @parse(["--unknown"], {
-        name: "test",
-        exitOnError: false,
-      })
-      class _Config {
-        static port: number = 8080;
-      }
+      Config.parse(["--unknown"]);
     },
     ParseError,
     "Unknown argument: --unknown",
@@ -67,8 +71,7 @@ Deno.test("Error handling - custom error handler", () => {
   let capturedError = "";
   let capturedExitCode = 0;
 
-  // With custom handler, no exception should be thrown - handler has control
-  @parse(["--port", "invalid"], {
+  @cli({
     name: "test",
     exitOnError: false,
     onError: (error, code) => {
@@ -77,9 +80,12 @@ Deno.test("Error handling - custom error handler", () => {
       // Custom handler chooses not to throw/exit
     },
   })
-  class _Config {
-    static port: number = 8080;
+  class Config extends Args {
+    port: number = 8080;
   }
+
+  // With custom handler, no exception should be thrown - handler has control
+  Config.parse(["--port", "invalid"]);
 
   assertEquals(capturedError, "Invalid number for --port: invalid");
   assertEquals(capturedExitCode, 1);
@@ -97,8 +103,7 @@ Deno.test("Error handling - validation errors with custom handler", () => {
 
   let errorMessage = "";
 
-  // With custom handler, no exception should be thrown - handler has control
-  @parse(["--port", "5"], {
+  @cli({
     name: "test",
     exitOnError: false,
     onError: (error) => {
@@ -106,10 +111,13 @@ Deno.test("Error handling - validation errors with custom handler", () => {
       // Custom handler chooses not to throw/exit
     },
   })
-  class _Config {
+  class Config extends Args {
     @addValidator(min(10))
-    static port: number = 8080;
+    port: number = 8080;
   }
+
+  // With custom handler, no exception should be thrown - handler has control
+  Config.parse(["--port", "5"]);
 
   assertEquals(
     errorMessage,
@@ -119,41 +127,45 @@ Deno.test("Error handling - validation errors with custom handler", () => {
 
 Deno.test("Help handling - default behavior (exitOnHelp: true)", () => {
   let exitCode: number | undefined;
-  const originalExit = process.exit;
+  const originalExit = Deno.exit;
 
-  process.exit = ((code?: number) => {
+  Deno.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Process exit called with code ${exitCode}`);
-  }) as typeof process.exit;
+    throw new Error(`Deno exit called with code ${exitCode}`);
+  }) as typeof Deno.exit;
 
   try {
+    @cli({ name: "test" })
+    class Config extends Args {
+      port: number = 8080;
+    }
+
     assertThrows(
       () => {
-        @parse(["--help"], { name: "test" })
-        class _Config {
-          static port: number = 8080;
-        }
+        Config.parse(["--help"]);
       },
       Error,
-      "Process exit called with code 0",
+      "Deno exit called with code 0",
     );
 
     assertEquals(exitCode, 0);
   } finally {
-    process.exit = originalExit;
+    Deno.exit = originalExit;
   }
 });
 
 Deno.test("Help handling - disable exit behavior (exitOnHelp: false)", () => {
+  @cli({
+    name: "test",
+    exitOnHelp: false,
+  })
+  class Config extends Args {
+    port: number = 8080;
+  }
+
   assertThrows(
     () => {
-      @parse(["--help"], {
-        name: "test",
-        exitOnHelp: false,
-      })
-      class _Config {
-        static port: number = 8080;
-      }
+      Config.parse(["--help"]);
     },
     ParseError,
     "Usage:",
@@ -163,8 +175,7 @@ Deno.test("Help handling - disable exit behavior (exitOnHelp: false)", () => {
 Deno.test("Help handling - custom help handler", () => {
   let capturedHelp = "";
 
-  // With custom handler, no exception should be thrown - handler has control
-  @parse(["--help"], {
+  @cli({
     name: "test",
     exitOnHelp: false,
     onHelp: (helpText) => {
@@ -172,9 +183,12 @@ Deno.test("Help handling - custom help handler", () => {
       // Custom handler chooses not to throw/exit
     },
   })
-  class _Config {
-    static port: number = 8080;
+  class Config extends Args {
+    port: number = 8080;
   }
+
+  // With custom handler, no exception should be thrown - handler has control
+  Config.parse(["--help"]);
 
   assertEquals(capturedHelp.includes("test"), true);
   assertEquals(capturedHelp.includes("--port"), true);
@@ -185,19 +199,21 @@ Deno.test("Error handling - subcommand errors respect configuration", () => {
   class TestCommand {
     @required()
     @type("string")
-    static apiKey: string;
+    apiKey: string = "";
+  }
+
+  @cli({
+    name: "app",
+    exitOnError: false,
+  })
+  class Config extends Args {
+    @subCommand(TestCommand)
+    test?: TestCommand;
   }
 
   assertThrows(
     () => {
-      @parse(["test"], {
-        name: "app",
-        exitOnError: false,
-      })
-      class _Config {
-        @subCommand(TestCommand)
-        static test: TestCommand;
-      }
+      Config.parse(["test"]);
     },
     ParseError,
     "Validation error for --apiKey: is required",
@@ -205,15 +221,18 @@ Deno.test("Error handling - subcommand errors respect configuration", () => {
 });
 
 Deno.test("Error handling - positional argument errors", () => {
+  @cli({
+    exitOnError: false,
+  })
+  class Config extends Args {
+    @argument({ description: "Number input" })
+    @type("number")
+    input: number = 0;
+  }
+
   assertThrows(
     () => {
-      @parse(["text"], {
-        exitOnError: false,
-      })
-      class _Config {
-        @argument({ description: "Number input" })
-        static input: number = 0;
-      }
+      Config.parse(["text"]);
     },
     ParseError,
     "Invalid number for input: text",
@@ -223,11 +242,13 @@ Deno.test("Error handling - positional argument errors", () => {
 Deno.test("ParseError properties and type guard", () => {
   let caughtError: unknown;
 
+  @cli({ exitOnError: false })
+  class Config extends Args {
+    port: number = 8080;
+  }
+
   try {
-    @parse(["--invalid"], { exitOnError: false })
-    class _Config {
-      static port: number = 8080;
-    }
+    Config.parse(["--invalid"]);
   } catch (error) {
     caughtError = error;
   }
@@ -265,11 +286,13 @@ Deno.test("Error handling - different error types", () => {
   for (const testCase of testCases) {
     let error: ParseError | undefined;
 
+    @cli({ exitOnError: false })
+    class Config extends Args {
+      port: number = 8080;
+    }
+
     try {
-      @parse(testCase.args, { exitOnError: false })
-      class _Config {
-        static port: number = 8080;
-      }
+      Config.parse(testCase.args);
     } catch (e) {
       if (isParseError(e)) {
         error = e;
@@ -284,45 +307,49 @@ Deno.test("Error handling - different error types", () => {
 Deno.test("Mixed configuration - help exits, errors throw", () => {
   // Help should still exit when exitOnHelp is true
   let helpExitCode: number | undefined;
-  const originalExit = process.exit;
+  const originalExit = Deno.exit;
 
-  process.exit = ((code?: number) => {
+  Deno.exit = ((code?: number) => {
     helpExitCode = code || 0;
-    throw new Error(`Process exit called with code ${helpExitCode}`);
-  }) as typeof process.exit;
+    throw new Error(`Deno exit called with code ${helpExitCode}`);
+  }) as typeof Deno.exit;
 
   try {
+    @cli({
+      name: "test",
+      exitOnError: false, // Errors should throw
+      exitOnHelp: true, // Help should still exit
+    })
+    class Config1 extends Args {
+      port: number = 8080;
+    }
+
     assertThrows(
       () => {
-        @parse(["--help"], {
-          name: "test",
-          exitOnError: false, // Errors should throw
-          exitOnHelp: true, // Help should still exit
-        })
-        class _Config {
-          static port: number = 8080;
-        }
+        Config1.parse(["--help"]);
       },
       Error,
-      "Process exit called with code 0",
+      "Deno exit called with code 0",
     );
 
     assertEquals(helpExitCode, 0);
   } finally {
-    process.exit = originalExit;
+    Deno.exit = originalExit;
   }
 
   // Errors should throw instead of exiting
+  @cli({
+    name: "test",
+    exitOnError: false,
+    exitOnHelp: true,
+  })
+  class Config2 extends Args {
+    port: number = 8080;
+  }
+
   assertThrows(
     () => {
-      @parse(["--invalid"], {
-        name: "test",
-        exitOnError: false,
-        exitOnHelp: true,
-      })
-      class _Config {
-        static port: number = 8080;
-      }
+      Config2.parse(["--invalid"]);
     },
     ParseError,
     "Unknown argument: --invalid",
@@ -377,44 +404,48 @@ Deno.test("Error handling utilities - direct function calls", () => {
 Deno.test("Backward compatibility - default behavior unchanged", () => {
   // When no options are provided, should behave exactly as before
   let exitCode: number | undefined;
-  const originalExit = process.exit;
+  const originalExit = Deno.exit;
 
-  process.exit = ((code?: number) => {
+  Deno.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Process exit called with code ${exitCode}`);
-  }) as typeof process.exit;
+    throw new Error(`Deno exit called with code ${exitCode}`);
+  }) as typeof Deno.exit;
 
   try {
+    @cli({})
+    class Config1 extends Args {
+      port: number = 8080;
+    }
+
     // Test error exit
     assertThrows(
       () => {
-        @parse(["--unknown"])
-        class _Config {
-          static port: number = 8080;
-        }
+        Config1.parse(["--unknown"]);
       },
       Error,
-      "Process exit called with code 1",
+      "Deno exit called with code 1",
     );
     assertEquals(exitCode, 1);
 
     // Reset for help test
     exitCode = undefined;
 
+    @cli({})
+    class Config2 extends Args {
+      port: number = 8080;
+    }
+
     // Test help exit
     assertThrows(
       () => {
-        @parse(["--help"])
-        class _Config {
-          static port: number = 8080;
-        }
+        Config2.parse(["--help"]);
       },
       Error,
-      "Process exit called with code 0",
+      "Deno exit called with code 0",
     );
     assertEquals(exitCode, 0);
   } finally {
-    process.exit = originalExit;
+    Deno.exit = originalExit;
   }
 });
 
@@ -431,17 +462,21 @@ Deno.test("Integration test - full error handling workflow", () => {
     onHelp: (helpText: string) => helpTexts.push(helpText),
   };
 
-  // Test error handling - with custom handler, no exception should be thrown
-  @parse(["--invalid"], options)
-  class _Config1 {
-    static port: number = 8080;
+  @cli(options)
+  class Config1 extends Args {
+    port: number = 8080;
   }
 
-  // Test help handling - with custom handler, no exception should be thrown
-  @parse(["--help"], options)
-  class _Config2 {
-    static port: number = 8080;
+  @cli(options)
+  class Config2 extends Args {
+    port: number = 8080;
   }
+
+  // Test error handling - with custom handler, no exception should be thrown
+  Config1.parse(["--invalid"]);
+
+  // Test help handling - with custom handler, no exception should be thrown
+  Config2.parse(["--help"]);
 
   assertEquals(errors.length, 1);
   assertEquals(errors[0], "Unknown argument: --invalid");

@@ -67,15 +67,21 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
  *
  * @example
  * ```ts
- * class Config {
- *   static port: number = 8080;
- *   @argument(0) static input: string;
- *   @argument(1) static output: string;
- * }
+ * import { Args, cli, argument, type, required } from "@sigma/parse";
  *
- * const { parsedArgs, argumentDefs } = collectArgumentDefs(Config);
- * // parsedArgs: [{ name: "port", type: "number", default: 8080 }]
- * // argumentDefs: Map with positional args at indices 0 and 1
+ * @cli({ name: "config" })
+ * class Config extends Args {
+ *   port = 8080;
+ *
+ *   @argument({ description: "Input file" })
+ *   @type("string")
+ *   @required()
+ *   input?: string;
+ *
+ *   @argument({ description: "Output file" })
+ *   @type("string")
+ *   output?: string;
+ * }
  * ```
  */
 export function collectArgumentDefs(
@@ -251,13 +257,20 @@ function validatePositionalArguments(
  *
  * @example
  * ```ts
- * // From explicit @type() decorator
- * @type("number") static timeout: number; // → "number"
+ * import { Args, cli, type, required } from "@sigma/parse";
  *
- * // From default value
- * static port: number = 3000; // → "number"
- * static debug: boolean = false; // → "boolean"
- * static tags: string[] = ["dev", "test"]; // → "string[]"
+ * @cli({ name: "example" })
+ * class Config extends Args {
+ *   // From explicit @type() decorator
+ *   @type("number")
+ *   @required()
+ *   timeout?: number; // → "number"
+ *
+ *   // From default value
+ *   port = 3000; // → "number"
+ *   debug = false; // → "boolean"
+ *   tags = ["dev", "test"]; // → "string[]"
+ * }
  * ```
  */
 export function extractTypeFromDescriptor(

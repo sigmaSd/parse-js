@@ -166,6 +166,14 @@ export interface ParseOptions {
 }
 
 /**
+ * Type for command instances returned by subcommand parsing.
+ */
+export interface CommandInstance {
+  /** The constructor function of the command class */
+  constructor: new () => unknown;
+}
+
+/**
  * Result type for parsed arguments.
  *
  * This flexible type allows for any combination of parsed values,
@@ -173,7 +181,7 @@ export interface ParseOptions {
  */
 export type ParseResult = Record<
   string,
-  string | number | boolean | string[] | number[] | unknown
+  string | number | boolean | string[] | number[] | CommandInstance | unknown
 >;
 
 /**

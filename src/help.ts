@@ -52,7 +52,7 @@ import { captureHelpText } from "./error-handling.ts";
  * @returns The formatted help text as a string
  *
  * @example
- * ```ts
+ * ```ts ignore
  * // For main application:
  * const helpText = printHelp(parsedArgs, argumentDefs, "myapp", "A sample CLI tool");
  * // helpText contains:
