@@ -23,6 +23,7 @@ Deno.bench("Args API", { group: "parse" }, () => {
     @type("string")
     script?: string;
 
+    @type("boolean")
     A?: boolean;
 
     @argument({ description: "script arguments", rest: true })
