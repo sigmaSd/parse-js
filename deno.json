@@ -1,6 +1,6 @@
 {
   "name": "@sigma/parse",
-  "version": "0.17.0",
+  "version": "0.17.1",
   "exports": "./mod.ts",
   "license": "MIT",
   "imports": {
