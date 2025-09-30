@@ -6,128 +6,138 @@
  */
 
 import {
+  Args,
   argument,
+  cli,
   command,
   description,
-  parse,
   required,
   subCommand,
   type,
-} from "@sigma/parse";
+} from "../src/index.ts";
 
 // Define subcommands
 @command
 class ServeCommand {
   @description("Port to serve on")
-  static port: number = 3000;
+  port: number = 3000;
 
   @description("Host to bind to")
-  static host: string = "localhost";
+  host: string = "localhost";
 
   @description("Enable HTTPS")
-  static ssl: boolean = false;
+  ssl: boolean = false;
 
   @argument({ description: "Directory to serve" })
-  static directory: string = ".";
+  @type("string")
+  directory: string = ".";
 }
 
 @command
 class BuildCommand {
   @description("Output directory")
-  static output: string = "dist";
+  output: string = "dist";
 
   @description("Enable minification")
-  static minify: boolean = false;
+  minify: boolean = false;
 
   @description("Build target")
   @type("string")
-  static target: string = "es2020";
+  target: string = "es2020";
 
   @argument({ description: "Entry file" })
   @required()
   @type("string")
-  static entry: string;
+  entry: string = "";
 
   @argument({ description: "Additional files", rest: true })
   @type("string[]")
-  static files: string[] = [];
+  files: string[] = [];
 }
 
 @command
 class TestCommand {
   @description("Test pattern to match")
-  static pattern: string = "**/*.test.ts";
+  pattern: string = "**/*.test.ts";
 
   @description("Enable coverage reporting")
-  static coverage: boolean = false;
+  coverage: boolean = false;
 
   @description("Watch for file changes")
-  static watch: boolean = false;
+  watch: boolean = false;
 }
 
 // Main application configuration
-@parse(Deno.args, {
+@cli({
   name: "devtool",
   description: "A modern development tool with colored help and smart defaults",
   color: true, // Enable colored output
   showDefaults: true, // Show default values in help
   defaultCommand: "help", // Show help when no command is provided
 })
-class DevTool {
+class DevTool extends Args {
   @description("Enable verbose logging")
-  static verbose: boolean = false;
+  verbose: boolean = false;
 
   @description("Configuration file path")
-  static config: string = "devtool.json";
+  config: string = "devtool.json";
 
   @description("Environment to run in")
-  static env: string = "development";
+  env: string = "development";
 
   @description("Start the development server")
   @subCommand(ServeCommand)
-  static serve: ServeCommand;
+  serve?: ServeCommand;
 
   @description("Build the project")
   @subCommand(BuildCommand)
-  static build: BuildCommand;
+  build?: BuildCommand;
 
   @description("Run tests")
   @subCommand(TestCommand)
-  static test: TestCommand;
+  test?: TestCommand;
 }
 
-// Example usage:
-console.log("\n🎉 DevTool initialized!");
+function main() {
+  const args = DevTool.parse(Deno.args);
 
-if (DevTool.serve) {
-  console.log(
-    `🚀 Starting server on http://${ServeCommand.host}:${ServeCommand.port}`,
-  );
-  console.log(`📁 Serving directory: ${ServeCommand.directory}`);
-  if (ServeCommand.ssl) console.log("🔒 SSL enabled");
-}
+  // Example usage:
+  console.log("\n🎉 DevTool initialized!");
 
-if (DevTool.build) {
-  console.log(`🏗️  Building ${BuildCommand.entry} to ${BuildCommand.output}`);
-  console.log(`🎯 Target: ${BuildCommand.target}`);
-  if (BuildCommand.minify) console.log("📦 Minification enabled");
-  if (BuildCommand.files.length > 0) {
-    console.log(`📄 Additional files: ${BuildCommand.files.join(", ")}`);
+  if (args.serve) {
+    console.log(
+      `🚀 Starting server on http://${args.serve.host}:${args.serve.port}`,
+    );
+    console.log(`📁 Serving directory: ${args.serve.directory}`);
+    if (args.serve.ssl) console.log("🔒 SSL enabled");
   }
+
+  if (args.build) {
+    console.log(`🏗️  Building ${args.build.entry} to ${args.build.output}`);
+    console.log(`🎯 Target: ${args.build.target}`);
+    if (args.build.minify) console.log("📦 Minification enabled");
+    if (args.build.files.length > 0) {
+      console.log(`📄 Additional files: ${args.build.files.join(", ")}`);
+    }
+  }
+
+  if (args.test) {
+    console.log(`🧪 Running tests with pattern: ${args.test.pattern}`);
+    if (args.test.coverage) console.log("📊 Coverage reporting enabled");
+    if (args.test.watch) console.log("👀 Watch mode enabled");
+  }
+
+  if (args.verbose) {
+    console.log("🔍 Verbose logging enabled");
+  }
+
+  console.log(`⚙️  Environment: ${args.env}`);
+  console.log(`📋 Config file: ${args.config}`);
 }
 
-if (DevTool.test) {
-  console.log(`🧪 Running tests with pattern: ${TestCommand.pattern}`);
-  if (TestCommand.coverage) console.log("📊 Coverage reporting enabled");
-  if (TestCommand.watch) console.log("👀 Watch mode enabled");
+if (import.meta.main) {
+  main();
 }
-
-if (DevTool.verbose) {
-  console.log("🔍 Verbose logging enabled");
-}
-
-console.log(`⚙️  Environment: ${DevTool.env}`);
-console.log(`📋 Config file: ${DevTool.config}`);
 
 /*
 Usage examples:

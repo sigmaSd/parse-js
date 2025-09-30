@@ -1,8 +1,87 @@
-import type { ParseOptions, ParseResult, SubCommand } from "./types.ts";
-import { collectArgumentDefs } from "./metadata.ts";
-import { parseArguments } from "./parsers/commands.ts";
+import type { ParseOptions, ParseResult, SupportedType } from "./types.ts";
 import { printHelp } from "./help.ts";
-import { handleHelpDisplay } from "./error-handling.ts";
+import { handleHelpDisplay, handleParsingError } from "./error-handling.ts";
+
+/**
+ * Base class for CLI argument classes.
+ *
+ * Classes that extend Args get a static parse method for parsing command line arguments.
+ */
+export class Args {
+  /**
+   * Parse command line arguments and return a typed instance.
+   */
+  static parse<T extends Args>(this: new () => T, args: string[]): T {
+    const instance = new this();
+
+    // Get CLI options from class metadata
+    const classMetadata = (this as unknown as {
+      [Symbol.metadata]?: Record<string | symbol, unknown>;
+    })[Symbol.metadata];
+
+    const cliOptions = classMetadata?.__cliOptions as ParseOptions | undefined;
+
+    const result = parseInstanceBased(
+      instance as Record<string, unknown>,
+      args,
+      cliOptions,
+    );
+
+    // Create a new instance and copy the parsed values
+    const typedResult = new this();
+    Object.assign(typedResult, result);
+
+    return typedResult;
+  }
+}
+
+/**
+ * CLI decorator to configure a class for command line parsing.
+ *
+ * This decorator marks a class as a CLI command and stores configuration
+ * options in the class metadata. Classes should extend Args to get the parse method.
+ *
+ * @param options - Configuration options including name, description, etc.
+ * @returns A class decorator function
+ *
+ * @example
+ * ```ts
+ * @cli({ name: "calculator", description: "A simple calculator application" })
+ * class Calculator extends Args {
+ *   @description("First number")
+ *   a: number = 0;
+ *
+ *   @description("Second number")
+ *   b: number = 0;
+ *
+ *   @description("Operation to perform")
+ *   @type("string")
+ *   operation: string = "add";
+ * }
+ *
+ * const args = Calculator.parse(Deno.args);
+ * console.log(args.a, args.b, args.operation);
+ * ```
+ */
+function cli(
+  options: ParseOptions,
+): <T extends new () => unknown>(target: T, ctx: ClassDecoratorContext) => T {
+  return function <T extends new () => unknown>(
+    target: T,
+    ctx: ClassDecoratorContext,
+  ): T {
+    // Store CLI options in class metadata
+    if (!ctx.metadata) {
+      throw new Error(
+        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+      );
+    }
+
+    ctx.metadata.__cliOptions = options;
+
+    return target;
+  };
+}
 
 /**
  * Main parse function and class decorator factory.
@@ -81,185 +160,6 @@ import { handleHelpDisplay } from "./error-handling.ts";
  * }
  * ```
  */
-export function parse(
-  args: string[],
-  options?: ParseOptions,
-): <T extends new () => unknown>(target: T, ctx: ClassDecoratorContext) => T {
-  return function <T extends new () => unknown>(
-    target: T,
-    ctx: ClassDecoratorContext,
-  ): T {
-    // Use addInitializer to run the parsing logic when the class is initialized
-    ctx.addInitializer(function () {
-      const klass = this as unknown as {
-        [Symbol.metadata]?: Record<string | symbol, unknown>;
-        [key: string]: unknown;
-      };
-
-      // Collect argument definitions from the class
-      const { parsedArgs, argumentDefs } = collectArgumentDefs(
-        klass as unknown as new () => unknown,
-      );
-
-      // Extract subcommand definitions from class metadata
-      const subCommands = collectSubCommands(klass);
-
-      // Handle default command when no arguments are provided
-      if (args.length === 0 && options?.defaultCommand) {
-        if (options.defaultCommand === "help") {
-          // Show help and potentially exit
-          const helpText = printHelp(
-            parsedArgs,
-            argumentDefs,
-            options,
-            subCommands.size > 0 ? subCommands : undefined,
-          );
-          handleHelpDisplay(helpText, options);
-          // Return early after help display to prevent further processing
-          return;
-        } else if (subCommands.has(options.defaultCommand)) {
-          // Run the default subcommand
-          const defaultArgs = [options.defaultCommand];
-          const parsed = parseArguments(
-            defaultArgs,
-            parsedArgs,
-            argumentDefs,
-            options,
-            subCommands.size > 0 ? subCommands : undefined,
-          );
-          applyParsedValues(
-            klass,
-            parsedArgs,
-            argumentDefs,
-            subCommands,
-            parsed,
-          );
-          return;
-        }
-      }
-
-      // Parse the provided arguments
-      const parsed = parseArguments(
-        args,
-        parsedArgs,
-        argumentDefs,
-        options,
-        subCommands.size > 0 ? subCommands : undefined,
-      );
-
-      // Apply parsed values to class properties
-      applyParsedValues(klass, parsedArgs, argumentDefs, subCommands, parsed);
-    });
-
-    return target;
-  };
-}
-
-/**
- * Determines if a property is a user-defined static property vs a built-in class property.
- *
- * Built-in properties like `length`, `name`, and `prototype` have specific characteristics:
- * - `writable: false` and `enumerable: false` for built-ins
- * - `writable: true` and `enumerable: true` for user-defined static properties
- *
- * @param descriptor - Property descriptor from Object.getOwnPropertyDescriptor()
- * @returns true if this is a user-defined property that should be processed
- */
-function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
-  // User-defined static properties are typically writable and enumerable
-  // Built-in properties are typically non-writable and non-enumerable
-  return descriptor.writable === true && descriptor.enumerable === true;
-}
-
-/**
- * Collects subcommand definitions from a class's metadata.
- *
- * This function scans through all static properties of a class to find
- * those marked with the @subCommand decorator, building a map of available
- * subcommands for the parsing system.
- *
- * @param klass - The class to scan for subcommand properties
- * @returns Map of subcommand names to their definitions
- */
-function collectSubCommands(klass: {
-  [Symbol.metadata]?: Record<string | symbol, unknown>;
-  [key: string]: unknown;
-}): Map<string, SubCommand> {
-  const subCommands = new Map<string, SubCommand>();
-  const propertyNames = Object.getOwnPropertyNames(klass);
-  const classMetadata = klass[Symbol.metadata];
-
-  for (const propName of propertyNames) {
-    const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
-
-    // Skip built-in class properties, but allow user-defined properties with the same names
-    if (
-      (propName === "length" || propName === "name" ||
-        propName === "prototype") &&
-      (!descriptor || !isUserDefinedProperty(descriptor))
-    ) {
-      continue;
-    }
-
-    // Check for subcommand metadata
-    const propertyMetadata = classMetadata?.[propName] as {
-      subCommand?: new () => unknown;
-      description?: string;
-    };
-
-    if (propertyMetadata?.subCommand) {
-      subCommands.set(propName, {
-        name: propName,
-        commandClass: propertyMetadata.subCommand,
-        description: propertyMetadata.description,
-      });
-    }
-  }
-
-  return subCommands;
-}
-
-/**
- * Applies parsed values to class properties.
- *
- * This function takes the parsed argument values and assigns them to the
- * appropriate static properties on the target class. It handles regular
- * options, positional arguments, and subcommand instances.
- *
- * @param klass - The target class to modify
- * @param parsedArgs - Regular CLI options definitions
- * @param argumentDefs - Positional argument definitions
- * @param subCommands - Subcommand definitions
- * @param parsed - The parsed values object
- */
-function applyParsedValues(
-  klass: { [key: string]: unknown },
-  parsedArgs: Array<{ name: string }>,
-  argumentDefs: Array<{ name: string }>,
-  subCommands: Map<string, SubCommand>,
-  parsed: ParseResult,
-): void {
-  // Apply regular option values
-  for (const arg of parsedArgs) {
-    if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
-      klass[arg.name] = parsed[arg.name];
-    }
-  }
-
-  // Apply positional argument values
-  for (const argDef of argumentDefs) {
-    if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
-      klass[argDef.name] = parsed[argDef.name];
-    }
-  }
-
-  // Apply subcommand instances
-  for (const [name, _subCommand] of subCommands) {
-    if (Object.prototype.hasOwnProperty.call(parsed, name)) {
-      klass[name] = parsed[name];
-    }
-  }
-}
 
 // Re-export all public APIs
 export * from "./types.ts";
@@ -299,3 +199,661 @@ export {
   ParseError,
   type ParseErrorType,
 } from "./error-handling.ts";
+
+/**
+ * Collect argument definitions from an instance instead of a class.
+ */
+function collectArgumentDefsFromInstance(instance: Record<string, unknown>) {
+  // Get the constructor to access metadata
+  const constructor = instance.constructor as new () => unknown;
+  const metadata = (constructor as {
+    [Symbol.metadata]?: Record<string | symbol, unknown>;
+  })[Symbol.metadata];
+
+  // Similar to collectArgumentDefs but working with instance properties
+  const parsedArgs: Array<{
+    name: string;
+    type: string;
+    default: unknown;
+    validators?: Array<(value: unknown) => string | null>;
+    description?: string;
+  }> = [];
+  const argumentDefs: Array<{
+    name: string;
+    type: string;
+    default: unknown;
+    validators?: Array<(value: unknown) => string | null>;
+    rest?: boolean;
+    rawRest?: boolean;
+    description?: string;
+  }> = [];
+
+  // Get all property names from the instance
+  const propertyNames = Object.getOwnPropertyNames(instance);
+
+  for (const propName of propertyNames) {
+    const propertyMetadata = metadata?.[propName] as {
+      argument?: { rest?: boolean; description?: string };
+      rawRest?: { description?: string };
+      subCommand?: new () => unknown;
+      type?: string;
+      validators?: Array<(value: unknown) => string | null>;
+      description?: string;
+    } | undefined;
+
+    if (propertyMetadata?.argument) {
+      // This is a positional argument
+      // Check if property has no initializer and no @type decorator
+      if (instance[propName] === undefined && !propertyMetadata.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      argumentDefs.push({
+        name: propName,
+        type: propertyMetadata.type || getTypeFromValue(instance[propName]),
+        default: instance[propName],
+        validators: propertyMetadata.validators || [],
+        rest: propertyMetadata.argument.rest,
+        description: propertyMetadata.description,
+      });
+    } else if (propertyMetadata?.rawRest) {
+      // This is a raw rest argument
+      // Check if property has no initializer and no @type decorator
+      if (instance[propName] === undefined && !propertyMetadata.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string[]") or another array type to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      argumentDefs.push({
+        name: propName,
+        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
+        default: instance[propName],
+        validators: propertyMetadata?.validators || [],
+        rawRest: true,
+        description: propertyMetadata.rawRest.description,
+      });
+    } else if (!propertyMetadata?.subCommand) {
+      // This is a regular option
+      // Check if property has no initializer and no @type decorator
+      if (instance[propName] === undefined && !propertyMetadata?.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      parsedArgs.push({
+        name: propName,
+        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
+        default: instance[propName],
+        validators: propertyMetadata?.validators || [],
+        description: propertyMetadata?.description,
+      });
+    }
+  }
+
+  return { parsedArgs, argumentDefs };
+}
+
+/**
+ * Get type string from a value for the new API.
+ */
+function getTypeFromValue(value: unknown): string {
+  if (Array.isArray(value)) {
+    if (value.length > 0 && typeof value[0] === "number") {
+      return "number[]";
+    }
+    return "string[]";
+  }
+  return typeof value;
+}
+
+/**
+ * Collect subcommands from an instance.
+ */
+function collectSubCommandsFromInstance(
+  instance: Record<string, unknown>,
+): Map<string, {
+  name: string;
+  commandClass: new () => unknown;
+  description?: string;
+}> {
+  const subCommands = new Map();
+  const constructor = instance.constructor as new () => unknown;
+  const metadata = (constructor as {
+    [Symbol.metadata]?: Record<string | symbol, unknown>;
+  })[Symbol.metadata];
+
+  const propertyNames = Object.getOwnPropertyNames(instance);
+
+  for (const propName of propertyNames) {
+    const propertyMetadata = metadata?.[propName] as {
+      subCommand?: new () => unknown;
+      description?: string;
+    } | undefined;
+
+    if (propertyMetadata?.subCommand) {
+      subCommands.set(propName, {
+        name: propName,
+        commandClass: propertyMetadata.subCommand,
+        description: propertyMetadata.description,
+      });
+    }
+  }
+
+  return subCommands;
+}
+
+/**
+ * Apply parsed values to instance and return as plain object.
+ */
+function _applyParsedValuesToInstance(
+  instance: Record<string, unknown>,
+  parsedArgs: Array<{ name: string }>,
+  argumentDefs: Array<{ name: string }>,
+  subCommands: Map<string, { name: string; commandClass: new () => unknown }>,
+  parsed: ParseResult,
+): ParseResult {
+  const result: ParseResult = {};
+
+  // Apply regular option values
+  for (const arg of parsedArgs) {
+    if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
+      result[arg.name] = parsed[arg.name];
+    } else {
+      result[arg.name] = instance[arg.name]; // Use default from instance
+    }
+  }
+
+  // Apply positional argument values
+  for (const argDef of argumentDefs) {
+    if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
+      result[argDef.name] = parsed[argDef.name];
+    } else {
+      result[argDef.name] = instance[argDef.name]; // Use default from instance
+    }
+  }
+
+  // Apply subcommand instances - convert to plain objects
+  for (const [name, _subCommand] of subCommands) {
+    if (Object.prototype.hasOwnProperty.call(parsed, name)) {
+      // For subcommands, we need to extract the parsed values
+      const commandInstance = parsed[name] as {
+        constructor: new () => unknown;
+      };
+      const subResult: Record<string, unknown> = {};
+
+      // Extract static properties that were set by the old parsing system
+      const staticProps = Object.getOwnPropertyNames(
+        commandInstance.constructor,
+      );
+      for (const propName of staticProps) {
+        if (
+          propName !== "length" && propName !== "name" &&
+          propName !== "prototype"
+        ) {
+          const descriptor = Object.getOwnPropertyDescriptor(
+            commandInstance.constructor,
+            propName,
+          );
+          if (descriptor?.writable && descriptor?.enumerable) {
+            subResult[propName] =
+              (commandInstance.constructor as unknown as Record<
+                string,
+                unknown
+              >)[
+                propName
+              ];
+          }
+        }
+      }
+
+      result[name] = subResult;
+    }
+  }
+
+  return result;
+}
+
+/**
+ * New instance-based parsing function that works entirely with instance properties.
+ */
+function parseInstanceBased(
+  instance: Record<string, unknown>,
+  args: string[],
+  options?: ParseOptions,
+): ParseResult {
+  // Collect argument definitions from instance
+  const { parsedArgs, argumentDefs } = collectArgumentDefsFromInstance(
+    instance,
+  );
+
+  // Collect subcommands from instance
+  const subCommands = collectSubCommandsFromInstance(instance);
+
+  // Validate rawRest doesn't conflict with rest arguments
+  const hasRest = argumentDefs.some((def) => def.rest);
+  const hasRawRest = argumentDefs.some((def) => def.rawRest);
+
+  if (hasRest && hasRawRest) {
+    throw new Error(
+      "Cannot use both @argument({rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.",
+    );
+  }
+
+  // Create argument map for parsing
+  const argMap = new Map<string, {
+    name: string;
+    type: string;
+    validators?: Array<(value: unknown) => string | null>;
+  }>();
+  for (const arg of parsedArgs) {
+    argMap.set(`--${arg.name}`, arg);
+  }
+
+  // Parse arguments manually using instance-based logic
+  const result: ParseResult = {};
+
+  // Initialize with defaults from instance
+  for (const arg of parsedArgs) {
+    result[arg.name] = instance[arg.name];
+  }
+  for (const argDef of argumentDefs) {
+    result[argDef.name] = instance[argDef.name];
+  }
+
+  // Check for rawRest - if present, we need special handling
+  const rawRestArg = argumentDefs.find((def) => def.rawRest);
+  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
+
+  // Simple argument parsing (basic implementation)
+  let i = 0;
+  let positionalIndex = 0;
+  let rawRestStarted = false;
+
+  while (i < args.length) {
+    const arg = args[i];
+
+    // If rawRest has started, capture everything
+    if (rawRestStarted && rawRestArg) {
+      const currentValues = result[rawRestArg.name] as string[] || [];
+      currentValues.push(arg);
+      result[rawRestArg.name] = currentValues;
+      i++;
+      continue;
+    }
+
+    if (arg === "--") {
+      // Handle -- separator - everything after this goes to positional args
+      i++;
+      // Process remaining args as positional
+      while (i < args.length) {
+        const positionalArg = args[i];
+        const positionalDef = regularArgDefs[positionalIndex];
+
+        if (positionalDef) {
+          if (positionalDef.rest) {
+            // Rest argument - collect all remaining
+            const currentValues = result[positionalDef.name] as string[] || [];
+            currentValues.push(positionalArg);
+            result[positionalDef.name] = currentValues;
+          } else {
+            // Regular positional argument
+            result[positionalDef.name] = positionalArg;
+            positionalIndex++;
+          }
+        }
+        i++;
+      }
+      break;
+    } else if (arg.startsWith("--")) {
+      // Handle flag
+      let flagName: string;
+      let flagValue: string | undefined;
+
+      // Check for --flag=value format
+      if (arg.includes("=")) {
+        const parts = arg.split("=", 2);
+        flagName = parts[0].slice(2);
+        flagValue = parts[1];
+      } else {
+        flagName = arg.slice(2);
+      }
+
+      const argDef = argMap.get(`--${flagName}`);
+
+      if (!argDef) {
+        // Handle help flags specially
+        if (flagName === "help" || flagName === "h") {
+          const helpText = printHelp(
+            parsedArgs as Array<
+              {
+                name: string;
+                type: SupportedType;
+                description?: string;
+                default?: string | number | boolean | string[] | number[];
+                validators?: Array<(value: unknown) => string | null>;
+              }
+            >,
+            argumentDefs as Array<
+              {
+                name: string;
+                type: SupportedType;
+                description?: string;
+                default?: string | number | boolean | string[] | number[];
+                validators?: Array<(value: unknown) => string | null>;
+                rest?: boolean;
+                rawRest?: boolean;
+              }
+            >,
+            options || {},
+            subCommands,
+            options?.name || "cli",
+            "",
+          );
+          handleHelpDisplay(helpText, options || {});
+          return result;
+        }
+
+        // Check if it's a subcommand
+        if (subCommands.has(flagName)) {
+          // This shouldn't happen as subcommands don't start with --
+          i++;
+          continue;
+        }
+
+        // If rawRest is present, unknown flags should be captured by it
+        if (rawRestArg && !rawRestStarted) {
+          rawRestStarted = true;
+          const currentValues = result[rawRestArg.name] as string[] || [];
+          currentValues.push(arg);
+          result[rawRestArg.name] = currentValues;
+          i++;
+          continue;
+        }
+
+        try {
+          handleParsingError(
+            `Unknown argument: --${flagName}`,
+            options,
+            "unknown_argument",
+            { argumentName: `--${flagName}` },
+            1,
+          );
+        } catch (error) {
+          throw error;
+        }
+        // If custom handler doesn't throw/exit, continue parsing
+        i++;
+        continue;
+      }
+
+      if (argDef.type === "boolean") {
+        if (flagValue !== undefined) {
+          result[flagName] = parseValue(flagValue, "boolean");
+        } else {
+          result[flagName] = true;
+        }
+        i++;
+      } else {
+        let value: string;
+        if (flagValue !== undefined) {
+          value = flagValue;
+          i++;
+        } else {
+          // Expect next argument as value
+          i++;
+          if (i >= args.length) {
+            try {
+              handleParsingError(
+                `Missing value for argument: --${flagName}`,
+                options,
+                "missing_value",
+                { argumentName: `--${flagName}` },
+                1,
+              );
+            } catch (error) {
+              throw error;
+            }
+            // If custom handler doesn't throw/exit, use empty string as fallback
+            value = "";
+          } else {
+            value = args[i];
+            i++;
+          }
+        }
+        result[flagName] = parseValue(
+          value,
+          argDef.type,
+          options,
+          `--${flagName}`,
+        );
+      }
+    } else if (subCommands.has(arg)) {
+      // Handle subcommand
+      const subCommand = subCommands.get(arg)!;
+      const remainingArgs = args.slice(i + 1);
+
+      // Recursively parse subcommand
+      if (
+        "parse" in subCommand.commandClass &&
+        typeof (subCommand.commandClass as {
+            parse?: (args: string[]) => unknown;
+          }).parse === "function"
+      ) {
+        // Subcommand extends Args, use its parse method
+        result[arg] = (subCommand.commandClass as {
+          parse: (args: string[]) => unknown;
+        }).parse(remainingArgs);
+      } else {
+        // Plain subcommand class, use instance-based parsing and return typed instance
+        const subInstance = new subCommand.commandClass() as Record<
+          string,
+          unknown
+        >;
+        const parsedValues = parseInstanceBased(
+          subInstance,
+          remainingArgs,
+          options,
+        );
+
+        // Create a new instance and assign the parsed values to it
+        const typedResult = new subCommand.commandClass();
+        Object.assign(typedResult as Record<string, unknown>, parsedValues);
+        result[arg] = typedResult;
+      }
+      break; // Stop processing after subcommand
+    } else {
+      // Handle positional argument
+      if (positionalIndex < regularArgDefs.length) {
+        const argDef = regularArgDefs[positionalIndex];
+        if (argDef.rest) {
+          // Collect remaining non-flag arguments
+          const remainingPositionals: string[] = [];
+          for (let j = i; j < args.length; j++) {
+            if (!args[j].startsWith("--")) {
+              remainingPositionals.push(args[j]);
+            } else {
+              // Stop collecting when we hit a flag
+              break;
+            }
+          }
+          result[argDef.name] = remainingPositionals.map((val) =>
+            parseValue(val, argDef.type.replace("[]", ""), options, argDef.name)
+          );
+          // Skip past the positional arguments we just processed
+          i += remainingPositionals.length;
+        } else {
+          result[argDef.name] = parseValue(
+            arg,
+            argDef.type,
+            options,
+            argDef.name,
+          );
+          positionalIndex++;
+          i++;
+        }
+      } else if (rawRestArg && !rawRestStarted) {
+        // All regular positionals satisfied, start rawRest capture
+        rawRestStarted = true;
+        const currentValues = result[rawRestArg.name] as string[] || [];
+        currentValues.push(arg);
+        result[rawRestArg.name] = currentValues;
+        i++;
+      } else {
+        // Unknown positional argument - only error if no rawRest
+        if (!rawRestArg) {
+          throw new Error(`Unknown argument: ${arg}`);
+        } else {
+          // Start rawRest capture for unknown positionals
+          if (!rawRestStarted) {
+            rawRestStarted = true;
+          }
+          const currentValues = result[rawRestArg.name] as string[] || [];
+          currentValues.push(arg);
+          result[rawRestArg.name] = currentValues;
+        }
+        i++;
+      }
+    }
+  }
+
+  // Validate required fields for flag arguments
+  for (const arg of parsedArgs) {
+    if (arg.validators) {
+      for (const validator of arg.validators) {
+        const error = validator(result[arg.name]);
+        if (error) {
+          try {
+            handleParsingError(
+              `Validation error for --${arg.name}: ${error}`,
+              options,
+              "validation_error",
+              {
+                argumentName: arg.name,
+                validationMessage: error,
+              },
+              1,
+            );
+          } catch (parseError) {
+            throw parseError;
+          }
+          // If custom handler doesn't throw/exit, continue
+          break;
+        }
+      }
+    }
+  }
+
+  // Validate required fields for positional arguments
+  for (const argDef of argumentDefs) {
+    if (argDef.validators) {
+      for (const validator of argDef.validators) {
+        const error = validator(result[argDef.name]);
+        if (error) {
+          try {
+            handleParsingError(
+              `Validation error for argument '${argDef.name}': ${error}`,
+              options,
+              "validation_error",
+              {
+                argumentName: argDef.name,
+                validationMessage: error,
+              },
+              1,
+            );
+          } catch (parseError) {
+            throw parseError;
+          }
+          // If custom handler doesn't throw/exit, continue
+          break;
+        }
+      }
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Parse a string value to the specified type.
+ */
+function parseValue(
+  value: string,
+  type: string,
+  options?: ParseOptions,
+  argName?: string,
+): unknown {
+  switch (type) {
+    case "number": {
+      const num = Number(value);
+      if (isNaN(num)) {
+        const errorMsg = argName
+          ? `Invalid number for ${
+            argName.startsWith("--") ? argName : argName
+          }: ${value}`
+          : `Invalid number: ${value}`;
+        try {
+          handleParsingError(
+            errorMsg,
+            options,
+            "invalid_number",
+            { value },
+            1,
+          );
+        } catch (error) {
+          throw error;
+        }
+        // If custom handler doesn't throw/exit, return 0 as fallback
+        return 0;
+      }
+      return num;
+    }
+    case "boolean": {
+      return value.toLowerCase() === "true";
+    }
+    case "string[]": {
+      return value.split(",").map((s) => s.trim());
+    }
+    case "number[]": {
+      return value.split(",").map((s) => {
+        const num = Number(s.trim());
+        if (isNaN(num)) {
+          const errorMsg = argName
+            ? `Invalid number in array for ${
+              argName.startsWith("--") ? argName : argName
+            }: ${s}`
+            : `Invalid number in array: ${s}`;
+          try {
+            handleParsingError(
+              errorMsg,
+              options,
+              "invalid_array_number",
+              { value: s },
+              1,
+            );
+          } catch (error) {
+            throw error;
+          }
+          // If custom handler doesn't throw/exit, return 0 as fallback
+          return 0;
+        }
+        return num;
+      });
+    }
+    default: {
+      return value;
+    }
+  }
+}
+
+// Export the Args-based CLI API
+export { cli };

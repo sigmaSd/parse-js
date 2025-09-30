@@ -6,10 +6,11 @@
  */
 
 import {
+  Args,
+  cli,
   command,
   description,
   isParseError,
-  parse,
   required,
   subCommand,
   type,
@@ -19,14 +20,16 @@ import {
 console.log("=== Example 1: Default Behavior (Process Exit) ===");
 
 try {
-  @parse(["--port", "invalid"], {
+  @cli({
     name: "default-app",
     description: "App with default error handling",
   })
-  class _DefaultConfig {
-    static port: number = 8080;
-    static debug: boolean = false;
+  class DefaultConfig extends Args {
+    port: number = 8080;
+    debug: boolean = false;
   }
+
+  DefaultConfig.parse(["--port", "invalid"]);
 } catch {
   console.log("This won't be reached - process.exit() was called");
 }
@@ -35,16 +38,18 @@ try {
 console.log("\n=== Example 2: Graceful Error Handling ===");
 
 try {
-  @parse(["--port", "invalid"], {
+  @cli({
     name: "graceful-app",
     description: "App with graceful error handling",
     exitOnError: false,
     exitOnHelp: false,
   })
-  class _GracefulConfig {
-    static port: number = 8080;
-    static debug: boolean = false;
+  class GracefulConfig extends Args {
+    port: number = 8080;
+    debug: boolean = false;
   }
+
+  GracefulConfig.parse(["--port", "invalid"]);
 } catch (error) {
   if (isParseError(error)) {
     console.log(`❌ Parse Error: ${error.message}`);
@@ -77,7 +82,7 @@ function handleHelp(helpText: string) {
 }
 
 try {
-  @parse(["--help"], {
+  @cli({
     name: "custom-app",
     description: "App with custom handlers",
     exitOnError: false,
@@ -85,13 +90,15 @@ try {
     onError: handleError,
     onHelp: handleHelp,
   })
-  class _CustomConfig {
+  class CustomConfig extends Args {
     @description("Server port number")
-    static port: number = 8080;
+    port: number = 8080;
 
     @description("Enable debug logging")
-    static debug: boolean = false;
+    debug: boolean = false;
   }
+
+  CustomConfig.parse(["--help"]);
 } catch {
   console.log("Help was displayed via custom handler");
 }
@@ -102,21 +109,21 @@ console.log("\n=== Example 4: Server Application ===");
 @command
 class StartCommand {
   @description("Port to listen on")
-  static port: number = 3000;
+  port: number = 3000;
 
   @description("Host to bind to")
-  static host: string = "localhost";
+  host: string = "localhost";
 
   @required()
   @type("string")
   @description("Configuration file path")
-  static config: string;
+  config: string = "";
 }
 
 @command
 class StopCommand {
   @description("Force stop without graceful shutdown")
-  static force: boolean = false;
+  force: boolean = false;
 }
 
 class ServerApp {
@@ -147,7 +154,7 @@ class ServerApp {
       try {
         console.log(`\n📝 Processing command: ${args.join(" ")}`);
 
-        @parse(args, {
+        @cli({
           name: "server",
           description: "Server management CLI",
           exitOnError: false, // Don't exit on errors
@@ -161,25 +168,27 @@ class ServerApp {
             console.log(helpText);
           },
         })
-        class ServerConfig {
+        class ServerConfig extends Args {
           @subCommand(StartCommand)
-          static start: StartCommand;
+          start?: StartCommand;
 
           @subCommand(StopCommand)
-          static stop: StopCommand;
+          stop?: StopCommand;
 
           @description("Global verbose flag")
-          static verbose: boolean = false;
+          verbose: boolean = false;
         }
 
+        const result = ServerConfig.parse(args);
+
         // Process successful command
-        if (ServerConfig.start) {
+        if (result.start) {
           console.log(
-            `✅ Start command: port=${StartCommand.port}, config=${StartCommand.config}`,
+            `✅ Start command: port=${result.start.port}, config=${result.start.config}`,
           );
-        } else if (ServerConfig.stop) {
+        } else if (result.stop) {
           console.log(
-            `✅ Stop command: force=${StopCommand.force}`,
+            `✅ Stop command: force=${result.stop.force}`,
           );
           this.isRunning = false;
           break;
@@ -232,20 +241,22 @@ class TestRunner {
       console.log(`\n🧪 Test: ${testCase.name}`);
 
       try {
-        @parse(testCase.args, {
+        @cli({
           name: "test-app",
           exitOnError: false,
           exitOnHelp: false,
         })
-        class TestConfig {
-          static port: number = 8080;
-          static debug: boolean = false;
+        class TestConfig extends Args {
+          port: number = 8080;
+          debug: boolean = false;
         }
+
+        const result = TestConfig.parse(testCase.args);
 
         if (testCase.shouldSucceed) {
           console.log(`   ✅ PASS - Arguments parsed successfully`);
           console.log(
-            `   📊 port=${TestConfig.port}, debug=${TestConfig.debug}`,
+            `   📊 port=${result.port}, debug=${result.debug}`,
           );
         } else {
           console.log(`   ❌ FAIL - Expected error but parsing succeeded`);
@@ -280,7 +291,7 @@ console.log("\n=== Example 6: Configuration Validation ===");
 class ConfigManager {
   static loadConfig(args: string[]) {
     try {
-      @parse(args, {
+      @cli({
         name: "config-app",
         exitOnError: false,
         onError: (error) => {
@@ -288,23 +299,24 @@ class ConfigManager {
           console.log("   Loading default configuration...");
         },
       })
-      class AppConfig {
+      class AppConfig extends Args {
         @description("Database URL")
         @required()
         @type("string")
-        static dbUrl: string;
+        dbUrl: string = "";
 
         @description("API port")
-        static port: number = 3000;
+        port: number = 3000;
 
         @description("Environment")
-        static env: string = "development";
+        env: string = "development";
       }
 
+      const result = AppConfig.parse(args);
       return {
-        dbUrl: AppConfig.dbUrl,
-        port: AppConfig.port,
-        env: AppConfig.env,
+        dbUrl: result.dbUrl,
+        port: result.port,
+        env: result.env,
       };
     } catch (error) {
       if (isParseError(error)) {
@@ -342,7 +354,7 @@ const _server = new ServerApp();
 // For this example, we'll just show it's possible
 
 console.log("\nRunning test suite...");
-await TestRunner.runTests();
+TestRunner.runTests();
 
 console.log("\n✨ All examples completed!");
 console.log("\nKey benefits of configurable error handling:");

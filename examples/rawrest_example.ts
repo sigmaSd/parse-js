@@ -1,7 +1,7 @@
 #!/usr/bin/env -S deno run --allow-all
 
 /**
- * Comprehensive example demonstrating @rawRest decorator usage.
+ * Comprehensive example demonstrating @rawRest decorator usage with the new Args API.
  *
  * The @rawRest decorator is perfect for building proxy commands that need to
  * forward arguments to other tools without parsing them as CLI options.
@@ -14,10 +14,11 @@
  */
 
 import {
+  Args,
   argument,
+  cli,
   command,
   description,
-  parse,
   rawRest,
   subCommand,
   type,
@@ -26,46 +27,40 @@ import {
 // Example 1: Simple proxy command
 console.log("=== Example 1: Simple Proxy Command ===");
 
-@parse(
-  Deno.args.length > 0
-    ? Deno.args
-    : ["docker", "run", "--rm", "-it", "ubuntu", "bash"],
-  {
-    name: "container-proxy",
-    description: "A proxy that forwards commands to container runtimes",
-  },
-)
-class ContainerProxy {
+@cli({
+  name: "container-proxy",
+  description: "A proxy that forwards commands to container runtimes",
+})
+class ContainerProxy extends Args {
   @argument({ description: "Container runtime (docker, podman, etc.)" })
-  static runtime: string = "";
+  @type("string")
+  runtime: string = "";
 
   @rawRest("All arguments to pass to the container runtime")
-  static runtimeArgs: string[] = [];
+  runtimeArgs: string[] = [];
 
   @description("Enable verbose logging")
-  static verbose: boolean = false;
+  verbose: boolean = false;
 
   @description("Dry run - show command but don't execute")
-  static dryRun: boolean = false;
+  dryRun: boolean = false;
 }
 
-console.log("Runtime:", ContainerProxy.runtime);
-console.log("Runtime args:", ContainerProxy.runtimeArgs);
-console.log("Verbose:", ContainerProxy.verbose);
-console.log("Dry run:", ContainerProxy.dryRun);
+const exampleArgs = Deno.args.length > 0
+  ? Deno.args
+  : ["docker", "run", "--rm", "-it", "ubuntu", "bash"];
 
-if (ContainerProxy.dryRun) {
-  console.log(
-    "Would execute:",
-    ContainerProxy.runtime,
-    ...ContainerProxy.runtimeArgs,
-  );
-} else if (ContainerProxy.verbose) {
-  console.log(
-    "Executing:",
-    ContainerProxy.runtime,
-    ...ContainerProxy.runtimeArgs,
-  );
+const proxy = ContainerProxy.parse(exampleArgs);
+
+console.log("Runtime:", proxy.runtime);
+console.log("Runtime args:", proxy.runtimeArgs);
+console.log("Verbose:", proxy.verbose);
+console.log("Dry run:", proxy.dryRun);
+
+if (proxy.dryRun) {
+  console.log("Would execute:", proxy.runtime, ...proxy.runtimeArgs);
+} else if (proxy.verbose) {
+  console.log("Executing:", proxy.runtime, ...proxy.runtimeArgs);
 }
 
 console.log("\n" + "=".repeat(60) + "\n");
@@ -76,28 +71,47 @@ console.log("=== Example 2: Development Tool Proxy ===");
 @command
 class RunCommand {
   @argument({ description: "Script or binary name" })
-  static name: string = "";
+  @type("string")
+  name: string = "";
 
   @rawRest("Arguments to pass to the script/binary")
-  static args: string[] = [];
+  args: string[] = [];
 
   @description("Run in background")
-  static background: boolean = false;
+  background: boolean = false;
 
   @description("Restart on file changes")
-  static watch: boolean = false;
+  watch: boolean = false;
 }
 
 @command
 class TestCommand {
   @rawRest("Test framework arguments")
-  static testArgs: string[] = [];
+  testArgs: string[] = [];
 
   @description("Show coverage report")
-  static coverage: boolean = false;
+  coverage: boolean = false;
 
   @description("Run tests in watch mode")
-  static watch: boolean = false;
+  watch: boolean = false;
+}
+
+@cli({
+  name: "devtool",
+  description: "Development tool with proxy commands",
+  exitOnError: false,
+})
+class DevTool extends Args {
+  @description("Enable debug output")
+  debug: boolean = false;
+
+  @description("Run a script with arguments")
+  @subCommand(RunCommand)
+  run?: RunCommand;
+
+  @description("Run tests with framework arguments")
+  @subCommand(TestCommand)
+  test?: TestCommand;
 }
 
 // Simulate different subcommands
@@ -110,39 +124,23 @@ for (const args of exampleCommands) {
   console.log(`\nTesting with args: ${JSON.stringify(args)}`);
 
   try {
-    @parse(args, {
-      name: "devtool",
-      description: "Development tool with proxy commands",
-      exitOnError: false,
-    })
-    class DevTool {
-      @description("Enable debug output")
-      static debug: boolean = false;
+    const result = DevTool.parse(args);
 
-      @description("Run a script with arguments")
-      @subCommand(RunCommand)
-      static run: RunCommand;
+    console.log("Debug:", result.debug);
 
-      @description("Run tests with framework arguments")
-      @subCommand(TestCommand)
-      static test: TestCommand;
-    }
-
-    console.log("Debug:", DevTool.debug);
-
-    if (DevTool.run) {
+    if (result.run) {
       console.log("Run command detected:");
-      console.log("- Name:", RunCommand.name);
-      console.log("- Args:", RunCommand.args);
-      console.log("- Background:", RunCommand.background);
-      console.log("- Watch:", RunCommand.watch);
+      console.log("- Name:", result.run.name);
+      console.log("- Args:", result.run.args);
+      console.log("- Background:", result.run.background);
+      console.log("- Watch:", result.run.watch);
     }
 
-    if (DevTool.test) {
+    if (result.test) {
       console.log("Test command detected:");
-      console.log("- Test args:", TestCommand.testArgs);
-      console.log("- Coverage:", TestCommand.coverage);
-      console.log("- Watch:", TestCommand.watch);
+      console.log("- Test args:", result.test.testArgs);
+      console.log("- Coverage:", result.test.coverage);
+      console.log("- Watch:", result.test.watch);
     }
   } catch (error) {
     console.log(
@@ -157,38 +155,49 @@ console.log("\n" + "=".repeat(60) + "\n");
 // Example 3: Package manager proxy
 console.log("=== Example 3: Package Manager Proxy ===");
 
-@parse(["npm", "run", "build", "--", "--production", "--verbose"], {
+@cli({
   name: "pkg-proxy",
   description: "Universal package manager proxy",
   exitOnError: false,
 })
-class PackageProxy {
+class PackageProxy extends Args {
   @argument({ description: "Package manager (npm, yarn, pnpm, bun)" })
-  static manager: string = "";
+  @type("string")
+  manager: string = "";
 
   @argument({ description: "Command (install, run, build, etc.)" })
-  static command: string = "";
+  @type("string")
+  command: string = "";
 
   @rawRest("All arguments for the package manager")
-  static managerArgs: string[] = [];
+  managerArgs: string[] = [];
 
   @description("Show what would be executed without running")
-  static whatIf: boolean = false;
+  whatIf: boolean = false;
 
   @description("Force operation even if risky")
-  static force: boolean = false;
+  force: boolean = false;
 }
 
-console.log("Package manager:", PackageProxy.manager);
-console.log("Command:", PackageProxy.command);
-console.log("Manager args:", PackageProxy.managerArgs);
-console.log("What-if mode:", PackageProxy.whatIf);
-console.log("Force:", PackageProxy.force);
+const pkgProxy = PackageProxy.parse([
+  "npm",
+  "run",
+  "build",
+  "--",
+  "--production",
+  "--verbose",
+]);
+
+console.log("Package manager:", pkgProxy.manager);
+console.log("Command:", pkgProxy.command);
+console.log("Manager args:", pkgProxy.managerArgs);
+console.log("What-if mode:", pkgProxy.whatIf);
+console.log("Force:", pkgProxy.force);
 
 const fullCommand = [
-  PackageProxy.manager,
-  PackageProxy.command,
-  ...PackageProxy.managerArgs,
+  pkgProxy.manager,
+  pkgProxy.command,
+  ...pkgProxy.managerArgs,
 ];
 console.log("Full command that would be executed:", fullCommand.join(" "));
 
@@ -197,62 +206,41 @@ console.log("\n" + "=".repeat(60) + "\n");
 // Example 4: Complex validation with rawRest
 console.log("=== Example 4: Validation with rawRest ===");
 
-function _minArgs(min: number) {
-  return (value: unknown) => {
-    if (Array.isArray(value) && value.length < min) {
-      return `must provide at least ${min} arguments`;
-    }
-    return null;
-  };
-}
+@cli({
+  name: "validated-proxy",
+  description: "Proxy with validation",
+  exitOnError: false,
+})
+class ValidatedProxy extends Args {
+  @argument({ description: "Execution mode" })
+  @type("string")
+  mode: string = "";
 
-function _validCommand() {
-  return (value: unknown) => {
-    if (
-      typeof value === "string" && !["exec", "run", "spawn"].includes(value)
-    ) {
-      return "must be one of: exec, run, spawn";
-    }
-    return null;
-  };
+  @rawRest("Command and arguments to execute")
+  cmdArgs: string[] = [];
+
+  @description("Set execution timeout in seconds")
+  @type("number")
+  timeout: number = 30;
+
+  @description("Capture stdout/stderr")
+  capture: boolean = false;
 }
 
 try {
-  @parse(["exec", "ls", "-la", "/tmp"], {
-    name: "validated-proxy",
-    description: "Proxy with validation",
-    exitOnError: false,
-  })
-  class ValidatedProxy {
-    @argument({ description: "Execution mode" })
-    @type("string")
-    // Note: You would use @addValidator(validCommand()) here
-    // but for this example we'll keep it simple
-    static mode: string = "";
+  const validated = ValidatedProxy.parse(["exec", "ls", "-la", "/tmp"]);
 
-    @rawRest("Command and arguments to execute")
-    // Note: You would use @addValidator(minArgs(1)) here
-    static cmdArgs: string[] = [];
+  console.log("Mode:", validated.mode);
+  console.log("Command args:", validated.cmdArgs);
+  console.log("Timeout:", validated.timeout);
+  console.log("Capture:", validated.capture);
 
-    @description("Set execution timeout in seconds")
-    @type("number")
-    static timeout: number = 30;
-
-    @description("Capture stdout/stderr")
-    static capture: boolean = false;
-  }
-
-  console.log("Mode:", ValidatedProxy.mode);
-  console.log("Command args:", ValidatedProxy.cmdArgs);
-  console.log("Timeout:", ValidatedProxy.timeout);
-  console.log("Capture:", ValidatedProxy.capture);
-
-  if (ValidatedProxy.cmdArgs.length === 0) {
+  if (validated.cmdArgs.length === 0) {
     console.log("Warning: No command provided to execute");
   } else {
-    console.log("Would execute:", ValidatedProxy.cmdArgs.join(" "));
-    console.log("With timeout:", ValidatedProxy.timeout, "seconds");
-    console.log("Capture output:", ValidatedProxy.capture);
+    console.log("Would execute:", validated.cmdArgs.join(" "));
+    console.log("With timeout:", validated.timeout, "seconds");
+    console.log("Capture output:", validated.capture);
   }
 } catch (error) {
   console.log(
@@ -266,7 +254,34 @@ console.log("\n" + "=".repeat(60) + "\n");
 // Example 5: Real-world use case - CI/CD pipeline step
 console.log("=== Example 5: CI/CD Pipeline Step ===");
 
-@parse([
+@cli({
+  name: "pipeline-step",
+  description: "CI/CD pipeline step executor",
+  exitOnError: false,
+})
+class PipelineStep extends Args {
+  @argument({ description: "Step type (build, test, deploy, etc.)" })
+  @type("string")
+  stepType: string = "";
+
+  @rawRest("Tool-specific command and arguments")
+  toolCommand: string[] = [];
+
+  @description("Environment (dev, staging, prod)")
+  env: string = "dev";
+
+  @description("Pipeline run ID")
+  runId: string = "";
+
+  @description("Skip safety checks")
+  skipChecks: boolean = false;
+
+  @description("Maximum execution time in minutes")
+  @type("number")
+  maxTime: number = 30;
+}
+
+const pipeline = PipelineStep.parse([
   "deploy",
   "--env",
   "staging",
@@ -276,46 +291,22 @@ console.log("=== Example 5: CI/CD Pipeline Step ===");
   "./chart",
   "--set",
   "image.tag=v1.2.3",
-], {
-  name: "pipeline-step",
-  description: "CI/CD pipeline step executor",
-  exitOnError: false,
-})
-class PipelineStep {
-  @argument({ description: "Step type (build, test, deploy, etc.)" })
-  static stepType: string = "";
+]);
 
-  @rawRest("Tool-specific command and arguments")
-  static toolCommand: string[] = [];
-
-  @description("Environment (dev, staging, prod)")
-  static env: string = "dev";
-
-  @description("Pipeline run ID")
-  static runId: string = "";
-
-  @description("Skip safety checks")
-  static skipChecks: boolean = false;
-
-  @description("Maximum execution time in minutes")
-  @type("number")
-  static maxTime: number = 30;
-}
-
-console.log("Step type:", PipelineStep.stepType);
-console.log("Environment:", PipelineStep.env);
-console.log("Run ID:", PipelineStep.runId);
-console.log("Tool command:", PipelineStep.toolCommand);
-console.log("Skip checks:", PipelineStep.skipChecks);
-console.log("Max time:", PipelineStep.maxTime, "minutes");
+console.log("Step type:", pipeline.stepType);
+console.log("Environment:", pipeline.env);
+console.log("Run ID:", pipeline.runId);
+console.log("Tool command:", pipeline.toolCommand);
+console.log("Skip checks:", pipeline.skipChecks);
+console.log("Max time:", pipeline.maxTime, "minutes");
 
 // Simulate pipeline execution
 console.log("\n🚀 Pipeline Step Execution:");
-console.log("Environment:", PipelineStep.env);
-console.log("Step:", PipelineStep.stepType);
-console.log("Command:", PipelineStep.toolCommand.join(" "));
-console.log("Safety checks:", PipelineStep.skipChecks ? "DISABLED" : "enabled");
-console.log("Timeout:", PipelineStep.maxTime, "minutes");
+console.log("Environment:", pipeline.env);
+console.log("Step:", pipeline.stepType);
+console.log("Command:", pipeline.toolCommand.join(" "));
+console.log("Safety checks:", pipeline.skipChecks ? "DISABLED" : "enabled");
+console.log("Timeout:", pipeline.maxTime, "minutes");
 
 console.log("\n" + "=".repeat(60) + "\n");
 
@@ -326,3 +317,7 @@ console.log("• Perfect for proxy commands that forward to other tools");
 console.log("• Works seamlessly with regular CLI options and validation");
 console.log("• Supports complex command hierarchies with subcommands");
 console.log("• Handles edge cases like -- separator and mixed argument orders");
+console.log(
+  "• Clean property access: args.toolCommand instead of static access",
+);
+console.log("• Perfect type safety throughout the command chain");

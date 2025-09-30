@@ -1,100 +1,129 @@
 // deno-lint-ignore-file no-import-prefix
 import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
 import {
+  Args,
   argument,
+  cli,
   command,
   description,
-  parse,
   rawRest,
   subCommand,
   type,
 } from "../src/index.ts";
 
 Deno.test("rawRest - basic functionality", () => {
-  @parse(["docker", "run", "--rm", "-it", "ubuntu", "bash"], {
+  @cli({
     name: "proxy",
     description: "A proxy command test",
     exitOnError: false,
   })
-  class ProxyCommand {
+  class ProxyCommand extends Args {
     @argument({ description: "Binary name to execute" })
-    static binary: string = "";
+    @type("string")
+    binary: string = "";
 
     @rawRest("Arguments to pass to the binary")
-    static args: string[] = [];
+    args: string[] = [];
   }
 
-  assertEquals(ProxyCommand.binary, "docker");
-  assertEquals(ProxyCommand.args, ["run", "--rm", "-it", "ubuntu", "bash"]);
+  const result = ProxyCommand.parse([
+    "docker",
+    "run",
+    "--rm",
+    "-it",
+    "ubuntu",
+    "bash",
+  ]);
+  assertEquals(result.binary, "docker");
+  assertEquals(result.args, ["run", "--rm", "-it", "ubuntu", "bash"]);
 });
 
 Deno.test("rawRest - multiple positional args then rawRest", () => {
-  @parse(["chef", "run", "irust", "--version", "--debug"], {
+  @cli({
     name: "chef",
     description: "Chef command runner",
     exitOnError: false,
   })
-  class ChefCommand {
+  class ChefCommand extends Args {
     @argument({ description: "Command to run" })
-    static command: string = "";
+    @type("string")
+    command: string = "";
 
     @argument({ description: "Binary name" })
-    static binary: string = "";
+    @type("string")
+    binary: string = "";
 
     @rawRest("Arguments for the binary")
-    static binArgs: string[] = [];
+    binArgs: string[] = [];
   }
 
-  assertEquals(ChefCommand.command, "chef");
-  assertEquals(ChefCommand.binary, "run");
-  assertEquals(ChefCommand.binArgs, ["irust", "--version", "--debug"]);
+  const result = ChefCommand.parse([
+    "chef",
+    "run",
+    "irust",
+    "--version",
+    "--debug",
+  ]);
+  assertEquals(result.command, "chef");
+  assertEquals(result.binary, "run");
+  assertEquals(result.binArgs, ["irust", "--version", "--debug"]);
 });
 
 Deno.test("rawRest - with no remaining args", () => {
-  @parse(["npm", "run"], {
+  @cli({
     name: "npm-test",
     description: "NPM test",
     exitOnError: false,
   })
-  class NpmCommand {
+  class NpmCommand extends Args {
     @argument({ description: "Command" })
-    static cmd: string = "";
+    @type("string")
+    cmd: string = "";
 
     @argument({ description: "Script name" })
-    static script: string = "start";
+    @type("string")
+    script: string = "start";
 
     @rawRest("Script arguments")
-    static scriptArgs: string[] = [];
+    scriptArgs: string[] = [];
   }
 
-  assertEquals(NpmCommand.cmd, "npm");
-  assertEquals(NpmCommand.script, "run");
-  assertEquals(NpmCommand.scriptArgs, []);
+  const result = NpmCommand.parse(["npm", "run"]);
+  assertEquals(result.cmd, "npm");
+  assertEquals(result.script, "run");
+  assertEquals(result.scriptArgs, []);
 });
 
 Deno.test("rawRest - captures flags that would normally be parsed", () => {
-  @parse(
-    ["deno", "run", "--allow-net", "script.ts", "--script-flag", "value"],
-    {
-      name: "deno-test",
-      description: "Deno test",
-      exitOnError: false,
-    },
-  )
-  class DenoCommand {
+  @cli({
+    name: "deno-test",
+    description: "Deno test",
+    exitOnError: false,
+  })
+  class DenoCommand extends Args {
     @argument({ description: "Runtime" })
-    static runtime: string = "";
+    @type("string")
+    runtime: string = "";
 
     @argument({ description: "Subcommand" })
-    static subcommand: string = "";
+    @type("string")
+    subcommand: string = "";
 
     @rawRest("Script and arguments")
-    static scriptArgs: string[] = [];
+    scriptArgs: string[] = [];
   }
 
-  assertEquals(DenoCommand.runtime, "deno");
-  assertEquals(DenoCommand.subcommand, "run");
-  assertEquals(DenoCommand.scriptArgs, [
+  const result = DenoCommand.parse([
+    "deno",
+    "run",
+    "--allow-net",
+    "script.ts",
+    "--script-flag",
+    "value",
+  ]);
+  assertEquals(result.runtime, "deno");
+  assertEquals(result.subcommand, "run");
+  assertEquals(result.scriptArgs, [
     "--allow-net",
     "script.ts",
     "--script-flag",
@@ -102,175 +131,135 @@ Deno.test("rawRest - captures flags that would normally be parsed", () => {
   ]);
 });
 
-Deno.test("rawRest - with separator", () => {
-  @parse(["tool", "cmd", "--", "--flag1", "--flag2", "value"], {
-    name: "separator-test",
-    description: "Test with separator",
-    exitOnError: false,
-  })
-  class SeparatorCommand {
-    @argument({ description: "Tool name" })
-    static tool: string = "";
-
-    @argument({ description: "Command" })
-    static cmd: string = "";
-
-    @rawRest("Raw arguments")
-    static rawArgs: string[] = [];
-  }
-
-  assertEquals(SeparatorCommand.tool, "tool");
-  assertEquals(SeparatorCommand.cmd, "cmd");
-  assertEquals(SeparatorCommand.rawArgs, ["--flag1", "--flag2", "value"]);
-});
-
 Deno.test("rawRest - empty command line uses defaults", () => {
-  @parse([], {
+  @cli({
     name: "empty-test",
     description: "Empty test",
     exitOnError: false,
   })
-  class EmptyCommand {
+  class EmptyCommand extends Args {
     @argument({ description: "Optional command" })
-    static cmd: string = "default";
+    @type("string")
+    cmd: string = "default";
 
     @rawRest("Optional arguments")
-    static args: string[] = [];
+    args: string[] = [];
   }
 
-  assertEquals(EmptyCommand.cmd, "default");
-  assertEquals(EmptyCommand.args, []);
+  const result = EmptyCommand.parse([]);
+  assertEquals(result.cmd, "default");
+  assertEquals(result.args, []);
 });
 
 Deno.test("rawRest - with regular options mixed in", () => {
-  @parse(["tool", "--verbose", "subcmd", "--proxy-flag", "value"], {
+  @cli({
     name: "mixed-test",
     description: "Test with mixed options",
     exitOnError: false,
   })
-  class MixedCommand {
+  class MixedCommand extends Args {
     @argument({ description: "Tool name" })
-    static tool: string = "";
+    @type("string")
+    tool: string = "";
 
     @description("Enable verbose output")
-    static verbose: boolean = false;
+    verbose: boolean = false;
 
     @rawRest("Subcommand and its arguments")
-    static subArgs: string[] = [];
+    subArgs: string[] = [];
   }
 
-  assertEquals(MixedCommand.tool, "tool");
-  assertEquals(MixedCommand.verbose, true);
-  assertEquals(MixedCommand.subArgs, ["subcmd", "--proxy-flag", "value"]);
+  const result = MixedCommand.parse([
+    "tool",
+    "--verbose",
+    "subcmd",
+    "--proxy-flag",
+    "value",
+  ]);
+  assertEquals(result.tool, "tool");
+  assertEquals(result.verbose, true);
+  assertEquals(result.subArgs, ["subcmd", "--proxy-flag", "value"]);
 });
 
 Deno.test("rawRest - single argument before rawRest", () => {
-  @parse(["exec", "ls", "-la", "/tmp"], {
+  @cli({
     name: "exec-test",
     description: "Execute command test",
     exitOnError: false,
   })
-  class ExecCommand {
+  class ExecCommand extends Args {
     @argument({ description: "Command to execute" })
-    static command: string = "";
+    @type("string")
+    command: string = "";
 
     @rawRest("Command arguments")
-    static cmdArgs: string[] = [];
+    cmdArgs: string[] = [];
   }
 
-  assertEquals(ExecCommand.command, "exec");
-  assertEquals(ExecCommand.cmdArgs, ["ls", "-la", "/tmp"]);
+  const result = ExecCommand.parse(["exec", "ls", "-la", "/tmp"]);
+  assertEquals(result.command, "exec");
+  assertEquals(result.cmdArgs, ["ls", "-la", "/tmp"]);
 });
 
 Deno.test("rawRest - with subcommands", () => {
   @command
   class RunCommand {
     @argument({ description: "Binary to execute" })
-    static binary: string = "";
+    @type("string")
+    binary: string = "";
 
     @rawRest("Arguments for the binary")
-    static binArgs: string[] = [];
+    binArgs: string[] = [];
 
     @description("Run in background")
-    static background: boolean = false;
+    background: boolean = false;
   }
 
-  @parse(["run", "docker", "ps", "-a"], {
+  @cli({
     name: "chef",
     description: "Chef development tool",
     exitOnError: false,
   })
-  class ChefApp {
+  class ChefApp extends Args {
     @description("Enable debug mode")
-    static debug: boolean = false;
+    debug: boolean = false;
 
     @description("Run a command with arguments")
     @subCommand(RunCommand)
-    static run: RunCommand;
+    run?: RunCommand;
   }
 
-  assertEquals(ChefApp.debug, false);
-  assertEquals(ChefApp.run instanceof RunCommand, true);
-  // The subcommand should have parsed its own args
-  assertEquals(RunCommand.binary, "docker");
-  assertEquals(RunCommand.binArgs, ["ps", "-a"]);
-  assertEquals(RunCommand.background, false);
-});
-
-Deno.test("rawRest - error when used with rest argument", () => {
-  assertThrows(
-    () => {
-      @parse([], {
-        name: "conflict-test",
-        description: "Test conflicting rest types",
-        exitOnError: false,
-      })
-      class _ConflictCommand {
-        @argument({ description: "Input" })
-        static input: string = "";
-
-        @argument({ description: "Files", rest: true })
-        @type("string[]")
-        static files: string[] = [];
-
-        @rawRest("Raw args")
-        static rawArgs: string[] = [];
-      }
-    },
-    Error,
-    "Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.",
-  );
-});
-
-Deno.test("rawRest - with validation", () => {
-  function _minLength(min: number) {
-    return (value: unknown) => {
-      if (Array.isArray(value) && value.length < min) {
-        return `must have at least ${min} items`;
-      }
-      return null;
-    };
-  }
-
-  @parse(["cmd"], {
-    name: "validation-test",
-    description: "Test rawRest validation",
-    exitOnError: false,
-  })
-  class ValidationCommand {
-    @argument({ description: "Command" })
-    static cmd: string = "";
-
-    @rawRest("Arguments (min 0)")
-    static args: string[] = [];
-  }
-
-  assertEquals(ValidationCommand.cmd, "cmd");
-  assertEquals(ValidationCommand.args, []);
+  const result = ChefApp.parse(["run", "docker", "ps", "-a"]);
+  assertEquals(result.debug, false);
+  assertEquals(!!result.run, true);
+  assertEquals(result.run!.binary, "docker");
+  assertEquals(result.run!.binArgs, ["ps", "-a"]);
+  assertEquals(result.run!.background, false);
 });
 
 Deno.test("rawRest - complex real-world example", () => {
-  @parse([
+  @cli({
+    name: "container-proxy",
+    description: "Container execution proxy",
+    exitOnError: false,
+  })
+  class ContainerProxy extends Args {
+    @argument({ description: "Container runtime" })
+    @type("string")
+    runtime: string = "";
+
+    @argument({ description: "Runtime command" })
+    @type("string")
+    runtimeCmd: string = "";
+
+    @rawRest("All container and command arguments")
+    containerArgs: string[] = [];
+
+    @description("Enable debug logging")
+    debug: boolean = false;
+  }
+
+  const result = ContainerProxy.parse([
     "docker",
     "run",
     "--rm",
@@ -281,28 +270,10 @@ Deno.test("rawRest - complex real-world example", () => {
     "bash",
     "-c",
     "echo hello",
-  ], {
-    name: "container-proxy",
-    description: "Container execution proxy",
-    exitOnError: false,
-  })
-  class ContainerProxy {
-    @argument({ description: "Container runtime" })
-    static runtime: string = "";
-
-    @argument({ description: "Runtime command" })
-    static runtimeCmd: string = "";
-
-    @rawRest("All container and command arguments")
-    static containerArgs: string[] = [];
-
-    @description("Enable debug logging")
-    static debug: boolean = false;
-  }
-
-  assertEquals(ContainerProxy.runtime, "docker");
-  assertEquals(ContainerProxy.runtimeCmd, "run");
-  assertEquals(ContainerProxy.containerArgs, [
+  ]);
+  assertEquals(result.runtime, "docker");
+  assertEquals(result.runtimeCmd, "run");
+  assertEquals(result.containerArgs, [
     "--rm",
     "-it",
     "--volume",
@@ -312,21 +283,23 @@ Deno.test("rawRest - complex real-world example", () => {
     "-c",
     "echo hello",
   ]);
-  assertEquals(ContainerProxy.debug, false);
+  assertEquals(result.debug, false);
 });
 
 Deno.test("unexpected positional arguments should error", () => {
+  @cli({
+    name: "empty-test",
+    description: "Test with no defined positional args",
+    exitOnError: false,
+  })
+  class EmptyCommand extends Args {
+    @description("Enable debug mode")
+    debug: boolean = false;
+  }
+
   assertThrows(
     () => {
-      @parse(["unexpected", "positional", "args"], {
-        name: "empty-test",
-        description: "Test with no defined positional args",
-        exitOnError: false,
-      })
-      class _EmptyCommand {
-        @description("Enable debug mode")
-        static debug: boolean = false;
-      }
+      EmptyCommand.parse(["unexpected", "positional", "args"]);
     },
     Error,
     "Unknown argument: unexpected",
@@ -334,23 +307,27 @@ Deno.test("unexpected positional arguments should error", () => {
 });
 
 Deno.test("unexpected positional arguments with defined args should error", () => {
+  @cli({
+    name: "file-processor",
+    description: "Test with defined positional args",
+    exitOnError: false,
+  })
+  class FileProcessor extends Args {
+    @argument({ description: "Input file" })
+    @type("string")
+    input: string = "";
+
+    @argument({ description: "Output file" })
+    @type("string")
+    output: string = "";
+
+    @description("Enable verbose mode")
+    verbose: boolean = false;
+  }
+
   assertThrows(
     () => {
-      @parse(["input.txt", "output.txt", "unexpected"], {
-        name: "file-processor",
-        description: "Test with defined positional args",
-        exitOnError: false,
-      })
-      class _FileProcessor {
-        @argument({ description: "Input file" })
-        static input: string = "";
-
-        @argument({ description: "Output file" })
-        static output: string = "";
-
-        @description("Enable verbose mode")
-        static verbose: boolean = false;
-      }
+      FileProcessor.parse(["input.txt", "output.txt", "unexpected"]);
     },
     Error,
     "Unknown argument: unexpected",

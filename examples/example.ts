@@ -1,14 +1,14 @@
 import {
   addValidator,
+  Args,
   argument,
+  cli,
   command,
   description,
-  parse,
   required,
   subCommand,
   type,
-} from "@sigma/parse";
-import process from "node:process";
+} from "../src/index.ts";
 
 ////////////////
 // User-defined validation decorators
@@ -50,59 +50,57 @@ class ServeCommand {
   @description("Port number to listen on")
   @min(1000)
   @max(65535)
-  static port: number = 8080;
+  port: number = 8080;
 
   @description("Host address to bind to")
-  static host: string = "localhost";
+  host: string = "localhost";
 
   @description("Enable HTTPS")
-  static https: boolean = false;
+  https: boolean = false;
 
   @description("Number of worker processes")
   @type("number")
   @min(1)
   @max(16)
-  static workers: number;
+  workers: number = 1;
 }
 
 @command
 class BuildCommand {
   @description("Output directory")
-  @type("string")
   @required()
-  static output: string;
+  output: string = "";
 
   @description("Source files to build")
-  @type("string[]")
   @required()
-  static sources: string[];
+  sources: string[] = [];
 
   @description("Enable minification")
-  static minify: boolean = false;
+  minify: boolean = false;
 
   @description("Target environment")
   @oneOf(["development", "production", "test"])
-  static env: string = "development";
+  env: string = "development";
 }
 
 @command
 class TestCommand {
   @description("Test files pattern")
   @type("string")
-  static pattern: string;
+  pattern: string = "";
 
   @description("Enable coverage reporting")
-  static coverage: boolean = false;
+  coverage: boolean = false;
 
   @description("Number of parallel workers")
   @type("number")
   @min(1)
-  static parallel: number;
+  parallel: number = 1;
 
   @description("Test timeout in seconds")
   @min(1)
   @max(300)
-  static timeout: number = 30;
+  timeout: number = 30;
 }
 
 @command
@@ -110,21 +108,22 @@ class ProcessCommand {
   @argument({ description: "Input file to process" })
   @required()
   @type("string")
-  static input: string;
+  input: string = "";
 
   @argument({ description: "Output file path" })
-  static output: string = "processed.txt";
+  @type("string")
+  output: string = "processed.txt";
 
   @argument({ description: "Additional files to include", rest: true })
   @type("string[]")
-  static files: string[] = [];
+  files: string[] = [];
 
   @description("Processing format")
   @oneOf(["json", "xml", "csv"])
-  static format: string = "json";
+  format: string = "json";
 
   @description("Enable verbose output")
-  static verbose: boolean = false;
+  verbose: boolean = false;
 }
 
 ////////////////
@@ -136,175 +135,177 @@ class StartDatabaseCommand {
   @description("Database port")
   @min(1000)
   @max(65535)
-  static port: number = 5432;
+  port: number = 5432;
 
   @description("Database host")
-  static host: string = "localhost";
+  host: string = "localhost";
 
   @description("Enable SSL connection")
-  static ssl: boolean = false;
+  ssl: boolean = false;
 }
 
 @command
 class StopDatabaseCommand {
   @description("Force stop without graceful shutdown")
-  static force: boolean = false;
+  force: boolean = false;
 
   @description("Timeout for graceful shutdown (seconds)")
   @min(1)
   @max(300)
-  static timeout: number = 30;
+  timeout: number = 30;
 }
 
 @command
 class MigrateCommand {
   @description("Migration direction")
   @oneOf(["up", "down"])
-  static direction: string = "up";
+  direction: string = "up";
 
   @description("Number of migrations to run")
   @type("number")
   @min(1)
-  static count: number;
+  count: number = 1;
 }
 
 @command
 class DatabaseCommand {
   @description("Start the database server")
   @subCommand(StartDatabaseCommand)
-  static start: StartDatabaseCommand;
+  start?: StartDatabaseCommand;
 
   @description("Stop the database server")
   @subCommand(StopDatabaseCommand)
-  static stop: StopDatabaseCommand;
+  stop?: StopDatabaseCommand;
 
   @description("Run database migrations")
   @subCommand(MigrateCommand)
-  static migrate: MigrateCommand;
+  migrate?: MigrateCommand;
 
   @description("Database name")
   @type("string")
-  static name: string;
+  name: string = "";
 
   @description("Connection timeout (seconds)")
   @min(1)
   @max(60)
-  static timeout: number = 10;
+  timeout: number = 10;
 }
 
 ////////////////
 // Main configuration with subcommands
 //
 
-@parse(process.argv.slice(2), {
+@cli({
   name: "myapp",
   description:
     "A powerful CLI application with nested subcommands, validation, and help",
 })
-class MyArgs {
+class MyArgs extends Args {
   @description("Start the development server")
   @subCommand(ServeCommand)
-  static serve: ServeCommand;
+  serve?: ServeCommand;
 
   @description("Build the project")
   @subCommand(BuildCommand)
-  static build: BuildCommand;
+  build?: BuildCommand;
 
   @description("Run the test suite")
   @subCommand(TestCommand)
-  static test: TestCommand;
+  test?: TestCommand;
 
   @description("Process files with positional arguments")
   @subCommand(ProcessCommand)
-  static process: ProcessCommand;
+  process?: ProcessCommand;
 
   @description("Database operations")
   @subCommand(DatabaseCommand)
-  static database: DatabaseCommand;
+  database?: DatabaseCommand;
 
   @description("Configuration file to use")
   @type("string")
-  static config: string;
+  config: string = "";
 
   @description("Enable verbose logging")
-  static verbose: boolean = false;
+  verbose: boolean = false;
 
   @description("Enable debug mode")
-  static debug: boolean = false;
+  debug: boolean = false;
 }
 
 ////////////////
 // Command execution logic
 //
 
-console.log("=== MyApp CLI Demo ===\n");
+function main() {
+  const args = MyArgs.parse(Deno.args);
 
-if (MyArgs.serve) {
-  console.log("🚀 Starting development server...");
-  console.log(`   Host: ${ServeCommand.host}`);
-  console.log(`   Port: ${ServeCommand.port}`);
-  console.log(`   HTTPS: ${ServeCommand.https ? "enabled" : "disabled"}`);
-  if (ServeCommand.workers) {
-    console.log(`   Workers: ${ServeCommand.workers}`);
-  }
-} else if (MyArgs.build) {
-  console.log("🔨 Building project...");
-  console.log(`   Output: ${BuildCommand.output}`);
-  console.log(`   Sources: ${BuildCommand.sources.join(", ")}`);
-  console.log(`   Environment: ${BuildCommand.env}`);
-  console.log(`   Minify: ${BuildCommand.minify ? "enabled" : "disabled"}`);
-} else if (MyArgs.test) {
-  console.log("🧪 Running tests...");
-  if (TestCommand.pattern) {
-    console.log(`   Pattern: ${TestCommand.pattern}`);
-  }
-  console.log(`   Coverage: ${TestCommand.coverage ? "enabled" : "disabled"}`);
-  console.log(`   Timeout: ${TestCommand.timeout}s`);
-  if (TestCommand.parallel) {
-    console.log(`   Parallel workers: ${TestCommand.parallel}`);
-  }
-} else if (MyArgs.process) {
-  console.log("📄 Processing files...");
-  console.log(`   Input: ${ProcessCommand.input}`);
-  console.log(`   Output: ${ProcessCommand.output}`);
-  console.log(`   Format: ${ProcessCommand.format}`);
-  console.log(`   Verbose: ${ProcessCommand.verbose ? "enabled" : "disabled"}`);
-  if (ProcessCommand.files.length > 0) {
-    console.log(`   Additional files: ${ProcessCommand.files.join(", ")}`);
-  }
-} else if (MyArgs.database) {
-  console.log("🗄️  Database operations...");
-  if (DatabaseCommand.name) {
-    console.log(`   Database: ${DatabaseCommand.name}`);
-  }
-  console.log(`   Connection timeout: ${DatabaseCommand.timeout}s`);
+  console.log("=== MyApp CLI Demo ===\n");
 
-  if (DatabaseCommand.start) {
-    console.log("   🚀 Starting database server...");
-    console.log(`      Host: ${StartDatabaseCommand.host}`);
-    console.log(`      Port: ${StartDatabaseCommand.port}`);
-    console.log(
-      `      SSL: ${StartDatabaseCommand.ssl ? "enabled" : "disabled"}`,
-    );
-  } else if (DatabaseCommand.stop) {
-    console.log("   🛑 Stopping database server...");
-    console.log(`      Force: ${StopDatabaseCommand.force ? "yes" : "no"}`);
-    console.log(`      Graceful timeout: ${StopDatabaseCommand.timeout}s`);
-  } else if (DatabaseCommand.migrate) {
-    console.log("   📊 Running migrations...");
-    console.log(`      Direction: ${MigrateCommand.direction}`);
-    if (MigrateCommand.count) {
-      console.log(`      Count: ${MigrateCommand.count}`);
+  if (args.serve) {
+    console.log("🚀 Starting development server...");
+    console.log(`   Host: ${args.serve.host}`);
+    console.log(`   Port: ${args.serve.port}`);
+    console.log(`   HTTPS: ${args.serve.https ? "enabled" : "disabled"}`);
+    console.log(`   Workers: ${args.serve.workers}`);
+  } else if (args.build) {
+    console.log("🔨 Building project...");
+    console.log(`   Output: ${args.build.output}`);
+    console.log(`   Sources: ${args.build.sources.join(", ")}`);
+    console.log(`   Environment: ${args.build.env}`);
+    console.log(`   Minify: ${args.build.minify ? "enabled" : "disabled"}`);
+  } else if (args.test) {
+    console.log("🧪 Running tests...");
+    if (args.test.pattern) {
+      console.log(`   Pattern: ${args.test.pattern}`);
     }
+    console.log(`   Coverage: ${args.test.coverage ? "enabled" : "disabled"}`);
+    console.log(`   Timeout: ${args.test.timeout}s`);
+    console.log(`   Parallel workers: ${args.test.parallel}`);
+  } else if (args.process) {
+    console.log("📄 Processing files...");
+    console.log(`   Input: ${args.process.input}`);
+    console.log(`   Output: ${args.process.output}`);
+    console.log(`   Format: ${args.process.format}`);
+    console.log(`   Verbose: ${args.process.verbose ? "enabled" : "disabled"}`);
+    if (args.process.files.length > 0) {
+      console.log(`   Additional files: ${args.process.files.join(", ")}`);
+    }
+  } else if (args.database) {
+    console.log("🗄️  Database operations...");
+    if (args.database.name) {
+      console.log(`   Database: ${args.database.name}`);
+    }
+    console.log(`   Connection timeout: ${args.database.timeout}s`);
+
+    if (args.database.start) {
+      console.log("   🚀 Starting database server...");
+      console.log(`      Host: ${args.database.start.host}`);
+      console.log(`      Port: ${args.database.start.port}`);
+      console.log(
+        `      SSL: ${args.database.start.ssl ? "enabled" : "disabled"}`,
+      );
+    } else if (args.database.stop) {
+      console.log("   🛑 Stopping database server...");
+      console.log(`      Force: ${args.database.stop.force ? "yes" : "no"}`);
+      console.log(`      Graceful timeout: ${args.database.stop.timeout}s`);
+    } else if (args.database.migrate) {
+      console.log("   📊 Running migrations...");
+      console.log(`      Direction: ${args.database.migrate.direction}`);
+      console.log(`      Count: ${args.database.migrate.count}`);
+    }
+  } else {
+    console.log("No command specified. Use --help to see available commands.");
   }
-} else {
-  console.log("No command specified. Use --help to see available commands.");
+
+  console.log("\nGlobal options:");
+  console.log(`   Config: ${args.config || "default"}`);
+  console.log(`   Verbose: ${args.verbose}`);
+  console.log(`   Debug: ${args.debug}`);
 }
 
-console.log("\nGlobal options:");
-console.log(`   Config: ${MyArgs.config || "default"}`);
-console.log(`   Verbose: ${MyArgs.verbose}`);
-console.log(`   Debug: ${MyArgs.debug}`);
+if (import.meta.main) {
+  main();
+}
 
 ////////////////
 // Example usage commands:
