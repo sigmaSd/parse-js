@@ -13,6 +13,7 @@
  * - Consistent error reporting across the library
  */
 
+import process from "node:process";
 import type { ParseOptions } from "./types.ts";
 
 /**
@@ -111,7 +112,7 @@ export function handleParsingError(
   if (shouldExit) {
     // Default behavior: print error and exit
     console.error(message);
-    Deno.exit(exitCode);
+    process.exit(exitCode);
   } else {
     // No custom handler and exit disabled: throw error for caller to handle
     throw new ParseError(errorType, message, exitCode, context);
@@ -157,7 +158,7 @@ export function handleHelpDisplay(
   if (shouldExit) {
     // Default behavior: print help and exit
     console.log(helpText);
-    Deno.exit(0);
+    process.exit(0);
   } else {
     // No custom handler and exit disabled: throw error with the help text
     throw new ParseError("validation_error", helpText, 0);

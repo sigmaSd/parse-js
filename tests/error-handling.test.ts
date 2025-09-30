@@ -1,4 +1,5 @@
 // deno-lint-ignore-file no-import-prefix
+import process from "node:process";
 import {
   assertEquals,
   assertInstanceOf,
@@ -20,14 +21,14 @@ import {
 } from "../src/index.ts";
 
 Deno.test("Error handling - default behavior (exitOnError: true)", () => {
-  // Mock Deno.exit to capture calls
+  // Mock process.exit to capture calls
   let exitCode: number | undefined;
-  const originalExit = Deno.exit;
+  const originalExit = process.exit;
 
-  Deno.exit = ((code?: number) => {
+  process.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Deno exit called with code ${exitCode}`);
-  }) as typeof Deno.exit;
+    throw new Error(`process exit called with code ${exitCode}`);
+  }) as typeof process.exit;
 
   try {
     @cli({ name: "test" })
@@ -40,12 +41,12 @@ Deno.test("Error handling - default behavior (exitOnError: true)", () => {
         Config.parse(["--unknown"]);
       },
       Error,
-      "Deno exit called with code 1",
+      "process exit called with code 1",
     );
 
     assertEquals(exitCode, 1);
   } finally {
-    Deno.exit = originalExit;
+    process.exit = originalExit;
   }
 });
 
@@ -127,12 +128,12 @@ Deno.test("Error handling - validation errors with custom handler", () => {
 
 Deno.test("Help handling - default behavior (exitOnHelp: true)", () => {
   let exitCode: number | undefined;
-  const originalExit = Deno.exit;
+  const originalExit = process.exit;
 
-  Deno.exit = ((code?: number) => {
+  process.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Deno exit called with code ${exitCode}`);
-  }) as typeof Deno.exit;
+    throw new Error(`process exit called with code ${exitCode}`);
+  }) as typeof process.exit;
 
   try {
     @cli({ name: "test" })
@@ -145,12 +146,12 @@ Deno.test("Help handling - default behavior (exitOnHelp: true)", () => {
         Config.parse(["--help"]);
       },
       Error,
-      "Deno exit called with code 0",
+      "process exit called with code 0",
     );
 
     assertEquals(exitCode, 0);
   } finally {
-    Deno.exit = originalExit;
+    process.exit = originalExit;
   }
 });
 
@@ -307,12 +308,12 @@ Deno.test("Error handling - different error types", () => {
 Deno.test("Mixed configuration - help exits, errors throw", () => {
   // Help should still exit when exitOnHelp is true
   let helpExitCode: number | undefined;
-  const originalExit = Deno.exit;
+  const originalExit = process.exit;
 
-  Deno.exit = ((code?: number) => {
+  process.exit = ((code?: number) => {
     helpExitCode = code || 0;
-    throw new Error(`Deno exit called with code ${helpExitCode}`);
-  }) as typeof Deno.exit;
+    throw new Error(`process exit called with code ${helpExitCode}`);
+  }) as typeof process.exit;
 
   try {
     @cli({
@@ -329,12 +330,12 @@ Deno.test("Mixed configuration - help exits, errors throw", () => {
         Config1.parse(["--help"]);
       },
       Error,
-      "Deno exit called with code 0",
+      "process exit called with code 0",
     );
 
     assertEquals(helpExitCode, 0);
   } finally {
-    Deno.exit = originalExit;
+    process.exit = originalExit;
   }
 
   // Errors should throw instead of exiting
@@ -404,12 +405,12 @@ Deno.test("Error handling utilities - direct function calls", () => {
 Deno.test("Backward compatibility - default behavior unchanged", () => {
   // When no options are provided, should behave exactly as before
   let exitCode: number | undefined;
-  const originalExit = Deno.exit;
+  const originalExit = process.exit;
 
-  Deno.exit = ((code?: number) => {
+  process.exit = ((code?: number) => {
     exitCode = code || 0;
-    throw new Error(`Deno exit called with code ${exitCode}`);
-  }) as typeof Deno.exit;
+    throw new Error(`process exit called with code ${exitCode}`);
+  }) as typeof process.exit;
 
   try {
     @cli({})
@@ -423,7 +424,7 @@ Deno.test("Backward compatibility - default behavior unchanged", () => {
         Config1.parse(["--unknown"]);
       },
       Error,
-      "Deno exit called with code 1",
+      "process exit called with code 1",
     );
     assertEquals(exitCode, 1);
 
@@ -441,11 +442,11 @@ Deno.test("Backward compatibility - default behavior unchanged", () => {
         Config2.parse(["--help"]);
       },
       Error,
-      "Deno exit called with code 0",
+      "process exit called with code 0",
     );
     assertEquals(exitCode, 0);
   } finally {
-    Deno.exit = originalExit;
+    process.exit = originalExit;
   }
 });
 
