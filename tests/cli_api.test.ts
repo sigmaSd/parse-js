@@ -440,3 +440,33 @@ Deno.test("Args API - no defaultCommand behavior", () => {
   const result = NoDefault.parse([]);
   assertEquals(result.option, "default");
 });
+
+Deno.test("Args API - subcommands don't inherit parent's defaultCommand", () => {
+  @command
+  class SubCmd {
+    @description("Some value")
+    value: string = "subdefault";
+  }
+
+  @cli({
+    name: "parentcmd",
+    description: "Parent with defaultCommand",
+    defaultCommand: "help",
+    exitOnHelp: false,
+  })
+  class ParentCmd extends Args {
+    @description("Subcommand")
+    @subCommand(SubCmd)
+    sub?: SubCmd;
+  }
+
+  // Parent should show help when called without args
+  assertThrows(() => {
+    ParentCmd.parse([]);
+  });
+
+  // Subcommand should NOT show help, just use defaults
+  const result = ParentCmd.parse(["sub"]);
+  assertEquals(result.sub !== undefined, true);
+  assertEquals(result.sub!.value, "subdefault");
+});

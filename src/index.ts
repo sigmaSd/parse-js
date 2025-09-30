@@ -532,10 +532,27 @@ function parseInstanceBased(
           string,
           unknown
         >;
+
+        // Get subcommand's own options from its metadata
+        const subCommandMetadata = (subCommand.commandClass as unknown as {
+          [Symbol.metadata]?: Record<string | symbol, unknown>;
+        })[Symbol.metadata];
+        const subCommandOptions = subCommandMetadata?.__cliOptions as
+          | ParseOptions
+          | undefined;
+
+        // Inherit parent's error handling options but not defaultCommand
+        const mergedOptions = subCommandOptions || (options
+          ? {
+            ...options,
+            defaultCommand: undefined,
+          }
+          : undefined);
+
         const parsedValues = parseInstanceBased(
           subInstance,
           [],
-          options,
+          mergedOptions,
         );
 
         // Create a new instance and assign the parsed values to it
@@ -732,10 +749,27 @@ function parseInstanceBased(
           string,
           unknown
         >;
+
+        // Get subcommand's own options from its metadata
+        const subCommandMetadata = (subCommand.commandClass as unknown as {
+          [Symbol.metadata]?: Record<string | symbol, unknown>;
+        })[Symbol.metadata];
+        const subCommandOptions = subCommandMetadata?.__cliOptions as
+          | ParseOptions
+          | undefined;
+
+        // Inherit parent's error handling options but not defaultCommand
+        const mergedOptions = subCommandOptions || (options
+          ? {
+            ...options,
+            defaultCommand: undefined,
+          }
+          : undefined);
+
         const parsedValues = parseInstanceBased(
           subInstance,
           remainingArgs,
-          options,
+          mergedOptions,
         );
 
         // Create a new instance and assign the parsed values to it
