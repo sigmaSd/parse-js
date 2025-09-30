@@ -25,6 +25,8 @@ export class Args {
       instance as Record<string, unknown>,
       args,
       cliOptions,
+      "",
+      "",
     );
 
     // Create a new instance and copy the parsed values
@@ -436,6 +438,8 @@ function parseInstanceBased(
   instance: Record<string, unknown>,
   args: string[],
   options?: ParseOptions,
+  commandName?: string,
+  commandPath?: string,
 ): ParseResult {
   // Collect argument definitions from instance
   const { parsedArgs, argumentDefs } = collectArgumentDefsFromInstance(
@@ -507,8 +511,8 @@ function parseInstanceBased(
         >,
         options,
         subCommands,
-        options?.name || "cli",
-        "",
+        commandName || "",
+        commandPath || "",
       );
       handleHelpDisplay(helpText, options);
       return result;
@@ -553,6 +557,10 @@ function parseInstanceBased(
           subInstance,
           [],
           mergedOptions,
+          options.defaultCommand,
+          commandPath
+            ? `${commandPath} ${options.defaultCommand}`
+            : options.defaultCommand,
         );
 
         // Create a new instance and assign the parsed values to it
@@ -646,8 +654,8 @@ function parseInstanceBased(
             >,
             options || {},
             subCommands,
-            options?.name || "cli",
-            "",
+            commandName || "",
+            commandPath || "",
           );
           handleHelpDisplay(helpText, options || {});
           return result;
@@ -770,6 +778,8 @@ function parseInstanceBased(
           subInstance,
           remainingArgs,
           mergedOptions,
+          arg,
+          commandPath ? `${commandPath} ${arg}` : arg,
         );
 
         // Create a new instance and assign the parsed values to it

@@ -14,6 +14,7 @@ import {
   command,
   description,
   oneOf,
+  ParseError,
   range,
   required,
   subCommand,
@@ -469,4 +470,51 @@ Deno.test("Args API - subcommands don't inherit parent's defaultCommand", () => 
   const result = ParentCmd.parse(["sub"]);
   assertEquals(result.sub !== undefined, true);
   assertEquals(result.sub!.value, "subdefault");
+});
+
+Deno.test("Args API - subcommand help shows correct command path", () => {
+  @command
+  class BuildCommand {
+    @description("Output directory")
+    output: string = "dist";
+
+    @description("Enable minification")
+    minify: boolean = false;
+  }
+
+  @cli({
+    name: "devtool",
+    description: "Development tool",
+    exitOnHelp: false,
+  })
+  class DevTool extends Args {
+    @description("Verbose mode")
+    verbose: boolean = false;
+
+    @description("Build the project")
+    @subCommand(BuildCommand)
+    build?: BuildCommand;
+  }
+
+  // When help is shown for a subcommand, it should include the full command path
+  assertThrows(
+    () => {
+      DevTool.parse(["build", "--help"]);
+    },
+    ParseError,
+  );
+
+  // Capture the help text to verify it contains the correct command path
+  let helpText = "";
+  try {
+    DevTool.parse(["build", "--help"]);
+  } catch (error) {
+    if (error instanceof ParseError) {
+      helpText = error.message;
+    }
+  }
+
+  // Help should show "devtool build" in the usage, not just "devtool"
+  assertEquals(helpText.includes("devtool build"), true);
+  assertEquals(helpText.includes("Usage:"), true);
 });
