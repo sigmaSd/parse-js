@@ -1,7 +1,7 @@
 import { Args, cli } from "@sigma/parse";
 import { command, subCommand } from "./src/index.ts";
 
-@command
+@command({ defaultCommand: "help" })
 class A {
   n = 0;
 }
@@ -13,7 +13,7 @@ class A {
 })
 class calculator extends Args {
   @subCommand(A)
-  add: A;
+  add?: A;
 }
 
 // parse command line arguments

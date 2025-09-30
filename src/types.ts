@@ -166,6 +166,17 @@ export interface ParseOptions {
 }
 
 /**
+ * Configuration options for the @command decorator.
+ *
+ * These options allow subcommands to have their own behavior configuration,
+ * such as showing help when invoked without arguments.
+ */
+export interface CommandOptions {
+  /** Default command to run when no arguments are provided to this subcommand */
+  defaultCommand?: "help";
+}
+
+/**
  * Type for command instances returned by subcommand parsing.
  */
 export interface CommandInstance {

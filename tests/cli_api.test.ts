@@ -518,3 +518,62 @@ Deno.test("Args API - subcommand help shows correct command path", () => {
   assertEquals(helpText.includes("devtool build"), true);
   assertEquals(helpText.includes("Usage:"), true);
 });
+
+Deno.test("Args API - subcommand with defaultCommand: 'help'", () => {
+  // Subcommand WITHOUT defaultCommand should execute normally with defaults
+  @command
+  class NormalCommand {
+    @description("Port to serve on")
+    port: number = 3000;
+  }
+
+  // Subcommand WITH defaultCommand: "help" should show help when called without args
+  @command({ defaultCommand: "help" })
+  class HelpCommand {
+    @description("Port to serve on")
+    port: number = 8080;
+  }
+
+  @cli({
+    name: "myapp",
+    description: "My application",
+    exitOnHelp: false,
+  })
+  class MyApp extends Args {
+    @description("Normal subcommand")
+    @subCommand(NormalCommand)
+    normal?: NormalCommand;
+
+    @description("Help subcommand")
+    @subCommand(HelpCommand)
+    help?: HelpCommand;
+  }
+
+  // Normal subcommand without arguments should execute with defaults
+  const normalResult = MyApp.parse(["normal"]);
+  assertEquals(normalResult.normal !== undefined, true);
+  assertEquals(normalResult.normal!.port, 3000);
+
+  // Subcommand with defaultCommand: "help" should throw/show help when called without args
+  assertThrows(
+    () => {
+      MyApp.parse(["help"]);
+    },
+    ParseError,
+  );
+
+  // Verify it's showing help for the subcommand
+  let helpText = "";
+  try {
+    MyApp.parse(["help"]);
+  } catch (error) {
+    if (error instanceof ParseError) {
+      helpText = error.message;
+    }
+  }
+
+  // Help should show "myapp help" in the usage
+  assertEquals(helpText.includes("myapp help"), true);
+  assertEquals(helpText.includes("Usage:"), true);
+  assertEquals(helpText.includes("--port"), true);
+});

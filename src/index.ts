@@ -546,12 +546,18 @@ function parseInstanceBased(
           | undefined;
 
         // Inherit parent's error handling options but not defaultCommand
-        const mergedOptions = subCommandOptions || (options
+        // Unless the subcommand has its own defaultCommand set
+        const mergedOptions = subCommandOptions
           ? {
             ...options,
-            defaultCommand: undefined,
+            ...subCommandOptions,
           }
-          : undefined);
+          : (options
+            ? {
+              ...options,
+              defaultCommand: undefined,
+            }
+            : undefined);
 
         const parsedValues = parseInstanceBased(
           subInstance,
@@ -767,12 +773,18 @@ function parseInstanceBased(
           | undefined;
 
         // Inherit parent's error handling options but not defaultCommand
-        const mergedOptions = subCommandOptions || (options
+        // Unless the subcommand has its own defaultCommand set
+        const mergedOptions = subCommandOptions
           ? {
             ...options,
-            defaultCommand: undefined,
+            ...subCommandOptions,
           }
-          : undefined);
+          : (options
+            ? {
+              ...options,
+              defaultCommand: undefined,
+            }
+            : undefined);
 
         const parsedValues = parseInstanceBased(
           subInstance,

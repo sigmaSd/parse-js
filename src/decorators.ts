@@ -20,7 +20,12 @@
  * 3. The stored metadata drives parsing behavior and validation
  */
 
-import type { PropertyMetadata, SupportedType, Validator } from "./types.ts";
+import type {
+  CommandOptions,
+  PropertyMetadata,
+  SupportedType,
+  Validator,
+} from "./types.ts";
 
 /**
  * Decorator context interface for property decorators.
@@ -333,13 +338,63 @@ export function validate<T>(
  * }
  * ```
  */
+/**
+ * Command decorator to mark a class as a CLI subcommand.
+ *
+ * This decorator can optionally accept configuration options such as
+ * `defaultCommand` to control subcommand behavior.
+ *
+ * @param options - Optional configuration for the subcommand
+ * @returns A class decorator function
+ *
+ * @example
+ * ```ts
+ * // Simple subcommand without options
+ * @command
+ * class BuildCommand {
+ *   production: boolean = false;
+ * }
+ *
+ * // Subcommand that shows help when called without arguments
+ * @command({ defaultCommand: "help" })
+ * class ServeCommand {
+ *   port: number = 3000;
+ * }
+ * ```
+ */
+export function command(
+  options?: CommandOptions,
+): <T extends new () => unknown>(
+  target: T,
+  ctx: ClassDecoratorContext,
+) => T;
 export function command<T extends new () => unknown>(
   target: T,
-  _ctx: ClassDecoratorContext,
-): T {
-  // This decorator serves as a marker for command classes
-  // No additional setup is needed - the class is identified by being passed to @subCommand()
-  return target;
+  ctx: ClassDecoratorContext,
+): T;
+export function command<T extends new () => unknown>(
+  optionsOrTarget?: CommandOptions | T,
+  _maybeCtx?: ClassDecoratorContext,
+): T | ((target: T, ctx: ClassDecoratorContext) => T) {
+  // Handle both @command and @command({ ... }) syntax
+  if (typeof optionsOrTarget === "function") {
+    // Called as @command (without parentheses)
+    return optionsOrTarget;
+  }
+
+  // Called as @command({ ... }) (with options)
+  const options = optionsOrTarget as CommandOptions | undefined;
+
+  return function <T extends new () => unknown>(
+    target: T,
+    ctx: ClassDecoratorContext,
+  ): T {
+    // Store command options in class metadata if provided
+    if (options && ctx.metadata) {
+      ctx.metadata.__cliOptions = options;
+    }
+    return target;
+  };
 }
 
 /**
