@@ -94,7 +94,7 @@ Deno.test("Args API - required fields", () => {
     @description("Required API key")
     @type("string")
     @required()
-    apiKey: string = "";
+    apiKey!: string;
 
     @description("Optional debug flag")
     debug: boolean = false;

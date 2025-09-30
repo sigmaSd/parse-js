@@ -65,7 +65,7 @@ export function validateValue(
  *   @type("string")
  *   @addValidator(requiredValidator())
  *   @required()
- *   name?: string;
+ *   name!: string;
  * }
  * ```
  */

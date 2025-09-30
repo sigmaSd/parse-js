@@ -12,21 +12,19 @@
  *   @description("First number")
  *   @type("number")
  *   @required()
- *   a?: number;
+ *   a!: number;
  *
  *   @description("Second number")
  *   @type("number")
  *   @required()
- *   b?: number;
+ *   b!: number;
  *
  *   @description("Operation to perform")
  *   operation = "add";
  * }
  *
  * const args = Calculator.parse(["--a", "10", "--b", "5"]);
- * if (args.a !== undefined && args.b !== undefined) {
- *   console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
- * }
+ * console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
  * ```
  *
  * @example With subcommands

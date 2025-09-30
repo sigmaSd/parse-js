@@ -76,7 +76,7 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
  *   @argument({ description: "Input file" })
  *   @type("string")
  *   @required()
- *   input?: string;
+ *   input!: string;
  *
  *   @argument({ description: "Output file" })
  *   @type("string")
@@ -264,7 +264,7 @@ function validatePositionalArguments(
  *   // From explicit @type() decorator
  *   @type("number")
  *   @required()
- *   timeout?: number; // → "number"
+ *   timeout!: number; // → "number"
  *
  *   // From default value
  *   port = 3000; // → "number"

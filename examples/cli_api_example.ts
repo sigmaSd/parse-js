@@ -25,12 +25,12 @@ class Calculator extends Args {
   @description("First number to operate on")
   @type("number")
   @required()
-  a?: number;
+  a!: number;
 
   @description("Second number to operate on")
   @type("number")
   @required()
-  b?: number;
+  b!: number;
 
   @description("Operation to perform")
   @addValidator(oneOf(["add", "subtract", "multiply", "divide"]))

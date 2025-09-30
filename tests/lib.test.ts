@@ -150,8 +150,9 @@ Deno.test("Required field validation", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
     @description("API key for authentication")
+    @type("string")
     @required()
-    apiKey: string = "";
+    apiKey!: string;
 
     @description("Port number")
     port: number = 8080;
@@ -194,8 +195,9 @@ Deno.test("Positional arguments", () => {
   @command
   class Config {
     @argument({ description: "Input file" })
+    @type("string")
     @required()
-    input: string = "";
+    input!: string;
 
     @argument({ description: "Output file" })
     output: string = "output.txt";
@@ -220,8 +222,9 @@ Deno.test("Rest arguments", () => {
   @command
   class Config {
     @argument({ description: "First file" })
+    @type("string")
     @required()
-    first: string = "";
+    first!: string;
 
     @argument({ description: "Additional files", rest: true })
     @type("string[]")
@@ -443,8 +446,9 @@ Deno.test("Optional and required fields mixed", () => {
   @command
   class Config {
     @argument({ description: "Input file to process" })
+    @type("string")
     @required()
-    input: string = "";
+    input!: string;
 
     @description("Server port")
     @range(1000, 65535)
@@ -562,12 +566,14 @@ Deno.test("Complex nested subcommand structure", () => {
   @command
   class CreateUserCommand {
     @argument({ description: "Username" })
+    @type("string")
     @required()
-    username: string = "";
+    username!: string;
 
     @argument({ description: "Email address" })
+    @type("string")
     @required()
-    email: string = "";
+    email!: string;
 
     @description("Admin privileges")
     admin: boolean = false;
@@ -576,8 +582,9 @@ Deno.test("Complex nested subcommand structure", () => {
   @command
   class DeleteUserCommand {
     @argument({ description: "Username to delete" })
+    @type("string")
     @required()
-    username: string = "";
+    username!: string;
 
     @description("Force deletion")
     force: boolean = false;

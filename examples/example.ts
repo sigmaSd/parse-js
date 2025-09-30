@@ -69,11 +69,11 @@ class ServeCommand {
 class BuildCommand {
   @description("Output directory")
   @required()
-  output: string = "";
+  output!: string;
 
   @description("Source files to build")
   @required()
-  sources: string[] = [];
+  sources!: string[];
 
   @description("Enable minification")
   minify: boolean = false;
@@ -108,7 +108,7 @@ class ProcessCommand {
   @argument({ description: "Input file to process" })
   @required()
   @type("string")
-  input: string = "";
+  input!: string;
 
   @argument({ description: "Output file path" })
   @type("string")

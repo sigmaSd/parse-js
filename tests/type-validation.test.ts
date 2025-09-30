@@ -486,7 +486,7 @@ Deno.test("Type validation - properties without defaults and @type should error"
         // This should error - no default value and no @type decorator
         @argument()
         @required()
-        input?: string;
+        input!: string;
       }
 
       BadConfig.parse([]);

@@ -23,12 +23,12 @@ class Calculator extends Args {
   @argument({ description: "first number" })
   @type("number")
   @required()
-  a?: number;
+  a!: number;
 
   @argument({ description: "second number" })
   @type("number")
   @required()
-  b?: number;
+  b!: number;
 
   @description("operation to perform")
   operation = "add";
@@ -37,12 +37,8 @@ class Calculator extends Args {
 // Parse command line arguments
 const args = Calculator.parse(["10", "5"]);
 
-// Handle potentially undefined values
-if (args.a !== undefined && args.b !== undefined) {
-  console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
-} else {
-  console.error("Both numbers are required");
-}
+// Use the required values directly
+console.log(`${args.a} ${args.operation} ${args.b} = ${args.a + args.b}`);
 ```
 
 Usage:
@@ -137,7 +133,7 @@ if (args.serve) {
 ```typescript ignore
 @type("string")
 @required()
-apiKey?: string;
+apiKey!: string;
 ```
 
 **Optional properties** (with default values):
@@ -164,7 +160,7 @@ apiKey?: string;
 // ✅ Fixed - add @type decorator
 @type("string")
 @required()
-apiKey?: string;
+apiKey!: string;
 
 // ✅ Or provide a default (no @type needed)
 apiKey = "";
@@ -193,13 +189,13 @@ class DeployCommand extends Args {
   @argument({ description: "Application name to deploy" })
   @type("string")
   @required()
-  appName?: string;
+  appName!: string;
 
   @argument({ description: "Target environment" })
   @type("string")
   @addValidator(oneOf(["dev", "staging", "prod"]))
   @required()
-  environment?: string;
+  environment!: string;
 
   @argument({ description: "Version to deploy (optional)" })
   @type("string")
@@ -218,33 +214,28 @@ class DeployCommand extends Args {
   @description("API key for authentication")
   @type("string")
   @required()
-  apiKey?: string;
+  apiKey!: string;
 }
 
 // Parse arguments
 const args = DeployCommand.parse(["myapp", "prod", "--apiKey", "secret123"]);
 
-// Type-safe usage with proper undefined checking
-if (args.appName && args.environment && args.apiKey) {
-  console.log(`Deploying ${args.appName} to ${args.environment}`);
+// Type-safe usage - required fields are guaranteed
+console.log(`Deploying ${args.appName} to ${args.environment}`);
 
-  if (args.version) {
-    console.log(`Version: ${args.version}`);
-  } else {
-    console.log("Version: latest");
-  }
-
-  if (args.verbose) {
-    console.log(`Instances: ${args.instances}`);
-    console.log(`Force mode: ${args.force}`);
-    console.log(`API Key: ${args.apiKey.substring(0, 4)}...`);
-  }
-
-  // Proceed with deployment...
+if (args.version) {
+  console.log(`Version: ${args.version}`);
 } else {
-  console.error("Missing required arguments");
-  Deno.exit(1);
+  console.log("Version: latest");
 }
+
+if (args.verbose) {
+  console.log(`Instances: ${args.instances}`);
+  console.log(`Force mode: ${args.force}`);
+  console.log(`API Key: ${args.apiKey.substring(0, 4)}...`);
+}
+
+// Proceed with deployment...
 ```
 
 Usage examples:
@@ -294,16 +285,12 @@ class Server extends Args {
   @description("API key for authentication")
   @type("string")
   @required()
-  apiKey?: string;
+  apiKey!: string;
 }
 
 const config = Server.parse(["--apiKey", "secret123"]);
-if (config.apiKey) {
-  console.log(`Starting server on ${config.host}:${config.port}`);
-  console.log(`API Key: ${config.apiKey.substring(0, 4)}...`);
-} else {
-  console.error("API key is required");
-}
+console.log(`Starting server on ${config.host}:${config.port}`);
+console.log(`API Key: ${config.apiKey.substring(0, 4)}...`);
 ```
 
 ### Application with Subcommands
@@ -391,7 +378,7 @@ class FileProcessor extends Args {
   @argument({ description: "Input file to process" })
   @type("string")
   @required()
-  input?: string;
+  input!: string;
 
   @argument({ description: "Output file" })
   @type("string")
@@ -415,13 +402,11 @@ const args = FileProcessor.parse([
   "transform",
 ]);
 
-// Handle potentially undefined values
-if (args.input) {
-  console.log(`Processing ${args.input} -> ${args.output || "stdout"}`);
-  console.log(`Mode: ${args.mode}`);
-  if (args.extras && args.extras.length > 0) {
-    console.log(`Extras: ${args.extras.join(", ")}`);
-  }
+// Required field is guaranteed to be present
+console.log(`Processing ${args.input} -> ${args.output || "stdout"}`);
+console.log(`Mode: ${args.mode}`);
+if (args.extras && args.extras.length > 0) {
+  console.log(`Extras: ${args.extras.join(", ")}`);
 }
 ```
 
@@ -525,7 +510,7 @@ class User extends Args {
   @type("string")
   @required()
   @email()
-  email?: string;
+  email!: string;
 }
 ```
 

@@ -117,7 +117,7 @@ class StartCommand {
   @required()
   @type("string")
   @description("Configuration file path")
-  config: string = "";
+  config!: string;
 }
 
 @command
@@ -303,7 +303,7 @@ class ConfigManager {
         @description("Database URL")
         @required()
         @type("string")
-        dbUrl: string = "";
+        dbUrl!: string;
 
         @description("API port")
         port: number = 3000;

@@ -57,7 +57,7 @@ export interface DecoratorContext {
  *   // Explicit type for property without default
  *   @type("number")
  *   @required()
- *   timeout?: number;
+ *   timeout!: number;
  *
  *   // Override default-inferred type
  *   @type("string[]")
@@ -116,7 +116,7 @@ export function type(
  *   @argument({ description: "Input file to process" })
  *   @type("string")
  *   @required()
- *   input?: string;
+ *   input!: string;
  * }
  * ```
  */
@@ -233,7 +233,7 @@ export function addValidator(validator: Validator): (
  *   // Required with explicit type
  *   @type("string")
  *   @required()
- *   apiKey?: string;
+ *   apiKey!: string;
  *
  *   // Required with default (makes the default required if not overridden)
  *   @required()
@@ -281,7 +281,7 @@ export function required(): (
  *   @validate((value: string) => value.length >= 8, "must be at least 8 characters")
  *   @type("string")
  *   @required()
- *   password?: string;
+ *   password!: string;
  * }
  * ```
  */
@@ -483,7 +483,7 @@ export function subCommand<T extends new () => unknown>(
  *   @argument({ description: "Input file to process" })
  *   @type("string")
  *   @required()
- *   input?: string;
+ *   input!: string;
  *
  *   // Optional second argument
  *   @argument({ description: "Output file" })
@@ -565,7 +565,7 @@ export function argument(
  *   @argument({ description: "Binary name to execute" })
  *   @type("string")
  *   @required()
- *   binary?: string;
+ *   binary!: string;
  *
  *   @rawRest("Arguments to pass to the binary")
  *   @type("string[]")
