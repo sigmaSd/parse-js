@@ -62,6 +62,7 @@ export {
   description,
   rawRest,
   required,
+  short,
   subCommand,
   type,
   validate,

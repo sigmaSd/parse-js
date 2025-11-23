@@ -5,6 +5,7 @@
  * - Usage syntax with positional arguments
  * - Command hierarchies and subcommands
  * - Option descriptions with type hints
+ * - Short flag aliases display (NEW)
  * - Proper formatting and alignment
  * - Context-aware help for nested commands
  *
@@ -37,7 +38,7 @@ import { captureHelpText } from "./error-handling.ts";
  * - Usage syntax showing argument order
  * - Available subcommands with descriptions
  * - Positional arguments with requirements
- * - CLI options with type hints and help text
+ * - CLI options with type hints, short flags, and help text
  * - Context-sensitive formatting for nested commands
  *
  * The help text follows common CLI conventions and provides clear
@@ -334,20 +335,31 @@ function printOptionsSection(
 
   // Print each option with type hint and description
   for (const arg of parsedArgs) {
-    const longFlag = `--${arg.name}`;
+    // NEW: Build flag display with short flag if available
+    let flagDisplay = "";
+    if (arg.short) {
+      // Show both short and long form: -o, --output
+      flagDisplay = `${colors.brightCyan(`-${arg.short}`)}, ${
+        colors.brightCyan(`--${arg.name}`)
+      }`;
+    } else {
+      // Just long form with proper spacing
+      flagDisplay = `    ${colors.brightCyan(`--${arg.name}`)}`;
+    }
+
     const typeHint = generateTypeHint(arg.type, colors);
     const defaultText = showDefaults && arg.default !== undefined
       ? colors.dim(` (default: ${JSON.stringify(arg.default)})`)
       : "";
 
-    console.log(`  ${colors.brightCyan(longFlag)}${typeHint}${defaultText}`);
+    console.log(`  ${flagDisplay}${typeHint}${defaultText}`);
     if (arg.description) {
       console.log(`      ${colors.dim(arg.description)}`);
     }
   }
 
-  // Always include help option
-  console.log(`  ${colors.brightCyan("--help")}`);
+  // Always include help option with short flag
+  console.log(`  ${colors.brightCyan("-h")}, ${colors.brightCyan("--help")}`);
   console.log(`      ${colors.dim("Show this help message")}`);
 }
 

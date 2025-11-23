@@ -64,6 +64,8 @@ export interface ParsedArg {
   default?: string | number | boolean | string[] | number[];
   /** Array of validation functions to apply */
   validators?: Validator[];
+  /** Short flag character for this option (e.g., 'o' for -o) */
+  short?: string;
 }
 
 /**
@@ -139,6 +141,8 @@ export interface PropertyMetadata {
   rawRest?: {
     description?: string;
   };
+  /** Short flag character from @short() decorator */
+  short?: string;
 }
 
 /**

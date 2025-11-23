@@ -28,27 +28,11 @@ import type {
   ParseResult,
   SubCommand,
 } from "../types.ts";
-import { collectArgumentDefs } from "../metadata.ts";
+import { collectInstanceArgumentDefs } from "../metadata.ts";
 import { parsePositionalArguments } from "./positional.ts";
 import { parseGlobalOptions } from "./options.ts";
 import { validateValue } from "../validation.ts";
 import { ErrorHandlers } from "../error-handling.ts";
-
-/**
- * Determines if a property is a user-defined static property vs a built-in class property.
- *
- * Built-in properties like `length`, `name`, and `prototype` have specific characteristics:
- * - `writable: false` and `enumerable: false` for built-ins
- * - `writable: true` and `enumerable: true` for user-defined static properties
- *
- * @param descriptor - Property descriptor from Object.getOwnPropertyDescriptor()
- * @returns true if this is a user-defined property that should be processed
- */
-function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
-  // User-defined static properties are typically writable and enumerable
-  // Built-in properties are typically non-writable and non-enumerable
-  return descriptor.writable === true && descriptor.enumerable === true;
-}
 
 /**
  * Parses a command class and its arguments recursively.
@@ -103,17 +87,16 @@ export function parseCommandClass(
   commandName?: string,
   commandPath?: string,
 ): unknown {
-  // Cast to access static properties and metadata
+  // Instantiate the command class first to access instance properties
+  const instance = new commandClass() as Record<string, unknown>;
   const klass = commandClass as unknown as {
     [Symbol.metadata]?: Record<string | symbol, unknown>;
     name: string;
     [key: string]: unknown;
   };
 
-  // Collect argument definitions from the command class
-  const { parsedArgs, argumentDefs } = collectArgumentDefs(
-    commandClass,
-  );
+  // Collect argument definitions from the instance (preferred)
+  const { parsedArgs, argumentDefs } = collectInstanceArgumentDefs(instance);
 
   // Extract subcommand definitions from class metadata
   const subCommands = collectSubCommands(klass);
@@ -129,11 +112,10 @@ export function parseCommandClass(
     commandPath,
   );
 
-  // Apply parsed values to the command class
-  applyParsedValues(klass, parsedArgs, argumentDefs, subCommands, parsed);
+  // Apply parsed values to the command instance
+  applyParsedValues(instance, parsedArgs, argumentDefs, subCommands, parsed);
 
-  // Return an instance of the command class
-  return new commandClass();
+  return instance;
 }
 
 /**
@@ -382,17 +364,12 @@ function collectSubCommands(klass: {
   return subCommands;
 }
 
-/**
- * Applies parsed values to the command class properties.
- *
- * @param klass - The command class to modify
- * @param parsedArgs - Regular CLI options
- * @param argumentDefs - Positional arguments
- * @param subCommands - Subcommand definitions
- * @param parsed - Parsed values object
- */
+function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
+  return descriptor.writable === true && descriptor.enumerable === true;
+}
+
 function applyParsedValues(
-  klass: { [key: string]: unknown },
+  instance: Record<string, unknown>,
   parsedArgs: ParsedArg[],
   argumentDefs: ArgumentDef[],
   subCommands: Map<string, SubCommand>,
@@ -401,21 +378,21 @@ function applyParsedValues(
   // Apply regular option values
   for (const arg of parsedArgs) {
     if (Object.prototype.hasOwnProperty.call(parsed, arg.name)) {
-      klass[arg.name] = parsed[arg.name];
+      instance[arg.name] = parsed[arg.name];
     }
   }
 
   // Apply positional argument values
   for (const argDef of argumentDefs) {
     if (Object.prototype.hasOwnProperty.call(parsed, argDef.name)) {
-      klass[argDef.name] = parsed[argDef.name];
+      instance[argDef.name] = parsed[argDef.name];
     }
   }
 
   // Apply subcommand instances
   for (const [name, _subCommand] of subCommands) {
     if (Object.prototype.hasOwnProperty.call(parsed, name)) {
-      klass[name] = parsed[name];
+      instance[name] = parsed[name];
     }
   }
 }
@@ -451,7 +428,6 @@ function validateAndSetDefaults(
             validationError,
             options,
           );
-          // If error handler returned (didn't exit/throw), skip processing
           return;
         }
       }

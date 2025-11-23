@@ -11,9 +11,9 @@
  * 3. extractTypeFromDescriptor() determines the argument type from @type() or default values
  * 4. Properties are categorized as regular options, positional arguments, or subcommands
  * 5. Validation ensures positional arguments have sequential indices
+ * 6. Validation ensures no duplicate short flags
  */
 
-import type {} from "node:process";
 import type {
   ArgumentDef,
   ParsedArg,
@@ -46,43 +46,189 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
 }
 
 /**
- * Collects and processes argument definitions from a command class.
+ * Collects argument definitions from an instance.
  *
- * This function performs the critical task of introspecting a class to
- * build the internal data structures needed for parsing. It separates
- * regular CLI options (--flags) from positional arguments and validates
- * the configuration.
+ * This function analyzes the instance properties and their decorator metadata
+ * to build the argument definitions. It also validates configuration such as
+ * duplicate short flags.
  *
- * The process involves:
- * - Iterating through all static properties
- * - Reading decorator metadata from Symbol.metadata
- * - Extracting types from @type() decorators or default values
- * - Categorizing properties by their role (option, positional, subcommand)
- * - Validating positional argument sequences
- *
- * @param klass - The command class constructor to analyze
+ * @param instance - The class instance to analyze
  * @returns Object containing parsed options and positional argument definitions
- *
- * @throws Error if positional arguments aren't sequential or have invalid configurations
- *
- * @example
- * ```ts
- * import { Args, cli, argument, type, required } from "@sigma/parse";
- *
- * @cli({ name: "config" })
- * class Config extends Args {
- *   port = 8080;
- *
- *   @argument({ description: "Input file" })
- *   @type("string")
- *   @required()
- *   input!: string;
- *
- *   @argument({ description: "Output file" })
- *   @type("string")
- *   output?: string;
- * }
- * ```
+ */
+export function collectInstanceArgumentDefs(
+  instance: Record<string, unknown>,
+): {
+  parsedArgs: ParsedArg[];
+  argumentDefs: ArgumentDef[];
+} {
+  const parsedArgs: ParsedArg[] = [];
+  const argumentDefs: ArgumentDef[] = [];
+  const shortFlagMap = new Map<string, string>();
+
+  // Get the constructor to access metadata
+  const constructor = instance.constructor as new () => unknown;
+  const metadata = (constructor as {
+    [Symbol.metadata]?: Record<string | symbol, unknown>;
+  })[Symbol.metadata];
+
+  // Get all property names from the instance
+  const propertyNames = Object.getOwnPropertyNames(instance);
+
+  for (const propName of propertyNames) {
+    const propertyMetadata = metadata?.[propName] as
+      | PropertyMetadata
+      | undefined;
+
+    // Skip properties handled as subcommands
+    if (propertyMetadata?.subCommand) {
+      continue;
+    }
+
+    // Validate short flag uniqueness
+    if (propertyMetadata?.short) {
+      const existingProp = shortFlagMap.get(propertyMetadata.short);
+      if (existingProp) {
+        throw new Error(
+          `Duplicate short flag '-${propertyMetadata.short}' used by both '${existingProp}' and '${propName}'`,
+        );
+      }
+      shortFlagMap.set(propertyMetadata.short, propName);
+    }
+
+    if (propertyMetadata?.argument) {
+      // Positional argument
+      if (instance[propName] === undefined && !propertyMetadata.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      argumentDefs.push({
+        name: propName,
+        type: propertyMetadata.type || getTypeFromValue(instance[propName]),
+        default: instance[propName],
+        validators: propertyMetadata.validators || [],
+        rest: propertyMetadata.argument.rest,
+        description: propertyMetadata.description,
+      });
+    } else if (propertyMetadata?.rawRest) {
+      // Raw rest argument
+      if (instance[propName] === undefined && !propertyMetadata.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string[]") or another array type to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      argumentDefs.push({
+        name: propName,
+        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
+        default: instance[propName],
+        validators: propertyMetadata?.validators || [],
+        rawRest: true,
+        description: propertyMetadata.rawRest.description,
+      });
+    } else {
+      // Regular option
+      if (instance[propName] === undefined && !propertyMetadata?.type) {
+        throw new Error(
+          `Property '${propName}' has no default value and no @type() decorator. ` +
+            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+            `This is required because TypeScript cannot infer the type from undefined values.`,
+        );
+      }
+
+      parsedArgs.push({
+        name: propName,
+        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
+        default: instance[propName] as
+          | string
+          | number
+          | boolean
+          | string[]
+          | number[],
+        validators: propertyMetadata?.validators || [],
+        description: propertyMetadata?.description,
+        short: propertyMetadata?.short,
+      });
+    }
+  }
+
+  // Validate positional argument configuration
+  validatePositionalArguments(argumentDefs);
+
+  return { parsedArgs, argumentDefs };
+}
+
+/**
+ * Get type string from a value.
+ */
+function getTypeFromValue(value: unknown): SupportedType {
+  if (Array.isArray(value)) {
+    if (value.length > 0 && typeof value[0] === "number") {
+      return "number[]";
+    }
+    return "string[]";
+  }
+  const type = typeof value;
+  if (type === "string" || type === "number" || type === "boolean") {
+    return type;
+  }
+  // Default to string for unknown types (null, undefined, object, symbol, etc.)
+  // Note: The calling logic usually ensures we have a value or explicit type before getting here.
+  return "string";
+}
+
+/**
+ * Validates that positional arguments are properly configured.
+ */
+function validatePositionalArguments(
+  argumentDefs: ArgumentDef[],
+): void {
+  let hasRest = false;
+  const hasRawRest = argumentDefs.some((def) => def.rawRest);
+
+  // First, check for rest/rawRest conflicts
+  for (const argDef of argumentDefs) {
+    if (argDef.rest) {
+      hasRest = true;
+      break;
+    }
+  }
+
+  if (hasRest && hasRawRest) {
+    throw new Error(
+      `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
+    );
+  }
+
+  // Then validate regular positional arguments positions
+  hasRest = false;
+  for (let i = 0; i < argumentDefs.length; i++) {
+    const argDef = argumentDefs[i];
+
+    if (argDef.rawRest) {
+      continue;
+    }
+
+    if (hasRest) {
+      throw new Error(
+        `Only the last argument can be marked as rest. Found argument at position ${i} after rest argument.`,
+      );
+    }
+
+    if (argDef.rest) {
+      hasRest = true;
+    }
+  }
+}
+
+/**
+ * Collects argument definitions from a command class (static properties).
+ * Note: This is maintained for static properties support but instance properties are preferred.
  */
 export function collectArgumentDefs(
   klass: new () => unknown,
@@ -92,6 +238,9 @@ export function collectArgumentDefs(
 } {
   const parsedArgs: ParsedArg[] = [];
   const argumentDefs: ArgumentDef[] = [];
+
+  // Track short flags for duplicate detection
+  const shortFlagMap = new Map<string, string>();
 
   // Get all static property names from the class
   const propertyNames = Object.getOwnPropertyNames(klass);
@@ -122,6 +271,17 @@ export function collectArgumentDefs(
     // Skip subcommand properties - they're handled separately in the parsing logic
     if (metadata?.subCommand) {
       continue;
+    }
+
+    // Validate short flag uniqueness
+    if (metadata?.short) {
+      const existingProp = shortFlagMap.get(metadata.short);
+      if (existingProp) {
+        throw new Error(
+          `Duplicate short flag '-${metadata.short}' used by both '${existingProp}' and '${propName}'`,
+        );
+      }
+      shortFlagMap.set(metadata.short, propName);
     }
 
     // Determine the argument type from decorators or default values
@@ -168,6 +328,7 @@ export function collectArgumentDefs(
         description: metadata?.description,
         default: descriptor.value,
         validators: metadata?.validators || [],
+        short: metadata?.short,
       });
     }
   }
@@ -176,59 +337,6 @@ export function collectArgumentDefs(
   validatePositionalArguments(argumentDefs);
 
   return { parsedArgs, argumentDefs };
-}
-
-/**
- * Validates that positional arguments are properly configured.
- *
- * This function ensures that:
- * - Only the last positional argument can be marked as "rest"
- *
- * @param argumentDefs - Array of positional arguments
- * @throws Error if validation fails
- */
-function validatePositionalArguments(
-  argumentDefs: ArgumentDef[],
-): void {
-  let hasRest = false;
-  const hasRawRest = argumentDefs.some((def) => def.rawRest);
-
-  // First, check for rest/rawRest conflicts
-  for (const argDef of argumentDefs) {
-    if (argDef.rest) {
-      hasRest = true;
-      break;
-    }
-  }
-
-  // Validate that rawRest doesn't conflict with rest
-  if (hasRest && hasRawRest) {
-    throw new Error(
-      `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
-    );
-  }
-
-  // Then validate regular positional arguments positions
-  hasRest = false; // Reset for position validation
-  for (let i = 0; i < argumentDefs.length; i++) {
-    const argDef = argumentDefs[i];
-
-    // Skip rawRest arguments in position validation
-    if (argDef.rawRest) {
-      continue;
-    }
-
-    // Check that rest arguments only appear at the end (before rawRest)
-    if (hasRest) {
-      throw new Error(
-        `Only the last argument can be marked as rest. Found argument at position ${i} after rest argument.`,
-      );
-    }
-
-    if (argDef.rest) {
-      hasRest = true;
-    }
-  }
 }
 
 /**

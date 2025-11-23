@@ -13,6 +13,7 @@
  * - @command - Mark class as a command
  * - @subCommand() - Associate property with command class
  * - @argument() - Mark property as positional argument
+ * - @short() - Add short flag alias (NEW)
  *
  * Workflow:
  * 1. Decorators store metadata in Symbol.metadata on classes
@@ -602,6 +603,88 @@ export function rawRest(description?: string): (
       propertyMetadata.description = description;
     }
 
+    context.metadata[context.name] = propertyMetadata;
+  };
+}
+
+/**
+ * Short flag decorator to add single-character aliases for options.
+ *
+ * This decorator allows options to be accessed with short flags (e.g., -o)
+ * in addition to their long form (--output). By default, uses the first
+ * character of the property name, or can be explicitly specified.
+ *
+ * Features:
+ * - Automatic first-character default
+ * - Explicit short flag specification
+ * - Duplicate detection at parse time
+ * - Combined short flags support (-vf = -v -f)
+ *
+ * @param shortFlag - Optional explicit short flag character
+ * @returns A decorator function
+ *
+ * @example
+ * ```ts
+ * import { Args, cli, description, short } from "@sigma/parse";
+ *
+ * @cli({ name: "example" })
+ * class Config extends Args {
+ *   // Uses first character: -o
+ *   @description("Output file path")
+ *   @short()
+ *   output: string = "out.txt";
+ *
+ *   // Explicit short flag: -f
+ *   @description("Force overwrite")
+ *   @short("f")
+ *   force: boolean = false;
+ *
+ *   // Uses first character: -v
+ *   @description("Verbose output")
+ *   @short()
+ *   verbose: boolean = false;
+ * }
+ *
+ * // Usage: myapp -o result.txt -fv
+ * // Same as: myapp --output result.txt --force --verbose
+ * ```
+ */
+export function short(shortFlag?: string): (
+  _target: unknown,
+  context: DecoratorContext,
+) => void {
+  return function (
+    _target: unknown,
+    context: DecoratorContext,
+  ): void {
+    if (!context.metadata) {
+      throw new Error(
+        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+      );
+    }
+
+    const propertyMetadata =
+      (context.metadata[context.name] as PropertyMetadata) || {};
+
+    // If no short flag specified, use first character of property name
+    const propName = String(context.name);
+    const shortFlagChar = shortFlag || propName.charAt(0);
+
+    // Validate short flag is a single character
+    if (shortFlagChar.length !== 1) {
+      throw new Error(
+        `Short flag must be a single character, got: "${shortFlagChar}"`,
+      );
+    }
+
+    // Validate it's alphanumeric
+    if (!/^[a-zA-Z0-9]$/.test(shortFlagChar)) {
+      throw new Error(
+        `Short flag must be alphanumeric, got: "${shortFlagChar}"`,
+      );
+    }
+
+    propertyMetadata.short = shortFlagChar;
     context.metadata[context.name] = propertyMetadata;
   };
 }
