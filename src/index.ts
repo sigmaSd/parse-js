@@ -431,6 +431,11 @@ function parseInstanceBased(
             result[positionalDef.name] = positionalArg;
             positionalIndex++;
           }
+        } else if (rawRestArg) {
+          // No regular positional left, capture in rawRest
+          const currentValues = result[rawRestArg.name] as string[] || [];
+          currentValues.push(positionalArg);
+          result[rawRestArg.name] = currentValues;
         }
         i++;
       }
@@ -453,30 +458,36 @@ function parseInstanceBased(
       if (!argDef) {
         // Handle help flags specially
         if (flagName === "help" || flagName === "h") {
-          const helpText = printHelp(
-            parsedArgs as Array<{
-              name: string;
-              type: SupportedType;
-              description?: string;
-              default?: string | number | boolean | string[] | number[];
-              validators?: Array<(value: unknown) => string | null>;
-            }>,
-            argumentDefs as Array<{
-              name: string;
-              type: SupportedType;
-              description?: string;
-              default?: string | number | boolean | string[] | number[];
-              validators?: Array<(value: unknown) => string | null>;
-              rest?: boolean;
-              rawRest?: boolean;
-            }>,
-            options || {},
-            subCommands,
-            commandName || "",
-            commandPath || "",
-          );
-          handleHelpDisplay(helpText, options || {});
-          return result;
+          // If rawRest is present and we've already seen positional arguments,
+          // treat help as a regular argument to be captured by rawRest
+          if (rawRestArg && (positionalIndex > 0 || rawRestStarted)) {
+            // Fall through to rawRest handling below
+          } else {
+            const helpText = printHelp(
+              parsedArgs as Array<{
+                name: string;
+                type: SupportedType;
+                description?: string;
+                default?: string | number | boolean | string[] | number[];
+                validators?: Array<(value: unknown) => string | null>;
+              }>,
+              argumentDefs as Array<{
+                name: string;
+                type: SupportedType;
+                description?: string;
+                default?: string | number | boolean | string[] | number[];
+                validators?: Array<(value: unknown) => string | null>;
+                rest?: boolean;
+                rawRest?: boolean;
+              }>,
+              options || {},
+              subCommands,
+              commandName || "",
+              commandPath || "",
+            );
+            handleHelpDisplay(helpText, options || {});
+            return result;
+          }
         }
 
         // Check if it's a subcommand
@@ -564,30 +575,36 @@ function parseInstanceBased(
         if (!argDef) {
           // Handle help flag specially
           if (shortFlags === "h") {
-            const helpText = printHelp(
-              parsedArgs as Array<{
-                name: string;
-                type: SupportedType;
-                description?: string;
-                default?: string | number | boolean | string[] | number[];
-                validators?: Array<(value: unknown) => string | null>;
-              }>,
-              argumentDefs as Array<{
-                name: string;
-                type: SupportedType;
-                description?: string;
-                default?: string | number | boolean | string[] | number[];
-                validators?: Array<(value: unknown) => string | null>;
-                rest?: boolean;
-                rawRest?: boolean;
-              }>,
-              options || {},
-              subCommands,
-              commandName || "",
-              commandPath || "",
-            );
-            handleHelpDisplay(helpText, options);
-            return result;
+            // If rawRest is present and we've already seen positional arguments,
+            // treat help as a regular argument to be captured by rawRest
+            if (rawRestArg && (positionalIndex > 0 || rawRestStarted)) {
+              // Fall through to rawRest handling below
+            } else {
+              const helpText = printHelp(
+                parsedArgs as Array<{
+                  name: string;
+                  type: SupportedType;
+                  description?: string;
+                  default?: string | number | boolean | string[] | number[];
+                  validators?: Array<(value: unknown) => string | null>;
+                }>,
+                argumentDefs as Array<{
+                  name: string;
+                  type: SupportedType;
+                  description?: string;
+                  default?: string | number | boolean | string[] | number[];
+                  validators?: Array<(value: unknown) => string | null>;
+                  rest?: boolean;
+                  rawRest?: boolean;
+                }>,
+                options || {},
+                subCommands,
+                commandName || "",
+                commandPath || "",
+              );
+              handleHelpDisplay(helpText, options);
+              return result;
+            }
           }
 
           // If rawRest is present, unknown flags should be captured by it
