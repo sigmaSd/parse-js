@@ -45,6 +45,10 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
   return descriptor.writable === true && descriptor.enumerable === true;
 }
 
+interface CollectionOptions {
+  strict?: boolean;
+}
+
 /**
  * Collects argument definitions from an instance.
  *
@@ -53,10 +57,12 @@ function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
  * duplicate short flags.
  *
  * @param instance - The class instance to analyze
+ * @param options - Configuration options for metadata collection
  * @returns Object containing parsed options and positional argument definitions
  */
 export function collectInstanceArgumentDefs(
   instance: Record<string, unknown>,
+  options: CollectionOptions = { strict: true },
 ): {
   parsedArgs: ParsedArg[];
   argumentDefs: ArgumentDef[];
@@ -98,11 +104,16 @@ export function collectInstanceArgumentDefs(
     if (propertyMetadata?.argument) {
       // Positional argument
       if (instance[propName] === undefined && !propertyMetadata.type) {
-        throw new Error(
-          `Property '${propName}' has no default value and no @type() decorator. ` +
-            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
-            `This is required because TypeScript cannot infer the type from undefined values.`,
-        );
+        if (options.strict) {
+          throw new Error(
+            `Property '${propName}' has no default value and no @type() decorator. ` +
+              `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+              `This is required because TypeScript cannot infer the type from undefined values.`,
+          );
+        } else {
+          // In non-strict mode, skip properties with undetermined types
+          continue;
+        }
       }
 
       argumentDefs.push({
@@ -116,11 +127,16 @@ export function collectInstanceArgumentDefs(
     } else if (propertyMetadata?.rawRest) {
       // Raw rest argument
       if (instance[propName] === undefined && !propertyMetadata.type) {
-        throw new Error(
-          `Property '${propName}' has no default value and no @type() decorator. ` +
-            `Use @type("string[]") or another array type to specify the expected type. ` +
-            `This is required because TypeScript cannot infer the type from undefined values.`,
-        );
+        if (options.strict) {
+          throw new Error(
+            `Property '${propName}' has no default value and no @type() decorator. ` +
+              `Use @type("string[]") or another array type to specify the expected type. ` +
+              `This is required because TypeScript cannot infer the type from undefined values.`,
+          );
+        } else {
+          // In non-strict mode, skip properties with undetermined types
+          continue;
+        }
       }
 
       argumentDefs.push({
@@ -134,11 +150,16 @@ export function collectInstanceArgumentDefs(
     } else {
       // Regular option
       if (instance[propName] === undefined && !propertyMetadata?.type) {
-        throw new Error(
-          `Property '${propName}' has no default value and no @type() decorator. ` +
-            `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
-            `This is required because TypeScript cannot infer the type from undefined values.`,
-        );
+        if (options.strict) {
+          throw new Error(
+            `Property '${propName}' has no default value and no @type() decorator. ` +
+              `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
+              `This is required because TypeScript cannot infer the type from undefined values.`,
+          );
+        } else {
+          // In non-strict mode, skip properties with undetermined types
+          continue;
+        }
       }
 
       parsedArgs.push({

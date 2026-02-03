@@ -1,7 +1,16 @@
 import type { ParseOptions, ParseResult, SupportedType } from "./types.ts";
 import { printHelp } from "./help.ts";
 import { handleHelpDisplay, handleParsingError } from "./error-handling.ts";
+import {
+  argument,
+  command,
+  description,
+  required,
+  type,
+  validate,
+} from "./decorators.ts";
 import { collectInstanceArgumentDefs } from "./metadata.ts";
+import { generateFishCompletions } from "./completions.ts";
 
 /**
  * Base class for CLI argument classes.
@@ -36,6 +45,22 @@ export class Args {
 
     return typedResult;
   }
+}
+
+/**
+ * Internal command for generating shell completions.
+ */
+@command
+class GenCompletionsCommand {
+  @description("The shell to generate completions for (e.g., 'fish')")
+  @type("string")
+  @argument()
+  @validate(
+    (value: string) => value === "fish",
+    "must be one of: fish (currently only fish is supported)",
+  )
+  @required()
+  shell!: string;
 }
 
 /**
@@ -267,6 +292,15 @@ function parseInstanceBased(
 
   // Collect subcommands from instance
   const subCommands = collectSubCommandsFromInstance(instance);
+
+  // Inject gen-completions command if not already present and we are at the root
+  if (!commandPath && !subCommands.has("gen-completions")) {
+    subCommands.set("gen-completions", {
+      name: "gen-completions",
+      commandClass: GenCompletionsCommand,
+      description: "Generate shell completions",
+    });
+  }
 
   // Create argument map for parsing
   const argMap = new Map<string, {
@@ -768,6 +802,22 @@ function parseInstanceBased(
         Object.assign(typedResult as Record<string, unknown>, parsedValues);
         result[arg] = typedResult;
       }
+
+      // Handle gen-completions execution
+      if (
+        arg === "gen-completions" &&
+        subCommand.commandClass === GenCompletionsCommand
+      ) {
+        const completions = generateFishCompletions(
+          options?.name || "app",
+          parsedArgs,
+          argumentDefs,
+          subCommands,
+        );
+        console.log(completions);
+        Deno.exit(0);
+      }
+
       break; // Stop processing after subcommand
     } else {
       // Handle positional argument

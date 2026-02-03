@@ -557,8 +557,37 @@ Options:
       Show this help message
 
 Commands:
-  serve    Start development server
-  build    Build the project
+  serve              Start development server
+  build              Start the project
+  gen-completions    Generate shell completions
+```
+
+## Shell Completions
+
+The library includes a built-in `gen-completions` command that generates
+completion scripts for various shells (currently supporting `fish`).
+
+### Generating Completions
+
+To generate completions for your application:
+
+```bash
+# Generate fish completions
+deno run myapp.ts gen-completions fish
+```
+
+### Installing Completions (Fish)
+
+To use the completions immediately in your current fish session:
+
+```fish
+deno run myapp.ts gen-completions fish | source
+```
+
+To make them permanent, save the output to your fish configuration directory:
+
+```fish
+deno run myapp.ts gen-completions fish > ~/.config/fish/completions/myapp.fish
 ```
 
 ## Error Handling
