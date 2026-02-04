@@ -1,44 +1,14 @@
 /**
  * Core type definitions for the CLI argument parsing library.
- *
- * This module contains all the fundamental types and interfaces used throughout
- * the parsing system, including validation functions, argument definitions,
- * and metadata structures.
  */
 
 /**
  * A function that validates a value and returns an error message or null if valid.
- *
- * Validators are used to enforce constraints on parsed values, such as:
- * - Required fields
- * - Numeric ranges
- * - String patterns
- * - Custom business logic
- *
- * @param value - The value to validate (can be any type)
- * @returns Error message string if validation fails, null if validation passes
- *
- * @example
- * ```ts
- * const minValue: Validator = (value: unknown) => {
- *   if (typeof value === "number" && value < 10) {
- *     return "Value must be at least 10";
- *   }
- *   return null;
- * };
- * ```
  */
 export type Validator = (value: unknown) => string | null;
 
 /**
  * Supported primitive types for CLI arguments.
- *
- * The parsing system supports these basic types with automatic conversion:
- * - string: Raw string values
- * - number: Parsed floating-point numbers
- * - boolean: True/false flags
- * - string[]: Comma-separated string arrays
- * - number[]: Comma-separated numeric arrays
  */
 export type SupportedType =
   | "string"
@@ -48,12 +18,9 @@ export type SupportedType =
   | "number[]";
 
 /**
- * Parsed argument definition used internally during parsing.
- *
- * This represents a single CLI option (like --port or --debug) after
- * metadata has been collected from class properties and decorators.
+ * Definition for a CLI option (flag).
  */
-export interface ParsedArg {
+export interface OptionDef {
   /** The property name / CLI flag name */
   name: string;
   /** The data type for parsing and validation */
@@ -69,10 +36,7 @@ export interface ParsedArg {
 }
 
 /**
- * Metadata for positional arguments (non-flag arguments).
- *
- * Positional arguments appear in a specific order on the command line,
- * like: `myapp input.txt output.txt`
+ * Metadata for positional arguments.
  */
 export interface ArgumentMetadata {
   /** Optional help description */
@@ -82,12 +46,9 @@ export interface ArgumentMetadata {
 }
 
 /**
- * Complete definition for a positional argument.
- *
- * Combines the basic argument metadata with type information
- * and validation rules.
+ * Definition for a positional argument.
  */
-export interface ArgumentDef {
+export interface PositionalDef {
   /** The property name */
   name: string;
   /** The data type for parsing */
@@ -106,10 +67,6 @@ export interface ArgumentDef {
 
 /**
  * Definition for a subcommand.
- *
- * Subcommands allow hierarchical CLI structures like:
- * `git commit --message "fix bug"`
- * where "commit" is a subcommand with its own options.
  */
 export interface SubCommand {
   /** The subcommand name as it appears on CLI */
@@ -122,9 +79,6 @@ export interface SubCommand {
 
 /**
  * Property metadata collected from decorators.
- *
- * This is the internal structure used to store decorator metadata
- * on class properties via Symbol.metadata.
  */
 export interface PropertyMetadata {
   /** Explicitly set type via @type() decorator */
@@ -171,9 +125,6 @@ export interface ParseOptions {
 
 /**
  * Configuration options for the @command decorator.
- *
- * These options allow subcommands to have their own behavior configuration,
- * such as showing help when invoked without arguments.
  */
 export interface CommandOptions {
   /** Default command to run when no arguments are provided to this subcommand */
@@ -190,9 +141,6 @@ export interface CommandInstance {
 
 /**
  * Result type for parsed arguments.
- *
- * This flexible type allows for any combination of parsed values,
- * including nested command instances for subcommands.
  */
 export type ParseResult = Record<
   string,
@@ -201,9 +149,6 @@ export type ParseResult = Record<
 
 /**
  * Context object passed to decorator functions.
- *
- * This matches the TypeScript decorator context interface for
- * property decorators in the new decorator proposal.
  */
 export interface DecoratorContext {
   /** The property name being decorated */

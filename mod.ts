@@ -84,11 +84,13 @@ export {
 
 // Export types
 export type {
-  ArgumentDef,
   ArgumentMetadata,
   CommandInstance,
+  OptionDef,
   ParseOptions,
   ParseResult,
+  PositionalDef,
+  PositionalDef as ArgumentDef,
   PropertyMetadata,
   SubCommand,
   SupportedType,

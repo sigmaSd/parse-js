@@ -1,30 +1,11 @@
 /**
  * Help text generation for CLI applications.
- *
- * This module provides comprehensive help text generation including:
- * - Usage syntax with positional arguments
- * - Command hierarchies and subcommands
- * - Option descriptions with type hints
- * - Short flag aliases display (NEW)
- * - Proper formatting and alignment
- * - Context-aware help for nested commands
- *
- * The help system automatically generates user-friendly documentation
- * based on the argument definitions, decorators, and command structure.
- *
- * Workflow:
- * 1. Analyze the current command context (main app vs subcommand)
- * 2. Generate usage syntax with proper argument ordering
- * 3. List available subcommands if any
- * 4. Display positional arguments with requirements
- * 5. Show all options with type hints and descriptions
- * 6. Format everything with consistent alignment
  */
 
 import type {
-  ArgumentDef,
-  ParsedArg,
+  OptionDef,
   ParseOptions,
+  PositionalDef,
   SubCommand,
 } from "./types.ts";
 import { createColors } from "./colors.ts";
@@ -32,56 +13,10 @@ import { captureHelpText } from "./error-handling.ts";
 
 /**
  * Generates and prints comprehensive help text for a command.
- *
- * This function creates user-friendly help documentation that includes:
- * - Application name and description
- * - Usage syntax showing argument order
- * - Available subcommands with descriptions
- * - Positional arguments with requirements
- * - CLI options with type hints, short flags, and help text
- * - Context-sensitive formatting for nested commands
- *
- * The help text follows common CLI conventions and provides clear
- * guidance on how to use the application or command.
- *
- * @param parsedArgs - CLI options available for this command
- * @param argumentDefs - Positional arguments for this command
- * @param options - Parse options including color and defaults settings
- * @param subCommands - Available subcommands (if any)
- * @param commandName - Current command name (for subcommands)
- * @param commandPath - Full command path (e.g., "git commit")
- * @returns The formatted help text as a string
- *
- * @example
- * ```ts ignore
- * // For main application:
- * const helpText = printHelp(parsedArgs, argumentDefs, "myapp", "A sample CLI tool");
- * // helpText contains:
- * // myapp
- * //
- * // A sample CLI tool
- * //
- * // Usage:
- * //   myapp [input] [output] [options]
- * //
- * // Arguments:
- * //   input
- * //       Input file to process
- * //   output (required)
- * //       Output file path
- * //
- * // Options:
- * //   --port <number>
- * //       Port number to listen on
- * //   --debug
- * //       Enable debug mode
- * //   --help
- * //       Show this help message
- * ```
  */
 export function printHelp(
-  parsedArgs: ParsedArg[],
-  argumentDefs: ArgumentDef[],
+  optionDefs: OptionDef[],
+  positionalDefs: PositionalDef[],
   options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
@@ -91,7 +26,6 @@ export function printHelp(
     const colors = createColors(options?.color);
     const showDefaults = options?.showDefaults ?? true;
 
-    // Print application header if available
     if (options?.name && options?.description) {
       console.log(colors.bold(colors.brightBlue(options.name)));
       console.log("");
@@ -99,9 +33,8 @@ export function printHelp(
       console.log("");
     }
 
-    // Generate and print usage section
     printUsageSection(
-      argumentDefs,
+      positionalDefs,
       colors,
       options?.name,
       subCommands,
@@ -109,19 +42,16 @@ export function printHelp(
       commandPath,
     );
 
-    // Print available subcommands if any
     if (subCommands && subCommands.size > 0) {
       printSubCommandsSection(subCommands, colors);
     }
 
-    // Print positional arguments if any
-    if (argumentDefs.length > 0) {
-      printArgumentsSection(argumentDefs, colors, showDefaults);
+    if (positionalDefs.length > 0) {
+      printArgumentsSection(positionalDefs, colors, showDefaults);
     }
 
-    // Print options section
     printOptionsSection(
-      parsedArgs,
+      optionDefs,
       colors,
       showDefaults,
       subCommands,
@@ -130,30 +60,20 @@ export function printHelp(
   });
 }
 
-/**
- * Prints the usage section showing command syntax.
- *
- * Generates usage lines like:
- * - `myapp [input] <output> [options]`
- * - `git commit --message "fix" [options]`
- * - `docker container ls <command> [options]`
- */
 function printUsageSection(
-  argumentDefs: ArgumentDef[],
+  positionalDefs: PositionalDef[],
   colors: ReturnType<typeof createColors>,
   appName?: string,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
   commandPath?: string,
 ): void {
-  // Build the usage syntax with positional arguments
-  const usageArgs = buildUsageArguments(argumentDefs);
+  const usageArgs = buildUsageArguments(positionalDefs);
   const baseCommand = appName || "[runtime] script.js";
 
   console.log(colors.bold(colors.brightYellow("Usage:")));
 
   if (commandName) {
-    // This is help for a specific subcommand
     const fullCommandPath = commandPath || commandName;
     const hasSubCommands = subCommands && subCommands.size > 0;
 
@@ -171,14 +91,12 @@ function printUsageSection(
       );
     }
   } else if (subCommands && subCommands.size > 0) {
-    // Main command with subcommands
     console.log(
       `  ${colors.cyan(baseCommand)}${colors.green(usageArgs)} ${
         colors.yellow("<command>")
       } ${colors.dim("[options]")}`,
     );
   } else {
-    // Simple command without subcommands
     console.log(
       `  ${colors.cyan(baseCommand)}${colors.green(usageArgs)} ${
         colors.dim("[options]")
@@ -189,23 +107,13 @@ function printUsageSection(
   console.log("");
 }
 
-/**
- * Builds the usage argument string from positional argument definitions.
- *
- * Creates strings like:
- * - `<input> [output]` - required and optional args
- * - `<files...>` - rest arguments
- * - `[input] [output...]` - optional with rest
- */
-function buildUsageArguments(argumentDefs: ArgumentDef[]): string {
-  // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.find((def) => def.rawRest);
-  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
+function buildUsageArguments(positionalDefs: PositionalDef[]): string {
+  const rawRestDef = positionalDefs.find((def) => def.rawRest);
+  const regularPositionalDefs = positionalDefs.filter((def) => !def.rawRest);
 
   let usageArgs = "";
 
-  // Build usage for regular positional arguments
-  for (const argDef of regularArgDefs) {
+  for (const argDef of regularPositionalDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
 
     if (argDef.rest) {
@@ -215,31 +123,24 @@ function buildUsageArguments(argumentDefs: ArgumentDef[]): string {
     }
   }
 
-  // Add rawRest argument if present
-  if (rawRestArg) {
-    const isRequired = !rawRestArg.default &&
-      !isRequiredByValidator(rawRestArg);
+  if (rawRestDef) {
+    const isRequired = !rawRestDef.default &&
+      !isRequiredByValidator(rawRestDef);
     usageArgs += isRequired
-      ? ` <${rawRestArg.name}...>`
-      : ` [${rawRestArg.name}...]`;
+      ? ` <${rawRestDef.name}...>`
+      : ` [${rawRestDef.name}...]`;
   }
 
   return usageArgs;
 }
 
-/**
- * Checks if an argument is marked as required by its validators.
- */
-function isRequiredByValidator(argDef: ArgumentDef): boolean {
+function isRequiredByValidator(argDef: PositionalDef): boolean {
   return argDef.validators?.some((v) =>
     v.toString().includes("is required") ||
     v.toString().includes("required")
   ) ?? false;
 }
 
-/**
- * Prints the subcommands section.
- */
 function printSubCommandsSection(
   subCommands: Map<string, SubCommand>,
   colors: ReturnType<typeof createColors>,
@@ -256,22 +157,17 @@ function printSubCommandsSection(
   console.log("");
 }
 
-/**
- * Prints the positional arguments section.
- */
 function printArgumentsSection(
-  argumentDefs: ArgumentDef[],
+  positionalDefs: PositionalDef[],
   colors: ReturnType<typeof createColors>,
   showDefaults: boolean,
 ): void {
   console.log(colors.bold(colors.brightYellow("Arguments:")));
 
-  // Separate rawRest from regular positional arguments
-  const rawRestArg = argumentDefs.find((def) => def.rawRest);
-  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
+  const rawRestDef = positionalDefs.find((def) => def.rawRest);
+  const regularPositionalDefs = positionalDefs.filter((def) => !def.rawRest);
 
-  // Print regular positional arguments
-  for (const argDef of regularArgDefs) {
+  for (const argDef of regularPositionalDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const restText = argDef.rest ? colors.yellow(" (rest)") : "";
@@ -290,41 +186,36 @@ function printArgumentsSection(
     }
   }
 
-  // Print rawRest argument if present
-  if (rawRestArg) {
-    const isRequired = !rawRestArg.default &&
-      !isRequiredByValidator(rawRestArg);
+  if (rawRestDef) {
+    const isRequired = !rawRestDef.default &&
+      !isRequiredByValidator(rawRestDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const rawRestText = colors.yellow(" (raw rest)");
-    const defaultText = showDefaults && rawRestArg.default !== undefined
-      ? colors.dim(` (default: ${JSON.stringify(rawRestArg.default)})`)
+    const defaultText = showDefaults && rawRestDef.default !== undefined
+      ? colors.dim(` (default: ${JSON.stringify(rawRestDef.default)})`)
       : "";
 
     console.log(
       `  ${
-        colors.brightGreen(rawRestArg.name)
+        colors.brightGreen(rawRestDef.name)
       }${requiredText}${rawRestText}${defaultText}`,
     );
 
-    if (rawRestArg.description) {
-      console.log(`      ${colors.dim(rawRestArg.description)}`);
+    if (rawRestDef.description) {
+      console.log(`      ${colors.dim(rawRestDef.description)}`);
     }
   }
 
   console.log("");
 }
 
-/**
- * Prints the options section with all CLI flags.
- */
 function printOptionsSection(
-  parsedArgs: ParsedArg[],
+  optionDefs: OptionDef[],
   colors: ReturnType<typeof createColors>,
   showDefaults: boolean,
   subCommands?: Map<string, SubCommand>,
   commandName?: string,
 ): void {
-  // Determine section title based on context
   if (commandName) {
     console.log(colors.bold(colors.brightYellow("Options:")));
   } else if (subCommands && subCommands.size > 0) {
@@ -333,17 +224,13 @@ function printOptionsSection(
     console.log(colors.bold(colors.brightYellow("Options:")));
   }
 
-  // Print each option with type hint and description
-  for (const arg of parsedArgs) {
-    // NEW: Build flag display with short flag if available
+  for (const arg of optionDefs) {
     let flagDisplay = "";
     if (arg.short) {
-      // Show both short and long form: -o, --output
       flagDisplay = `${colors.brightCyan(`-${arg.short}`)}, ${
         colors.brightCyan(`--${arg.name}`)
       }`;
     } else {
-      // Just long form with proper spacing
       flagDisplay = `    ${colors.brightCyan(`--${arg.name}`)}`;
     }
 
@@ -358,19 +245,10 @@ function printOptionsSection(
     }
   }
 
-  // Always include help option with short flag
   console.log(`  ${colors.brightCyan("-h")}, ${colors.brightCyan("--help")}`);
   console.log(`      ${colors.dim("Show this help message")}`);
 }
 
-/**
- * Generates type hints for option flags.
- *
- * Creates hints like:
- * - `--port <number>`
- * - `--tags <string,string,...>`
- * - `--debug` (no hint for boolean)
- */
 function generateTypeHint(
   type: string,
   colors: ReturnType<typeof createColors>,

@@ -1,4 +1,10 @@
-import type { ParseOptions, ParseResult, SupportedType } from "./types.ts";
+import type {
+  OptionDef,
+  ParseOptions,
+  ParseResult,
+  PositionalDef,
+  SubCommand,
+} from "./types.ts";
 import { printHelp } from "./help.ts";
 import { handleHelpDisplay, handleParsingError } from "./error-handling.ts";
 import {
@@ -11,6 +17,8 @@ import {
 } from "./decorators.ts";
 import { collectInstanceArgumentDefs } from "./metadata.ts";
 import { generateFishCompletions } from "./completions.ts";
+import { tokenize } from "./tokenizer.ts";
+import { parseTokens } from "./parser.ts";
 
 /**
  * Base class for CLI argument classes.
@@ -65,32 +73,6 @@ class GenCompletionsCommand {
 
 /**
  * CLI decorator to configure a class for command line parsing.
- *
- * This decorator marks a class as a CLI command and stores configuration
- * options in the class metadata. Classes should extend Args to get the parse method.
- *
- * @param options - Configuration options including name, description, etc.
- * @returns A class decorator function
- *
- * @example
- * ```ts
- * import { Args, cli, description, type } from "./index.ts";
- *
- * @cli({ name: "calculator", description: "A simple calculator application" })
- * class Calculator extends Args {
- *   @description("First number")
- *   a = 0;
- *
- *   @description("Second number")
- *   b = 0;
- *
- *   @description("Operation to perform")
- *   operation = "add";
- * }
- *
- * const args = Calculator.parse(Deno.args);
- * console.log(args.a, args.b, args.operation);
- * ```
  */
 function cli(
   options: ParseOptions,
@@ -99,101 +81,15 @@ function cli(
     target: T,
     ctx: ClassDecoratorContext,
   ): T {
-    // Store CLI options in class metadata
     if (!ctx.metadata) {
       throw new Error(
-        "Decorator metadata is not available. Make sure you're using a compatible TypeScript/JavaScript environment.",
+        "Decorator metadata is not available.",
       );
     }
-
     ctx.metadata.__cliOptions = options;
-
     return target;
   };
 }
-
-/**
- * Main parse function and class decorator factory.
- *
- * This is the primary entry point for the CLI parsing system. It can be used
- * as a decorator on classes to automatically parse command line arguments and
- * populate static class properties with the parsed values.
- *
- * The parsing process:
- * 1. Analyze the target class to collect argument definitions
- * 2. Extract subcommand relationships from decorator metadata
- * 3. Parse the provided arguments according to the definitions
- * 4. Validate all parsed values against their validation rules
- * 5. Apply the parsed values to the class properties
- * 6. Handle help flags and error conditions automatically
- *
- * @param args - Array of command line arguments to parse (e.g., Deno.args)
- * @param options - Optional configuration for the application
- * @param options.name - Application name shown in help text
- * @param options.description - Application description shown in help text
- * @returns A class decorator function
- *
- * @throws Will exit the process with code 1 on parsing or validation errors (unless exitOnError is false)
- * @throws Will exit the process with code 0 when help is requested (unless exitOnHelp is false)
- *
- * @example Simple application:
- * ```ts
- * import { Args, cli, description, type, addValidator, oneOf } from "@sigma/parse";
- *
- * @cli({ name: "calculator", description: "A simple calculator" })
- * class Calculator extends Args {
- *   @description("First number")
- *   a = 0;
- *
- *   @description("Second number")
- *   b = 0;
- *
- *   @description("Operation to perform")
- *   @addValidator(oneOf(["add", "subtract", "multiply", "divide"]))
- *   operation = "add";
- * }
- * ```
- *
- * @example With validation:
- * ```ts
- * import { Args, cli, description, addValidator, range, oneOf } from "@sigma/parse";
- *
- * @cli({ name: "server" })
- * class ServerConfig extends Args {
- *   @description("Port number (1-65535)")
- *   @addValidator(range(1, 65535))
- *   port = 8080;
- *
- *   @description("Server environment")
- *   @addValidator(oneOf(["development", "staging", "production"]))
- *   env = "development";
- * }
- * ```
- *
- * @example Complex application with subcommands:
- * ```ts
- * import { Args, cli, command, description, subCommand } from "@sigma/parse";
- *
- * @command
- * class DeployCommand {
- *   @description("Deployment environment")
- *   env = "staging";
- *
- *   @description("Skip confirmation prompts")
- *   force = false;
- * }
- *
- * @cli({ name: "myapp", description: "Application deployment tool" })
- * class MyApp extends Args {
- *   @description("Enable verbose logging")
- *   verbose = false;
- *
- *   @description("Deploy the application")
- *   @subCommand(DeployCommand)
- *   deploy?: DeployCommand;
- * }
- * ```
- */
 
 // Re-export all public APIs
 export * from "./types.ts";
@@ -242,42 +138,6 @@ export {
 export { cli };
 
 /**
- * Collect subcommands from an instance.
- */
-function collectSubCommandsFromInstance(
-  instance: Record<string, unknown>,
-): Map<string, {
-  name: string;
-  commandClass: new () => unknown;
-  description?: string;
-}> {
-  const subCommands = new Map();
-  const constructor = instance.constructor as new () => unknown;
-  const metadata = (constructor as {
-    [Symbol.metadata]?: Record<string | symbol, unknown>;
-  })[Symbol.metadata];
-
-  const propertyNames = Object.getOwnPropertyNames(instance);
-
-  for (const propName of propertyNames) {
-    const propertyMetadata = metadata?.[propName] as {
-      subCommand?: new () => unknown;
-      description?: string;
-    } | undefined;
-
-    if (propertyMetadata?.subCommand) {
-      subCommands.set(propName, {
-        name: propName,
-        commandClass: propertyMetadata.subCommand,
-        description: propertyMetadata.description,
-      });
-    }
-  }
-
-  return subCommands;
-}
-
-/**
  * New instance-based parsing function that works entirely with instance properties.
  */
 function parseInstanceBased(
@@ -287,13 +147,13 @@ function parseInstanceBased(
   commandName?: string,
   commandPath?: string,
 ): ParseResult {
-  // Collect argument definitions from instance using the shared function
-  const { parsedArgs, argumentDefs } = collectInstanceArgumentDefs(instance);
+  // 1. Collect metadata
+  const { optionDefs, positionalDefs, subCommands } =
+    collectInstanceArgumentDefs(
+      instance,
+    );
 
-  // Collect subcommands from instance
-  const subCommands = collectSubCommandsFromInstance(instance);
-
-  // Inject gen-completions command if not already present and we are at the root
+  // 2. Inject gen-completions command if at root
   if (!commandPath && !subCommands.has("gen-completions")) {
     subCommands.set("gen-completions", {
       name: "gen-completions",
@@ -302,707 +162,288 @@ function parseInstanceBased(
     });
   }
 
-  // Create argument map for parsing
-  const argMap = new Map<string, {
-    name: string;
-    type: string;
-    validators?: Array<(value: unknown) => string | null>;
-  }>();
-  for (const arg of parsedArgs) {
-    argMap.set(`--${arg.name}`, arg);
-  }
-
-  // Build short flag map for quick lookup
-  const shortFlagMap = new Map<string, {
-    name: string;
-    type: string;
-    validators?: Array<(value: unknown) => string | null>;
-  }>();
-  for (const arg of parsedArgs) {
-    if (arg.short) {
-      shortFlagMap.set(arg.short, arg);
-    }
-  }
-
-  // Parse arguments manually using instance-based logic
-  const result: ParseResult = {};
-
-  // Initialize with defaults from instance
-  for (const arg of parsedArgs) {
-    result[arg.name] = instance[arg.name];
-  }
-  for (const argDef of argumentDefs) {
-    result[argDef.name] = instance[argDef.name];
-  }
-
-  // Check for rawRest - if present, we need special handling
-  const rawRestArg = argumentDefs.find((def) => def.rawRest);
-  const regularArgDefs = argumentDefs.filter((def) => !def.rawRest);
-
-  // Handle defaultCommand when no arguments are provided
+  // 3. Handle default command if no args provided
   if (args.length === 0 && options?.defaultCommand) {
-    if (options.defaultCommand === "help") {
-      // Show help
-      const helpText = printHelp(
-        parsedArgs as Array<{
-          name: string;
-          type: SupportedType;
-          description?: string;
-          default?: string | number | boolean | string[] | number[];
-          validators?: Array<(value: unknown) => string | null>;
-        }>,
-        argumentDefs as Array<{
-          name: string;
-          type: SupportedType;
-          description?: string;
-          default?: string | number | boolean | string[] | number[];
-          validators?: Array<(value: unknown) => string | null>;
-          rest?: boolean;
-          rawRest?: boolean;
-        }>,
-        options,
-        subCommands,
-        commandName || "",
-        commandPath || "",
-      );
-      handleHelpDisplay(helpText, options);
-      return result;
-    } else if (subCommands.has(options.defaultCommand)) {
-      // Execute the default subcommand
-      const subCommand = subCommands.get(options.defaultCommand)!;
-
-      if (
-        "parse" in subCommand.commandClass &&
-        typeof (subCommand.commandClass as {
-            parse?: (args: string[]) => unknown;
-          }).parse === "function"
-      ) {
-        // Subcommand extends Args, use its parse method
-        result[options.defaultCommand] = (subCommand.commandClass as {
-          parse: (args: string[]) => unknown;
-        }).parse([]);
-      } else {
-        // Plain subcommand class, use instance-based parsing and return typed instance
-        const subInstance = new subCommand.commandClass() as Record<
-          string,
-          unknown
-        >;
-
-        // Get subcommand's own options from its metadata
-        const subCommandMetadata = (subCommand.commandClass as unknown as {
-          [Symbol.metadata]?: Record<string | symbol, unknown>;
-        })[Symbol.metadata];
-        const subCommandOptions = subCommandMetadata?.__cliOptions as
-          | ParseOptions
-          | undefined;
-
-        // Inherit parent's error handling options but not defaultCommand
-        // Unless the subcommand has its own defaultCommand set
-        const mergedOptions = subCommandOptions
-          ? {
-            ...options,
-            ...subCommandOptions,
-          }
-          : (options
-            ? {
-              ...options,
-              defaultCommand: undefined,
-            }
-            : undefined);
-
-        const parsedValues = parseInstanceBased(
-          subInstance,
-          [],
-          mergedOptions,
-          options.defaultCommand,
-          commandPath
-            ? `${commandPath} ${options.defaultCommand}`
-            : options.defaultCommand,
-        );
-
-        // Create a new instance and assign the parsed values to it
-        const typedResult = new subCommand.commandClass();
-        Object.assign(typedResult as Record<string, unknown>, parsedValues);
-        result[options.defaultCommand] = typedResult;
-      }
-      return result;
-    }
+    return handleDefaultCommand(
+      options.defaultCommand,
+      optionDefs,
+      positionalDefs,
+      subCommands,
+      options,
+      commandName,
+      commandPath,
+      instance,
+    );
   }
 
-  // Simple argument parsing
-  let i = 0;
-  let positionalIndex = 0;
-  let rawRestStarted = false;
+  // 4. Tokenize
+  const tokens = tokenize(args);
 
-  while (i < args.length) {
-    const arg = args[i];
+  // 5. Process tokens
+  const status = parseTokens(
+    tokens,
+    optionDefs,
+    positionalDefs,
+    subCommands,
+    options,
+  );
 
-    // If rawRest has started, capture everything
-    if (rawRestStarted && rawRestArg) {
-      const currentValues = result[rawRestArg.name] as string[] || [];
-      currentValues.push(arg);
-      result[rawRestArg.name] = currentValues;
-      i++;
-      continue;
+  if (status.type === "help") {
+    const helpText = printHelp(
+      optionDefs,
+      positionalDefs,
+      options,
+      subCommands,
+      commandName || "",
+      commandPath || "",
+    );
+    handleHelpDisplay(helpText, options || {});
+    // Return initial result (with defaults) if help handler doesn't exit
+    const result: ParseResult = {};
+    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of positionalDefs) {
+      result[argDef.name] = instance[argDef.name];
     }
-
-    if (arg === "--") {
-      // Handle -- separator - everything after this goes to positional args
-      i++;
-      // Process remaining args as positional
-      while (i < args.length) {
-        const positionalArg = args[i];
-        const positionalDef = regularArgDefs[positionalIndex];
-
-        if (positionalDef) {
-          if (positionalDef.rest) {
-            // Rest argument - collect all remaining
-            const currentValues = result[positionalDef.name] as string[] || [];
-            currentValues.push(positionalArg);
-            result[positionalDef.name] = currentValues;
-          } else {
-            // Regular positional argument
-            result[positionalDef.name] = positionalArg;
-            positionalIndex++;
-          }
-        } else if (rawRestArg) {
-          // No regular positional left, capture in rawRest
-          const currentValues = result[rawRestArg.name] as string[] || [];
-          currentValues.push(positionalArg);
-          result[rawRestArg.name] = currentValues;
-        }
-        i++;
-      }
-      break;
-    } else if (arg.startsWith("--")) {
-      let flagName: string;
-      let flagValue: string | undefined;
-
-      // Check for --flag=value format
-      if (arg.includes("=")) {
-        const parts = arg.split("=", 2);
-        flagName = parts[0].slice(2);
-        flagValue = parts[1];
-      } else {
-        flagName = arg.slice(2);
-      }
-
-      const argDef = argMap.get(`--${flagName}`);
-
-      if (!argDef) {
-        // Handle help flags specially
-        if (flagName === "help" || flagName === "h") {
-          // If rawRest is present and we've already seen positional arguments,
-          // treat help as a regular argument to be captured by rawRest
-          if (rawRestArg && (positionalIndex > 0 || rawRestStarted)) {
-            // Fall through to rawRest handling below
-          } else {
-            const helpText = printHelp(
-              parsedArgs as Array<{
-                name: string;
-                type: SupportedType;
-                description?: string;
-                default?: string | number | boolean | string[] | number[];
-                validators?: Array<(value: unknown) => string | null>;
-              }>,
-              argumentDefs as Array<{
-                name: string;
-                type: SupportedType;
-                description?: string;
-                default?: string | number | boolean | string[] | number[];
-                validators?: Array<(value: unknown) => string | null>;
-                rest?: boolean;
-                rawRest?: boolean;
-              }>,
-              options || {},
-              subCommands,
-              commandName || "",
-              commandPath || "",
-            );
-            handleHelpDisplay(helpText, options || {});
-            return result;
-          }
-        }
-
-        // Check if it's a subcommand
-        if (subCommands.has(flagName)) {
-          // This shouldn't happen as subcommands don't start with --
-          i++;
-          continue;
-        }
-
-        // If rawRest is present, unknown flags should be captured by it
-        if (rawRestArg && !rawRestStarted) {
-          rawRestStarted = true;
-          const currentValues = result[rawRestArg.name] as string[] || [];
-          currentValues.push(arg);
-          result[rawRestArg.name] = currentValues;
-          i++;
-          continue;
-        }
-
-        try {
-          handleParsingError(
-            `Unknown argument: --${flagName}`,
-            options,
-            "unknown_argument",
-            { argumentName: `--${flagName}` },
-            1,
-          );
-        } catch (error) {
-          throw error;
-        }
-        // If custom handler doesn't throw/exit, continue parsing
-        i++;
-        continue;
-      }
-
-      if (argDef.type === "boolean") {
-        if (flagValue !== undefined) {
-          result[flagName] = parseValue(flagValue, "boolean");
-        } else {
-          result[flagName] = true;
-        }
-        i++;
-      } else {
-        let value: string;
-        if (flagValue !== undefined) {
-          value = flagValue;
-          i++;
-        } else {
-          // Expect next argument as value
-          i++;
-          if (i >= args.length) {
-            try {
-              handleParsingError(
-                `Missing value for argument: --${flagName}`,
-                options,
-                "missing_value",
-                { argumentName: `--${flagName}` },
-                1,
-              );
-            } catch (error) {
-              throw error;
-            }
-            // If custom handler doesn't throw/exit, use empty string as fallback
-            value = "";
-          } else {
-            value = args[i];
-            i++;
-          }
-        }
-        result[flagName] = parseValue(
-          value,
-          argDef.type,
-          options,
-          `--${flagName}`,
-        );
-      }
-    } else if (arg.startsWith("-") && arg.length > 1 && arg !== "-") {
-      const shortFlags = arg.slice(1);
-
-      // Check if this is a combined short flag (-abc) or single (-f)
-      if (shortFlags.length === 1) {
-        // Single short flag - handle like long flag
-        const argDef = shortFlagMap.get(shortFlags);
-
-        if (!argDef) {
-          // Handle help flag specially
-          if (shortFlags === "h") {
-            // If rawRest is present and we've already seen positional arguments,
-            // treat help as a regular argument to be captured by rawRest
-            if (rawRestArg && (positionalIndex > 0 || rawRestStarted)) {
-              // Fall through to rawRest handling below
-            } else {
-              const helpText = printHelp(
-                parsedArgs as Array<{
-                  name: string;
-                  type: SupportedType;
-                  description?: string;
-                  default?: string | number | boolean | string[] | number[];
-                  validators?: Array<(value: unknown) => string | null>;
-                }>,
-                argumentDefs as Array<{
-                  name: string;
-                  type: SupportedType;
-                  description?: string;
-                  default?: string | number | boolean | string[] | number[];
-                  validators?: Array<(value: unknown) => string | null>;
-                  rest?: boolean;
-                  rawRest?: boolean;
-                }>,
-                options || {},
-                subCommands,
-                commandName || "",
-                commandPath || "",
-              );
-              handleHelpDisplay(helpText, options);
-              return result;
-            }
-          }
-
-          // If rawRest is present, unknown flags should be captured by it
-          if (rawRestArg && !rawRestStarted) {
-            rawRestStarted = true;
-            const currentValues = result[rawRestArg.name] as string[] || [];
-            currentValues.push(arg);
-            result[rawRestArg.name] = currentValues;
-            i++;
-            continue;
-          }
-
-          try {
-            handleParsingError(
-              `Unknown argument: -${shortFlags}`,
-              options,
-              "unknown_argument",
-              { argumentName: `-${shortFlags}` },
-              1,
-            );
-          } catch (error) {
-            throw error;
-          }
-          i++;
-          continue;
-        }
-
-        // Process the short flag like a long flag
-        if (argDef.type === "boolean") {
-          result[argDef.name] = true;
-          i++;
-        } else {
-          // Non-boolean flag needs a value
-          i++;
-          if (i >= args.length) {
-            try {
-              handleParsingError(
-                `Missing value for argument: -${shortFlags}`,
-                options,
-                "missing_value",
-                { argumentName: `-${shortFlags}` },
-                1,
-              );
-            } catch (error) {
-              throw error;
-            }
-            continue;
-          }
-          const value = args[i];
-          i++;
-          result[argDef.name] = parseValue(
-            value,
-            argDef.type,
-            options,
-            `-${shortFlags}`,
-          );
-        }
-      } else {
-        // Combined short flags (-abc means -a -b -c)
-        // All must be boolean flags
-        let allValid = true;
-        for (const shortFlag of shortFlags) {
-          const argDef = shortFlagMap.get(shortFlag);
-
-          if (!argDef) {
-            try {
-              handleParsingError(
-                `Unknown argument: -${shortFlag}`,
-                options,
-                "unknown_argument",
-                { argumentName: `-${shortFlag}` },
-                1,
-              );
-            } catch (error) {
-              throw error;
-            }
-            allValid = false;
-            break;
-          }
-
-          if (argDef.type !== "boolean") {
-            try {
-              handleParsingError(
-                `Combined short flag -${shortFlag} must be boolean (found in -${shortFlags})`,
-                options,
-                "unknown_argument",
-                { argumentName: `-${shortFlag}` },
-                1,
-              );
-            } catch (error) {
-              throw error;
-            }
-            allValid = false;
-            break;
-          }
-
-          result[argDef.name] = true;
-        }
-
-        if (allValid) {
-          i++;
-        } else {
-          i++;
-        }
-      }
-    } else if (subCommands.has(arg)) {
-      // Handle subcommand
-      const subCommand = subCommands.get(arg)!;
-      const remainingArgs = args.slice(i + 1);
-
-      // Recursively parse subcommand
-      if (
-        "parse" in subCommand.commandClass &&
-        typeof (subCommand.commandClass as {
-            parse?: (args: string[]) => unknown;
-          }).parse === "function"
-      ) {
-        // Subcommand extends Args, use its parse method
-        result[arg] = (subCommand.commandClass as {
-          parse: (args: string[]) => unknown;
-        }).parse(remainingArgs);
-      } else {
-        // Plain subcommand class, use instance-based parsing and return typed instance
-        const subInstance = new subCommand.commandClass() as Record<
-          string,
-          unknown
-        >;
-
-        // Get subcommand's own options from its metadata
-        const subCommandMetadata = (subCommand.commandClass as unknown as {
-          [Symbol.metadata]?: Record<string | symbol, unknown>;
-        })[Symbol.metadata];
-        const subCommandOptions = subCommandMetadata?.__cliOptions as
-          | ParseOptions
-          | undefined;
-
-        // Inherit parent's error handling options but not defaultCommand
-        // Unless the subcommand has its own defaultCommand set
-        const mergedOptions = subCommandOptions
-          ? {
-            ...options,
-            ...subCommandOptions,
-          }
-          : (options
-            ? {
-              ...options,
-              defaultCommand: undefined,
-            }
-            : undefined);
-
-        const parsedValues = parseInstanceBased(
-          subInstance,
-          remainingArgs,
-          mergedOptions,
-          arg,
-          commandPath ? `${commandPath} ${arg}` : arg,
-        );
-
-        // Create a new instance and assign the parsed values to it
-        const typedResult = new subCommand.commandClass();
-        Object.assign(typedResult as Record<string, unknown>, parsedValues);
-        result[arg] = typedResult;
-      }
-
-      // Handle gen-completions execution
-      if (
-        arg === "gen-completions" &&
-        subCommand.commandClass === GenCompletionsCommand
-      ) {
-        const completions = generateFishCompletions(
-          options?.name || "app",
-          parsedArgs,
-          argumentDefs,
-          subCommands,
-        );
-        console.log(completions);
-        Deno.exit(0);
-      }
-
-      break; // Stop processing after subcommand
-    } else {
-      // Handle positional argument
-      if (positionalIndex < regularArgDefs.length) {
-        const argDef = regularArgDefs[positionalIndex];
-        if (argDef.rest) {
-          // Collect remaining non-flag arguments
-          const remainingPositionals: string[] = [];
-          for (let j = i; j < args.length; j++) {
-            if (!args[j].startsWith("--") && !args[j].startsWith("-")) {
-              remainingPositionals.push(args[j]);
-            } else {
-              // Stop collecting when we hit a flag
-              break;
-            }
-          }
-          result[argDef.name] = remainingPositionals.map((val) =>
-            parseValue(val, argDef.type.replace("[]", ""), options, argDef.name)
-          );
-          // Skip past the positional arguments we just processed
-          i += remainingPositionals.length;
-        } else {
-          result[argDef.name] = parseValue(
-            arg,
-            argDef.type,
-            options,
-            argDef.name,
-          );
-          positionalIndex++;
-          i++;
-        }
-      } else if (rawRestArg && !rawRestStarted) {
-        // All regular positionals satisfied, start rawRest capture
-        rawRestStarted = true;
-        const currentValues = result[rawRestArg.name] as string[] || [];
-        currentValues.push(arg);
-        result[rawRestArg.name] = currentValues;
-        i++;
-      } else {
-        // Unknown positional argument - only error if no rawRest
-        if (!rawRestArg) {
-          throw new Error(`Unknown argument: ${arg}`);
-        } else {
-          // Start rawRest capture for unknown positionals
-          if (!rawRestStarted) {
-            rawRestStarted = true;
-          }
-          const currentValues = result[rawRestArg.name] as string[] || [];
-          currentValues.push(arg);
-          result[rawRestArg.name] = currentValues;
-        }
-        i++;
-      }
-    }
+    return result;
   }
 
-  // Validate required fields for flag arguments
-  for (const arg of parsedArgs) {
+  if (status.type === "subcommand") {
+    const subName = status.name;
+    const sub = subCommands.get(subName)!;
+
+    const finalResult: ParseResult = {};
+    // Initialize with parent defaults and parsed values
+    for (const arg of optionDefs) {
+      finalResult[arg.name] = status.parentResult[arg.name] !== undefined
+        ? status.parentResult[arg.name]
+        : instance[arg.name];
+    }
+    for (const argDef of positionalDefs) {
+      finalResult[argDef.name] = status.parentResult[argDef.name] !== undefined
+        ? status.parentResult[argDef.name]
+        : instance[argDef.name];
+    }
+
+    finalResult[subName] = executeSubCommand(
+      sub,
+      status.args,
+      options,
+      subName,
+      commandPath ? `${commandPath} ${subName}` : subName,
+      optionDefs,
+      positionalDefs,
+      subCommands,
+    );
+
+    // Validate parent arguments
+    validateResult(finalResult, optionDefs, positionalDefs, options);
+
+    return finalResult;
+  }
+
+  // 6. Merge with defaults from instance
+  const finalResult: ParseResult = {};
+  for (const arg of optionDefs) {
+    finalResult[arg.name] = status.result[arg.name] !== undefined
+      ? status.result[arg.name]
+      : instance[arg.name];
+  }
+  for (const argDef of positionalDefs) {
+    finalResult[argDef.name] = status.result[argDef.name] !== undefined
+      ? status.result[argDef.name]
+      : instance[argDef.name];
+  }
+
+  // 7. Validate
+  validateResult(finalResult, optionDefs, positionalDefs, options);
+
+  return finalResult;
+}
+
+function handleDefaultCommand(
+  defaultCommand: string,
+  optionDefs: OptionDef[],
+  positionalDefs: PositionalDef[],
+  subCommands: Map<string, SubCommand>,
+  options: ParseOptions,
+  commandName: string | undefined,
+  commandPath: string | undefined,
+  instance: Record<string, unknown>,
+): ParseResult {
+  if (defaultCommand === "help") {
+    const helpText = printHelp(
+      optionDefs,
+      positionalDefs,
+      options,
+      subCommands,
+      commandName || "",
+      commandPath || "",
+    );
+    handleHelpDisplay(helpText, options);
+    const result: ParseResult = {};
+    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of positionalDefs) {
+      result[argDef.name] = instance[argDef.name];
+    }
+    return result;
+  }
+
+  const sub = subCommands.get(defaultCommand);
+  if (sub) {
+    const subResult = executeSubCommand(
+      sub,
+      [],
+      options,
+      defaultCommand,
+      commandPath ? `${commandPath} ${defaultCommand}` : defaultCommand,
+      optionDefs,
+      positionalDefs,
+      subCommands,
+    );
+    const result: ParseResult = {};
+    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of positionalDefs) {
+      result[argDef.name] = instance[argDef.name];
+    }
+    result[defaultCommand] = subResult;
+    return result;
+  }
+
+  return {};
+}
+
+function executeSubCommand(
+  sub: SubCommand,
+  args: string[],
+  parentOptions: ParseOptions | undefined,
+  name: string,
+  path: string,
+  parentOptionDefs: OptionDef[],
+  parentPositionalDefs: PositionalDef[],
+  parentSubCommands: Map<string, SubCommand>,
+): unknown {
+  // Handle completions special case
+  if (
+    name === "gen-completions" && sub.commandClass === GenCompletionsCommand
+  ) {
+    // Special handling for completion command which needs validation
+    const subInstance = new sub.commandClass() as Record<string, unknown>;
+    const { optionDefs, positionalDefs } = collectInstanceArgumentDefs(
+      subInstance,
+    );
+    const tokens = tokenize(args);
+    const status = parseTokens(
+      tokens,
+      optionDefs,
+      positionalDefs,
+      undefined,
+      parentOptions,
+    );
+
+    if (status.type === "success") {
+      // Merge and Validate
+      const finalResult: ParseResult = {};
+      for (const arg of optionDefs) {
+        finalResult[arg.name] = status.result[arg.name] !== undefined
+          ? status.result[arg.name]
+          : subInstance[arg.name];
+      }
+      for (const argDef of positionalDefs) {
+        finalResult[argDef.name] = status.result[argDef.name] !== undefined
+          ? status.result[argDef.name]
+          : subInstance[argDef.name];
+      }
+
+      // Validate manually here for GenCompletionsCommand to catch missing shell
+      validateResult(finalResult, optionDefs, positionalDefs, parentOptions);
+    } else if (status.type === "help") {
+      // Should probably just show help for gen-completions
+    }
+
+    const completions = generateFishCompletions(
+      parentOptions?.name || "app",
+      parentOptionDefs,
+      parentPositionalDefs,
+      parentSubCommands,
+    );
+    console.log(completions);
+    Deno.exit(0);
+  }
+
+  const commandConstructor = sub.commandClass as unknown as {
+    parse?: (args: string[]) => unknown;
+    [Symbol.metadata]?: Record<string | symbol, unknown>;
+  };
+
+  if (
+    "parse" in commandConstructor &&
+    typeof commandConstructor.parse === "function"
+  ) {
+    return commandConstructor.parse(args);
+  }
+
+  const subInstance = new sub.commandClass() as Record<string, unknown>;
+  const subMetadata = commandConstructor[Symbol.metadata];
+  const subOptions = subMetadata?.__cliOptions as ParseOptions | undefined;
+
+  const mergedOptions = subOptions
+    ? { ...parentOptions, ...subOptions }
+    : (parentOptions
+      ? { ...parentOptions, defaultCommand: undefined }
+      : undefined);
+
+  const parsedValues = parseInstanceBased(
+    subInstance,
+    args,
+    mergedOptions,
+    name,
+    path,
+  );
+  const typedResult = new sub.commandClass() as Record<string, unknown>;
+  Object.assign(typedResult, parsedValues);
+  return typedResult;
+}
+
+function validateResult(
+  result: ParseResult,
+  optionDefs: OptionDef[],
+  positionalDefs: PositionalDef[],
+  options?: ParseOptions,
+) {
+  // Validate flags
+  for (const arg of optionDefs) {
     if (arg.validators) {
       for (const validator of arg.validators) {
         const error = validator(result[arg.name]);
         if (error) {
-          try {
-            handleParsingError(
-              `Validation error for --${arg.name}: ${error}`,
-              options,
-              "validation_error",
-              {
-                argumentName: arg.name,
-                validationMessage: error,
-              },
-              1,
-            );
-          } catch (parseError) {
-            throw parseError;
-          }
-          // If custom handler doesn't throw/exit, continue
-          break;
-        }
-      }
-    }
-  }
-
-  // Validate required fields for positional arguments
-  for (const argDef of argumentDefs) {
-    if (argDef.validators) {
-      for (const validator of argDef.validators) {
-        const error = validator(result[argDef.name]);
-        if (error) {
-          try {
-            handleParsingError(
-              `Validation error for argument '${argDef.name}': ${error}`,
-              options,
-              "validation_error",
-              {
-                argumentName: argDef.name,
-                validationMessage: error,
-              },
-              1,
-            );
-          } catch (parseError) {
-            throw parseError;
-          }
-          // If custom handler doesn't throw/exit, continue
-          break;
-        }
-      }
-    }
-  }
-
-  return result;
-}
-
-/**
- * Parse a string value to the specified type.
- */
-function parseValue(
-  value: string,
-  type: string,
-  options?: ParseOptions,
-  argName?: string,
-): unknown {
-  switch (type) {
-    case "number": {
-      const num = Number(value);
-      if (isNaN(num)) {
-        const errorMsg = argName
-          ? `Invalid number for ${
-            argName.startsWith("--") || argName.startsWith("-")
-              ? argName
-              : argName
-          }: ${value}`
-          : `Invalid number: ${value}`;
-        try {
           handleParsingError(
-            errorMsg,
+            `Validation error for --${arg.name}: ${error}`,
             options,
-            "invalid_number",
-            { value },
+            "validation_error",
+            { argumentName: arg.name, validationMessage: error },
             1,
           );
-        } catch (error) {
-          throw error;
+          break;
         }
-        // If custom handler doesn't throw/exit, return 0 as fallback
-        return 0;
       }
-      return num;
     }
-    case "boolean": {
-      return value.toLowerCase() === "true";
-    }
-    case "string[]": {
-      return value.split(",").map((s) => s.trim());
-    }
-    case "number[]": {
-      return value.split(",").map((s) => {
-        const num = Number(s.trim());
-        if (isNaN(num)) {
-          const errorMsg = argName
-            ? `Invalid number in array for ${
-              argName.startsWith("--") || argName.startsWith("-")
-                ? argName
-                : argName
-            }: ${s}`
-            : `Invalid number in array: ${s}`;
-          try {
-            handleParsingError(
-              errorMsg,
-              options,
-              "invalid_array_number",
-              { value: s },
-              1,
-            );
-          } catch (error) {
-            throw error;
-          }
-          // If custom handler doesn't throw/exit, return 0 as fallback
-          return 0;
+  }
+  // Validate positionals
+  for (const arg of positionalDefs) {
+    if (arg.validators) {
+      for (const validator of arg.validators) {
+        const error = validator(result[arg.name]);
+        if (error) {
+          handleParsingError(
+            `Validation error for argument '${arg.name}': ${error}`,
+            options,
+            "validation_error",
+            { argumentName: arg.name, validationMessage: error },
+            1,
+          );
+          break;
         }
-        return num;
-      });
-    }
-    default: {
-      return value;
+      }
     }
   }
 }

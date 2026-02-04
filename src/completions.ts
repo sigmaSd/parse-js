@@ -1,4 +1,4 @@
-import type { ArgumentDef, ParsedArg, SubCommand } from "./types.ts";
+import type { OptionDef, PositionalDef, SubCommand } from "./types.ts";
 import { collectInstanceArgumentDefs } from "./metadata.ts";
 
 /**
@@ -6,8 +6,8 @@ import { collectInstanceArgumentDefs } from "./metadata.ts";
  */
 export function generateFishCompletions(
   appName: string,
-  parsedArgs: ParsedArg[],
-  _argumentDefs: ArgumentDef[],
+  optionDefs: OptionDef[],
+  _positionalDefs: PositionalDef[],
   subCommands?: Map<string, SubCommand>,
 ): string {
   const lines: string[] = [];
@@ -16,8 +16,7 @@ export function generateFishCompletions(
   lines.push(`complete -c ${appName} -f`);
 
   // Add completions for global options
-  // These should be available when NO subcommand has been selected yet
-  for (const arg of parsedArgs) {
+  for (const arg of optionDefs) {
     const shortFlag = arg.short ? ` -s ${arg.short}` : "";
     const desc = arg.description ? ` -d "${arg.description}"` : "";
     lines.push(
@@ -31,24 +30,19 @@ export function generateFishCompletions(
       const desc = subCommand.description
         ? ` -d "${subCommand.description}"`
         : "";
-      // Only suggest subcommand if we haven't seen one yet
       lines.push(
         `complete -c ${appName} -n "__fish_use_subcommand" -a "${name}"${desc}`,
       );
 
-      // Generate completions for the subcommand
-      // We need to instantiate it to get its arguments
       const instance = new subCommand.commandClass() as Record<string, unknown>;
-      const { parsedArgs: subParsedArgs } = collectInstanceArgumentDefs(
+      const { optionDefs: subOptionDefs } = collectInstanceArgumentDefs(
         instance,
         { strict: false },
       );
 
-      // For subcommand options, we check if the subcommand is present in the command line
-      for (const arg of subParsedArgs) {
+      for (const arg of subOptionDefs) {
         const shortFlag = arg.short ? ` -s ${arg.short}` : "";
         const desc = arg.description ? ` -d "${arg.description}"` : "";
-        // Condition: __fish_seen_subcommand_from <subcommand>
         lines.push(
           `complete -c ${appName} -n "__fish_seen_subcommand_from ${name}" -l ${arg.name}${shortFlag}${desc}`,
         );
