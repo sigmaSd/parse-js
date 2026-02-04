@@ -5,6 +5,7 @@ import {
   argument,
   cli,
   command,
+  short,
   subCommand,
   type,
 } from "../src/index.ts";
@@ -23,6 +24,7 @@ Deno.bench("Args API", { group: "parse" }, () => {
     @type("string")
     script?: string;
 
+    @short("A")
     @type("boolean")
     A?: boolean;
 
