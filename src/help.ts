@@ -26,9 +26,12 @@ export function printHelp(
     const colors = createColors(options?.color);
     const showDefaults = options?.showDefaults ?? true;
 
-    if (options?.name && options?.description) {
+    if (options?.name) {
       console.log(colors.bold(colors.brightBlue(options.name)));
       console.log("");
+    }
+
+    if (options?.description) {
       console.log(colors.dim(options.description));
       console.log("");
     }

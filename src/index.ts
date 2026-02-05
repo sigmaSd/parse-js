@@ -381,6 +381,15 @@ function executeSubCommand(
       ? { ...parentOptions, defaultCommand: undefined }
       : undefined);
 
+  if (mergedOptions) {
+    if (sub.description) {
+      mergedOptions.description = sub.description;
+    } else if (!subOptions?.description) {
+      // If neither @subCommand nor @cli provided a description, don't inherit parent's
+      mergedOptions.description = undefined;
+    }
+  }
+
   const parsedValues = parseInstanceBased(
     subInstance,
     args,
