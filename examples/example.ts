@@ -4,7 +4,7 @@ import {
   Args,
   cli,
   command,
-  option,
+  opt,
   subCommand,
 } from "../mod.ts";
 
@@ -45,18 +45,18 @@ function oneOf(choices: string[]) {
 
 @command
 class ServeCommand {
-  @option({ description: "Port number to listen on" })
+  @opt({ description: "Port number to listen on" })
   @min(1000)
   @max(65535)
   port: number = 8080;
 
-  @option({ description: "Host address to bind to" })
+  @opt({ description: "Host address to bind to" })
   host: string = "localhost";
 
-  @option({ description: "Enable HTTPS" })
+  @opt({ description: "Enable HTTPS" })
   https: boolean = false;
 
-  @option({ description: "Number of worker processes", type: "number" })
+  @opt({ description: "Number of worker processes", type: "number" })
   @min(1)
   @max(16)
   workers: number = 1;
@@ -64,33 +64,33 @@ class ServeCommand {
 
 @command
 class BuildCommand {
-  @option({ description: "Output directory", required: true })
+  @opt({ description: "Output directory", required: true })
   output!: string;
 
-  @option({ description: "Source files to build", required: true })
+  @opt({ description: "Source files to build", required: true })
   sources!: string[];
 
-  @option({ description: "Enable minification" })
+  @opt({ description: "Enable minification" })
   minify: boolean = false;
 
-  @option({ description: "Target environment" })
+  @opt({ description: "Target environment" })
   @oneOf(["development", "production", "test"])
   env: string = "development";
 }
 
 @command
 class TestCommand {
-  @option({ description: "Test files pattern", type: "string" })
+  @opt({ description: "Test files pattern", type: "string" })
   pattern: string = "";
 
-  @option({ description: "Enable coverage reporting" })
+  @opt({ description: "Enable coverage reporting" })
   coverage: boolean = false;
 
-  @option({ description: "Number of parallel workers", type: "number" })
+  @opt({ description: "Number of parallel workers", type: "number" })
   @min(1)
   parallel: number = 1;
 
-  @option({ description: "Test timeout in seconds" })
+  @opt({ description: "Test timeout in seconds" })
   @min(1)
   @max(300)
   timeout: number = 30;
@@ -111,11 +111,11 @@ class ProcessCommand {
   })
   files: string[] = [];
 
-  @option({ description: "Processing format" })
+  @opt({ description: "Processing format" })
   @oneOf(["json", "xml", "csv"])
   format: string = "json";
 
-  @option({ description: "Enable verbose output" })
+  @opt({ description: "Enable verbose output" })
   verbose: boolean = false;
 }
 
@@ -125,24 +125,24 @@ class ProcessCommand {
 
 @command
 class StartDatabaseCommand {
-  @option({ description: "Database port" })
+  @opt({ description: "Database port" })
   @min(1000)
   @max(65535)
   port: number = 5432;
 
-  @option({ description: "Database host" })
+  @opt({ description: "Database host" })
   host: string = "localhost";
 
-  @option({ description: "Enable SSL connection" })
+  @opt({ description: "Enable SSL connection" })
   ssl: boolean = false;
 }
 
 @command
 class StopDatabaseCommand {
-  @option({ description: "Force stop without graceful shutdown" })
+  @opt({ description: "Force stop without graceful shutdown" })
   force: boolean = false;
 
-  @option({ description: "Timeout for graceful shutdown (seconds)" })
+  @opt({ description: "Timeout for graceful shutdown (seconds)" })
   @min(1)
   @max(300)
   timeout: number = 30;
@@ -150,11 +150,11 @@ class StopDatabaseCommand {
 
 @command
 class MigrateCommand {
-  @option({ description: "Migration direction" })
+  @opt({ description: "Migration direction" })
   @oneOf(["up", "down"])
   direction: string = "up";
 
-  @option({ description: "Number of migrations to run", type: "number" })
+  @opt({ description: "Number of migrations to run", type: "number" })
   @min(1)
   count: number = 1;
 }
@@ -170,10 +170,10 @@ class DatabaseCommand {
   @subCommand(MigrateCommand)
   migrate?: MigrateCommand;
 
-  @option({ description: "Database name", type: "string" })
+  @opt({ description: "Database name", type: "string" })
   name: string = "";
 
-  @option({ description: "Connection timeout (seconds)" })
+  @opt({ description: "Connection timeout (seconds)" })
   @min(1)
   @max(60)
   timeout: number = 10;
@@ -206,13 +206,13 @@ class MyArgs extends Args {
   @subCommand(DatabaseCommand, { description: "Database operations" })
   database?: DatabaseCommand;
 
-  @option({ description: "Configuration file to use", type: "string" })
+  @opt({ description: "Configuration file to use", type: "string" })
   config: string = "";
 
-  @option({ description: "Enable verbose logging" })
+  @opt({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @option({ description: "Enable debug mode" })
+  @opt({ description: "Enable debug mode" })
   debug: boolean = false;
 }
 

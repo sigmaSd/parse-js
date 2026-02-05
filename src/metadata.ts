@@ -3,7 +3,7 @@
  */
 
 import type {
-  OptionDef,
+  OptDef,
   PositionalDef,
   PropertyMetadata,
   SubCommand,
@@ -21,11 +21,11 @@ export function collectInstanceArgumentDefs(
   instance: Record<string, unknown>,
   options: CollectionOptions = { strict: true },
 ): {
-  optionDefs: OptionDef[];
+  optDefs: OptDef[];
   positionalDefs: PositionalDef[];
   subCommands: Map<string, SubCommand>;
 } {
-  const optionDefs: OptionDef[] = [];
+  const optDefs: OptDef[] = [];
   const positionalDefs: PositionalDef[] = [];
   const subCommands = new Map<string, SubCommand>();
   const shortFlagMap = new Map<string, string>();
@@ -81,13 +81,13 @@ export function collectInstanceArgumentDefs(
       continue;
     }
 
-    // Handle Options (@option)
-    if (propertyMetadata.option) {
+    // Handle Options (@opt)
+    if (propertyMetadata.opt) {
       if (instance[propName] === undefined && !propertyMetadata.type) {
         if (options.strict) {
           throw new Error(
-            `Property '${propName}' has no default value and no type specified in @option(). ` +
-              `Use @option({ type: "string" }), etc. to specify the expected type.`,
+            `Property '${propName}' has no default value and no type specified in @opt(). ` +
+              `Use @opt({ type: "string" }), etc. to specify the expected type.`,
           );
         } else {
           continue;
@@ -95,7 +95,7 @@ export function collectInstanceArgumentDefs(
       }
 
       // Validate short flag uniqueness
-      const short = propertyMetadata.option.short;
+      const short = propertyMetadata.opt.short;
       if (typeof short === "string") {
         const existingProp = shortFlagMap.get(short);
         if (existingProp) {
@@ -106,7 +106,7 @@ export function collectInstanceArgumentDefs(
         shortFlagMap.set(short, propName);
       }
 
-      optionDefs.push({
+      optDefs.push({
         name: propName,
         type: propertyMetadata.type || getTypeFromValue(instance[propName]),
         default: instance[propName] as
@@ -125,7 +125,7 @@ export function collectInstanceArgumentDefs(
   // Validate positional argument configuration
   validatePositionalArguments(positionalDefs);
 
-  return { optionDefs, positionalDefs, subCommands };
+  return { optDefs, positionalDefs, subCommands };
 }
 
 /**
@@ -193,12 +193,12 @@ function validatePositionalArguments(
 export function collectArgumentDefs(
   klass: new () => unknown,
 ): {
-  optionDefs: OptionDef[];
+  optDefs: OptDef[];
   positionalDefs: PositionalDef[];
 } {
   // NOTE: This function seems to be used for static property based parsing which is older.
   // We'll update it to match the new metadata structure but focus on instance-based parsing.
-  const optionDefs: OptionDef[] = [];
+  const optDefs: OptDef[] = [];
   const positionalDefs: PositionalDef[] = [];
 
   const shortFlagMap = new Map<string, string>();
@@ -206,7 +206,7 @@ export function collectArgumentDefs(
     | Record<string | symbol, unknown>
     | undefined;
 
-  if (!classMetadata) return { optionDefs, positionalDefs };
+  if (!classMetadata) return { optDefs, positionalDefs };
 
   // For now, we'll assume property names are available in metadata keys.
   const metadataKeys = Object.keys(classMetadata);
@@ -228,8 +228,8 @@ export function collectArgumentDefs(
         raw: metadata.arg.raw,
         description: metadata.description,
       });
-    } else if (metadata.option) {
-      const short = metadata.option.short;
+    } else if (metadata.opt) {
+      const short = metadata.opt.short;
       if (typeof short === "string") {
         const existingProp = shortFlagMap.get(short);
         if (existingProp) {
@@ -240,9 +240,9 @@ export function collectArgumentDefs(
         shortFlagMap.set(short, propName);
       }
 
-      optionDefs.push({
+      optDefs.push({
         name: propName,
-        type,
+        type: type,
         description: metadata.description,
         validators: metadata.validators || [],
         short: typeof short === "string" ? short : undefined,
@@ -252,7 +252,7 @@ export function collectArgumentDefs(
 
   validatePositionalArguments(positionalDefs);
 
-  return { optionDefs, positionalDefs };
+  return { optDefs, positionalDefs };
 }
 
 /**

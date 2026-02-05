@@ -6,7 +6,7 @@ decorators and inheritance.
 ## Features
 
 - **Perfect Type Safety** - Fully typed results based on your class definitions.
-- **Unified Decorators** - Simplify configuration with `@option` and `@arg`
+- **Unified Decorators** - Simplify configuration with `@opt` and `@arg`
   objects.
 - **Explicit Flags** - Clear distinction between CLI options and internal state.
 - **Subcommands** - Hierarchical command structure with full type safety.
@@ -17,7 +17,7 @@ decorators and inheritance.
 ## Quick Start
 
 ```typescript
-import { arg, Args, cli, option } from "@sigma/parse";
+import { Args, cli, opt } from "@sigma/parse";
 
 @cli({ name: "calculator", description: "A simple calculator" })
 class Calculator extends Args {
@@ -27,7 +27,7 @@ class Calculator extends Args {
   @arg({ type: "number", description: "second number", required: true })
   b!: number;
 
-  @option({ description: "operation to perform" })
+  @opt({ description: "operation to perform" })
   operation = "add";
 }
 
@@ -45,14 +45,14 @@ console.log(`${args.a} ${args.operation} ${args.b} = ...`);
 Your main command class must extend `Args` to get the static `parse` method:
 
 ```typescript
-import { Args, cli, option } from "@sigma/parse";
+import { Args, cli, opt } from "@sigma/parse";
 
 @cli({ name: "myapp", description: "My application" })
 class MyApp extends Args {
-  @option({ description: "Enable verbose logging", short: "v" })
+  @opt({ description: "Enable verbose logging", short: "v" })
   verbose = false;
 
-  @option({ description: "Port number", type: "number" })
+  @opt({ description: "Port number", type: "number" })
   port = 8080;
 }
 
@@ -66,14 +66,14 @@ Subcommands are plain classes (no need to extend `Args`). Link them using
 `@subCommand`:
 
 ```typescript
-import { Args, cli, command, option, subCommand } from "@sigma/parse";
+import { Args, cli, opt, subCommand } from "@sigma/parse";
 
 @command
 class ServeCommand {
-  @option({ description: "Port to serve on" })
+  @opt({ description: "Port to serve on" })
   port = 3000;
 
-  @option({ description: "Enable development mode", short: "d" })
+  @opt({ description: "Enable development mode", short: "d" })
   dev = false;
 }
 
@@ -98,7 +98,7 @@ if (args.serve) {
 
 ### Property Decorators
 
-- `@option(options)` - Mark a property as a CLI flag (`--flag`).
+- `@opt(options)` - Mark a property as a CLI flag (`--flag`).
   - `description`: Help text.
   - `type`: Explicit type (`"string"`, `"number"`, `"boolean"`, `"string[]"`,
     `"number[]"`).
@@ -123,7 +123,7 @@ if (args.serve) {
 **Explicitly Required** (must be provided on CLI):
 
 ```typescript
-@option({ type: "string", required: true })
+@opt({ type: "string", required: true })
 apiKey!: string;
 ```
 
@@ -147,19 +147,19 @@ verbose = false; // becomes -v, --verbose
 ### Built-in Validators
 
 ```typescript
-import { Args, cli, oneOf, option, pattern, range } from "@sigma/parse";
+import { Args, cli, opt, pattern, range } from "@sigma/parse";
 
 @cli({ name: "example" })
 class Example extends Args {
-  @option()
+  @opt()
   @range(1, 100)
   score = 50;
 
-  @option()
+  @opt()
   @oneOf(["dev", "prod"])
   env = "dev";
 
-  @option()
+  @opt()
   @pattern(/^[a-z]+$/)
   user = "admin";
 }

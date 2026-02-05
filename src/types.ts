@@ -20,7 +20,7 @@ export type SupportedType =
 /**
  * Definition for a CLI option (flag).
  */
-export interface OptionDef {
+export interface OptDef {
   /** The property name / CLI flag name */
   name: string;
   /** The data type for parsing and validation */
@@ -90,9 +90,9 @@ export interface ArgOptions extends CommonOptions {
 }
 
 /**
- * Configuration options for the @option decorator.
+ * Configuration options for the @opt decorator.
  */
-export interface OptionOptions extends CommonOptions {
+export interface OptOptions extends CommonOptions {
   /** Short flag character (e.g., 'o' for -o). If true, first character of property name is used. */
   short?: string | boolean;
 }
@@ -123,8 +123,8 @@ export interface PropertyMetadata {
   subCommand?: new () => unknown;
   /** Positional argument config from @arg() decorator */
   arg?: ArgOptions;
-  /** Option config from @option() decorator */
-  option?: OptionOptions;
+  /** Option config from @opt() decorator */
+  opt?: OptOptions;
 }
 
 /**

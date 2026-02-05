@@ -13,7 +13,7 @@ import {
   cli,
   command,
   oneOf,
-  option,
+  opt,
   ParseError,
   range,
   subCommand,
@@ -22,13 +22,13 @@ import {
 Deno.test("Args API - basic functionality", () => {
   @cli({ name: "testapp", description: "Test application" })
   class TestApp extends Args {
-    @option({ description: "Enable verbose mode" })
+    @opt({ description: "Enable verbose mode" })
     verbose: boolean = false;
 
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Server name" })
+    @opt({ description: "Server name" })
     name: string = "server";
   }
 
@@ -52,11 +52,11 @@ Deno.test("Args API - with validation", () => {
     exitOnError: false,
   })
   class ValidationTest extends Args {
-    @option({ description: "Port number (1-65535)" })
+    @opt({ description: "Port number (1-65535)" })
     @addValidator(range(1, 65535))
     port: number = 8080;
 
-    @option({ description: "Environment" })
+    @opt({ description: "Environment" })
     @addValidator(oneOf(["dev", "staging", "prod"]))
     env: string = "dev";
   }
@@ -89,10 +89,10 @@ Deno.test("Args API - required fields", () => {
     exitOnError: false,
   })
   class RequiredTest extends Args {
-    @option({ description: "Required API key", type: "string", required: true })
+    @opt({ description: "Required API key", type: "string", required: true })
     apiKey!: string;
 
-    @option({ description: "Optional debug flag" })
+    @opt({ description: "Optional debug flag" })
     debug: boolean = false;
   }
 
@@ -114,19 +114,19 @@ Deno.test("Args API - required fields", () => {
 Deno.test("Args API - with subcommands", () => {
   @command
   class BuildCommand {
-    @option({ description: "Enable production mode" })
+    @opt({ description: "Enable production mode" })
     production: boolean = false;
 
-    @option({ description: "Output directory" })
+    @opt({ description: "Output directory" })
     output: string = "dist";
   }
 
   @command
   class ServeCommand {
-    @option({ description: "Port to serve on" })
+    @opt({ description: "Port to serve on" })
     port: number = 3000;
 
-    @option({ description: "Development mode" })
+    @opt({ description: "Development mode" })
     dev: boolean = false;
   }
 
@@ -136,7 +136,7 @@ Deno.test("Args API - with subcommands", () => {
     exitOnError: false,
   })
   class BuildTool extends Args {
-    @option({ description: "Verbose logging" })
+    @opt({ description: "Verbose logging" })
     verbose: boolean = false;
 
     @subCommand(BuildCommand)
@@ -179,7 +179,7 @@ Deno.test("Args API - with positional arguments", () => {
     @arg({ description: "Additional files", rest: true, type: "string[]" })
     extras: string[] = [];
 
-    @option({ description: "Processing mode" })
+    @opt({ description: "Processing mode" })
     mode: string = "copy";
   }
 
@@ -205,10 +205,10 @@ Deno.test("Args API - array types", () => {
     exitOnError: false,
   })
   class ArrayTest extends Args {
-    @option({ description: "List of tags", type: "string[]" })
+    @opt({ description: "List of tags", type: "string[]" })
     tags: string[] = [];
 
-    @option({ description: "List of numbers", type: "number[]" })
+    @opt({ description: "List of numbers", type: "number[]" })
     numbers: number[] = [];
   }
 
@@ -226,10 +226,10 @@ Deno.test("Args API - array types", () => {
 Deno.test("Args API - empty arguments", () => {
   @cli({ name: "emptytest", description: "Test empty args" })
   class EmptyTest extends Args {
-    @option({ description: "Debug flag" })
+    @opt({ description: "Debug flag" })
     debug: boolean = false;
 
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
   }
 
@@ -242,13 +242,13 @@ Deno.test("Args API - empty arguments", () => {
 Deno.test("Args API - boolean flags", () => {
   @cli({ name: "booltest", description: "Test boolean parsing" })
   class BoolTest extends Args {
-    @option({ description: "Verbose mode" })
+    @opt({ description: "Verbose mode" })
     verbose: boolean = false;
 
-    @option({ description: "Quiet mode" })
+    @opt({ description: "Quiet mode" })
     quiet: boolean = false;
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = true; // Default true
   }
 
@@ -268,13 +268,13 @@ Deno.test("Args API - boolean flags", () => {
 Deno.test("Args API - type coercion", () => {
   @cli({ name: "typetest", description: "Test type coercion" })
   class TypeTest extends Args {
-    @option({ description: "A number" })
+    @opt({ description: "A number" })
     num: number = 0;
 
-    @option({ description: "A string" })
+    @opt({ description: "A string" })
     str: string = "";
 
-    @option({ description: "Explicit string type", type: "string" })
+    @opt({ description: "Explicit string type", type: "string" })
     explicitStr: string = "default";
   }
 
@@ -301,8 +301,8 @@ Deno.test("Args API - help flag handling", () => {
     exitOnHelp: false,
   })
   class HelpTest extends Args {
-    @option({ description: "Some option" })
-    option: string = "default";
+    @opt({ description: "Some opt" })
+    opt: string = "default";
   }
 
   // Help flag should be handled by the system
@@ -315,16 +315,16 @@ Deno.test("Args API - help flag handling", () => {
 Deno.test("Args API - nested subcommands with perfect type safety", () => {
   @command
   class DatabaseCommand {
-    @option({ description: "Database host" })
+    @opt({ description: "Database host" })
     host: string = "localhost";
 
-    @option({ description: "Database port" })
+    @opt({ description: "Database port" })
     port: number = 5432;
   }
 
   @command
   class DeployCommand {
-    @option({ description: "Environment to deploy to" })
+    @opt({ description: "Environment to deploy to" })
     @addValidator(oneOf(["staging", "production"]))
     env: string = "staging";
 
@@ -334,7 +334,7 @@ Deno.test("Args API - nested subcommands with perfect type safety", () => {
 
   @cli({ name: "myapp", description: "My application" })
   class MyApp extends Args {
-    @option({ description: "Verbose output" })
+    @opt({ description: "Verbose output" })
     verbose: boolean = false;
 
     @subCommand(DeployCommand)
@@ -368,8 +368,8 @@ Deno.test("Args API - defaultCommand: 'help'", () => {
     exitOnHelp: false,
   })
   class HelpDefault extends Args {
-    @option({ description: "Some option" })
-    option: string = "default";
+    @opt({ description: "Some opt" })
+    opt: string = "default";
   }
 
   // Should show help when no arguments provided
@@ -382,10 +382,10 @@ Deno.test("Args API - defaultCommand: 'help'", () => {
 Deno.test("Args API - defaultCommand with subcommand", () => {
   @command
   class ServeCommand {
-    @option({ description: "Port to serve on" })
+    @opt({ description: "Port to serve on" })
     port: number = 3000;
 
-    @option({ description: "Host to bind to" })
+    @opt({ description: "Host to bind to" })
     host: string = "localhost";
   }
 
@@ -396,7 +396,7 @@ Deno.test("Args API - defaultCommand with subcommand", () => {
     exitOnError: false,
   })
   class DefaultSubCmd extends Args {
-    @option({ description: "Verbose output" })
+    @opt({ description: "Verbose output" })
     verbose: boolean = false;
 
     @subCommand(ServeCommand)
@@ -418,19 +418,19 @@ Deno.test("Args API - no defaultCommand behavior", () => {
     description: "Test without default command",
   })
   class NoDefault extends Args {
-    @option({ description: "Some option" })
-    option: string = "default";
+    @opt({ description: "Some opt" })
+    opt: string = "default";
   }
 
   // Should return defaults when no arguments and no defaultCommand
   const result = NoDefault.parse([]);
-  assertEquals(result.option, "default");
+  assertEquals(result.opt, "default");
 });
 
 Deno.test("Args API - subcommands don't inherit parent's defaultCommand", () => {
   @command
   class SubCmd {
-    @option({ description: "Some value" })
+    @opt({ description: "Some value" })
     value: string = "subdefault";
   }
 
@@ -459,10 +459,10 @@ Deno.test("Args API - subcommands don't inherit parent's defaultCommand", () => 
 Deno.test("Args API - subcommand help shows correct command path", () => {
   @command
   class BuildCommand {
-    @option({ description: "Output directory" })
+    @opt({ description: "Output directory" })
     output: string = "dist";
 
-    @option({ description: "Enable minification" })
+    @opt({ description: "Enable minification" })
     minify: boolean = false;
   }
 
@@ -472,7 +472,7 @@ Deno.test("Args API - subcommand help shows correct command path", () => {
     exitOnHelp: false,
   })
   class DevTool extends Args {
-    @option({ description: "Verbose mode" })
+    @opt({ description: "Verbose mode" })
     verbose: boolean = false;
 
     @subCommand(BuildCommand)
@@ -506,14 +506,14 @@ Deno.test("Args API - subcommand with defaultCommand: 'help'", () => {
   // Subcommand WITHOUT defaultCommand should execute normally with defaults
   @command
   class NormalCommand {
-    @option({ description: "Port to serve on" })
+    @opt({ description: "Port to serve on" })
     port: number = 3000;
   }
 
   // Subcommand WITH defaultCommand: "help" should show help when called without args
   @command({ defaultCommand: "help" })
   class HelpCommand {
-    @option({ description: "Port to serve on" })
+    @opt({ description: "Port to serve on" })
     port: number = 8080;
   }
 

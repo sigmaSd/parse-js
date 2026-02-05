@@ -3,21 +3,21 @@
  * - Colored help output with simple boolean control
  * - Default values shown in help text
  * - Default command functionality
- * - Unified decorators (@option, @arg)
+ * - Unified decorators (@opt, @arg)
  */
 
-import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
+import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 // Define subcommands
 @command
 class ServeCommand {
-  @option({ description: "Port to serve on" })
+  @opt({ description: "Port to serve on" })
   port: number = 3000;
 
-  @option({ description: "Host to bind to" })
+  @opt({ description: "Host to bind to" })
   host: string = "localhost";
 
-  @option({ description: "Enable HTTPS" })
+  @opt({ description: "Enable HTTPS" })
   ssl: boolean = false;
 
   @arg({ description: "Directory to serve", type: "string" })
@@ -26,13 +26,13 @@ class ServeCommand {
 
 @command
 class BuildCommand {
-  @option({ description: "Output directory" })
+  @opt({ description: "Output directory" })
   output: string = "dist";
 
-  @option({ description: "Enable minification" })
+  @opt({ description: "Enable minification" })
   minify: boolean = false;
 
-  @option({ description: "Build target", type: "string" })
+  @opt({ description: "Build target", type: "string" })
   target: string = "es2020";
 
   @arg({ description: "Entry file", required: true, type: "string" })
@@ -44,13 +44,13 @@ class BuildCommand {
 
 @command
 class TestCommand {
-  @option({ description: "Test pattern to match" })
+  @opt({ description: "Test pattern to match" })
   pattern: string = "**/*.test.ts";
 
-  @option({ description: "Enable coverage reporting" })
+  @opt({ description: "Enable coverage reporting" })
   coverage: boolean = false;
 
-  @option({ description: "Watch for file changes" })
+  @opt({ description: "Watch for file changes" })
   watch: boolean = false;
 }
 
@@ -63,13 +63,13 @@ class TestCommand {
   defaultCommand: "help", // Show help when no command is provided
 })
 class DevTool extends Args {
-  @option({ description: "Enable verbose logging" })
+  @opt({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @option({ description: "Configuration file path" })
+  @opt({ description: "Configuration file path" })
   config: string = "devtool.json";
 
-  @option({ description: "Environment to run in" })
+  @opt({ description: "Environment to run in" })
   env: string = "development";
 
   @subCommand(ServeCommand, { description: "Start the development server" })

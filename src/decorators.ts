@@ -6,7 +6,7 @@
  * TypeScript decorator metadata system to store configuration.
  *
  * Core decorators:
- * - @option() - Mark property as a flag/option (--flag)
+ * - @opt() - Mark property as a flag/option (--flag)
  * - @arg() - Mark property as a positional argument
  * - @command - Mark class as a command
  * - @subCommand() - Associate property with command class
@@ -16,7 +16,7 @@
 import type {
   ArgOptions,
   CommandOptions,
-  OptionOptions,
+  OptOptions,
   PropertyMetadata,
   Validator,
 } from "./types.ts";
@@ -170,7 +170,7 @@ export function subCommand<T extends new () => unknown>(
 }
 
 /**
- * Option decorator to mark a property as a CLI flag/option.
+ * Opt decorator to mark a property as a CLI flag/option.
  *
  * @param options - Configuration for the option
  * @returns A decorator function
@@ -178,13 +178,13 @@ export function subCommand<T extends new () => unknown>(
  * @example
  * ```ts
  * class MyArgs extends Args {
- *   @option({ short: "p", description: "Port", required: true })
+ *   @opt({ short: "p", description: "Port", required: true })
  *   port!: number;
  * }
  * ```
  */
-export function option(
-  options: OptionOptions = {},
+export function opt(
+  options: OptOptions = {},
 ): (
   _target: unknown,
   context: DecoratorContext,
@@ -200,26 +200,26 @@ export function option(
     const propertyMetadata =
       (context.metadata[context.name] as PropertyMetadata) || {};
 
-    const optionConfig = { ...options };
+    const optConfig = { ...options };
 
     // Handle automatic short flag
-    if (optionConfig.short === true) {
-      optionConfig.short = String(context.name).charAt(0);
+    if (optConfig.short === true) {
+      optConfig.short = String(context.name).charAt(0);
     }
 
     // Validate short flag
-    if (typeof optionConfig.short === "string") {
+    if (typeof optConfig.short === "string") {
       if (
-        optionConfig.short.length !== 1 ||
-        !/^[a-zA-Z0-9]$/.test(optionConfig.short)
+        optConfig.short.length !== 1 ||
+        !/^[a-zA-Z0-9]$/.test(optConfig.short)
       ) {
         throw new Error(
-          `Short flag must be a single alphanumeric character, got: "${optionConfig.short}"`,
+          `Short flag must be a single alphanumeric character, got: "${optConfig.short}"`,
         );
       }
     }
 
-    propertyMetadata.option = optionConfig;
+    propertyMetadata.opt = optConfig;
     if (options.type) propertyMetadata.type = options.type;
     if (options.description) propertyMetadata.description = options.description;
 

@@ -12,7 +12,7 @@ import {
   cli,
   command,
   oneOf,
-  option,
+  opt,
   range,
   subCommand,
 } from "../mod.ts";
@@ -20,37 +20,37 @@ import {
 // Simple example with basic options
 @cli({ name: "calculator", description: "A simple calculator application" })
 class Calculator extends Args {
-  @option({
+  @opt({
     description: "First number to operate on",
     type: "number",
     required: true,
   })
   a!: number;
 
-  @option({
+  @opt({
     description: "Second number to operate on",
     type: "number",
     required: true,
   })
   b!: number;
 
-  @option({
+  @opt({
     description: "Operation to perform",
   })
   @addValidator(oneOf(["add", "subtract", "multiply", "divide"]))
   operation = "add";
 
-  @option({ description: "Show detailed output" })
+  @opt({ description: "Show detailed output" })
   verbose = false;
 }
 
 // Subcommands are plain classes (no need to extend Args)
 @command
 class BuildCommand {
-  @option({ description: "Enable production optimizations" })
+  @opt({ description: "Enable production optimizations" })
   production = false;
 
-  @option({ description: "Output directory" })
+  @opt({ description: "Output directory" })
   output = "dist";
 
   @arg({ description: "Project directory to build", type: "string" })
@@ -59,24 +59,24 @@ class BuildCommand {
 
 @command
 class ServeCommand {
-  @option({ description: "Port to serve on" })
+  @opt({ description: "Port to serve on" })
   @addValidator(range(1, 65535))
   port = 3000;
 
-  @option({ description: "Enable development mode" })
+  @opt({ description: "Enable development mode" })
   dev = false;
 
-  @option({ description: "Host to bind to" })
+  @opt({ description: "Host to bind to" })
   host = "localhost";
 }
 
 // Main app with subcommands (extends Args)
 @cli({ name: "buildtool", description: "A project build and development tool" })
 class BuildTool extends Args {
-  @option({ description: "Enable verbose logging" })
+  @opt({ description: "Enable verbose logging" })
   verbose = false;
 
-  @option({ description: "Configuration file to use" })
+  @opt({ description: "Configuration file to use" })
   config = "build.config.js";
 
   @subCommand(BuildCommand)
@@ -105,11 +105,11 @@ class FileProcessor extends Args {
   })
   includes?: string[];
 
-  @option({ description: "Processing operation" })
+  @opt({ description: "Processing operation" })
   @addValidator(oneOf(["copy", "transform", "validate"]))
   operation = "copy";
 
-  @option({ description: "Enable verbose output" })
+  @opt({ description: "Enable verbose output" })
   verbose = false;
 }
 
@@ -248,7 +248,7 @@ console.log(`
 NEW API DESIGN:
 @cli({ name: "myapp", description: "My app" })
 class MyApp extends Args {  // Main command extends Args
-  @option({ description: "Verbose mode" })
+  @opt({ description: "Verbose mode" })
   verbose = false;
 
   @subCommand(ServeCommand)
@@ -257,10 +257,10 @@ class MyApp extends Args {  // Main command extends Args
 
 @command
 class ServeCommand {        // Subcommands are plain classes
-  @option({ description: "Port" })
+  @opt({ description: "Port" })
   port = 3000;
   
-  @option({ description: "Dev mode" })
+  @opt({ description: "Dev mode" })
   dev = false;
 }
 

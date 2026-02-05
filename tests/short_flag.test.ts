@@ -1,14 +1,14 @@
 // deno-lint-ignore-file no-import-prefix
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { Args, cli, option, ParseError } from "../mod.ts";
+import { Args, cli, opt, ParseError } from "../mod.ts";
 
 Deno.test("Short Flag - explicit definition", () => {
   @cli({ name: "test" })
   class Config extends Args {
-    @option({ description: "Output file", short: "o" })
+    @opt({ description: "Output file", short: "o" })
     output: string = "";
 
-    @option({ description: "Force mode", short: "f" })
+    @opt({ description: "Force mode", short: "f" })
     force: boolean = false;
   }
 
@@ -21,11 +21,11 @@ Deno.test("Short Flag - implicit definition (first character)", () => {
   @cli({ name: "test" })
   class Config extends Args {
     // Should auto-assign 'v'
-    @option({ short: true })
+    @opt({ short: true })
     verbose: boolean = false;
 
     // Should auto-assign 'u'
-    @option({ short: true })
+    @opt({ short: true })
     user: string = "";
   }
 
@@ -37,13 +37,13 @@ Deno.test("Short Flag - implicit definition (first character)", () => {
 Deno.test("Short Flag - combined boolean flags (bundling)", () => {
   @cli({ name: "test" })
   class Config extends Args {
-    @option({ short: "a" })
+    @opt({ short: "a" })
     all: boolean = false;
 
-    @option({ short: "b" })
+    @opt({ short: "b" })
     build: boolean = false;
 
-    @option({ short: "c" })
+    @opt({ short: "c" })
     clean: boolean = false;
   }
 
@@ -63,13 +63,13 @@ Deno.test("Short Flag - combined boolean flags (bundling)", () => {
 Deno.test("Short Flag - mixed bundled flags and values", () => {
   @cli({ name: "test" })
   class Config extends Args {
-    @option({ short: "x" })
+    @opt({ short: "x" })
     exclude: boolean = false;
 
-    @option({ short: "y" })
+    @opt({ short: "y" })
     yes: boolean = false;
 
-    @option({ short: "n" })
+    @opt({ short: "n" })
     name: string = "";
   }
 
@@ -84,10 +84,10 @@ Deno.test("Short Flag - validation error: duplicate short flags", () => {
   // This should throw because 'o' is used twice
   @cli({ name: "test", exitOnError: false })
   class Config extends Args {
-    @option({ short: "o" })
+    @opt({ short: "o" })
     output: string = "";
 
-    @option({ short: "o" })
+    @opt({ short: "o" })
     other: string = "";
   }
 
@@ -106,7 +106,7 @@ Deno.test("Short Flag - validation error: definition must be single char", () =>
     () => {
       @cli({ name: "test" })
       class Config extends Args {
-        @option({ short: "xx" }) // Invalid length
+        @opt({ short: "xx" }) // Invalid length
         flag: boolean = false;
       }
       Config.parse([]);
@@ -121,7 +121,7 @@ Deno.test("Short Flag - validation error: definition must be alphanumeric", () =
     () => {
       @cli({ name: "test" })
       class Config extends Args {
-        @option({ short: "-" }) // Invalid char
+        @opt({ short: "-" }) // Invalid char
         flag: boolean = false;
       }
       Config.parse([]);
@@ -134,7 +134,7 @@ Deno.test("Short Flag - validation error: definition must be alphanumeric", () =
 Deno.test("Short Flag - parsing error: unknown short flag", () => {
   @cli({ name: "test", exitOnError: false })
   class Config extends Args {
-    @option({ short: "a" })
+    @opt({ short: "a" })
     a: boolean = false;
   }
 
@@ -150,7 +150,7 @@ Deno.test("Short Flag - parsing error: unknown short flag", () => {
 Deno.test("Short Flag - parsing error: unknown short flag in bundle", () => {
   @cli({ name: "test", exitOnError: false })
   class Config extends Args {
-    @option({ short: "a" })
+    @opt({ short: "a" })
     a: boolean = false;
   }
 
@@ -166,10 +166,10 @@ Deno.test("Short Flag - parsing error: unknown short flag in bundle", () => {
 Deno.test("Short Flag - parsing error: bundling non-boolean flags", () => {
   @cli({ name: "test", exitOnError: false })
   class Config extends Args {
-    @option({ short: "s", type: "string" })
+    @opt({ short: "s", type: "string" })
     str: string = "";
 
-    @option({ short: "b" })
+    @opt({ short: "b" })
     bool: boolean = false;
   }
 
@@ -186,10 +186,10 @@ Deno.test("Short Flag - parsing error: bundling non-boolean flags", () => {
 Deno.test("Short Flag - help output generation", () => {
   @cli({ name: "testapp", exitOnHelp: false })
   class Config extends Args {
-    @option({ description: "Output path", short: "o" })
+    @opt({ description: "Output path", short: "o" })
     output: string = "dist";
 
-    @option({ description: "Verbose mode", short: "v" })
+    @opt({ description: "Verbose mode", short: "v" })
     verbose: boolean = false;
   }
 
@@ -221,10 +221,10 @@ Deno.test("Short Flag - implicit duplicates across properties", () => {
   // implicit 'a' for apple, explicit 'a' for alpha
   @cli({ name: "test", exitOnError: false })
   class Config extends Args {
-    @option({ short: true }) // implicitly 'a'
+    @opt({ short: true }) // implicitly 'a'
     apple: boolean = false;
 
-    @option({ short: "a" }) // explicitly 'a'
+    @opt({ short: "a" }) // explicitly 'a'
     alpha: boolean = false;
   }
 

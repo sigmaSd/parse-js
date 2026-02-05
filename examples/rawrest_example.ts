@@ -3,7 +3,7 @@
 /**
  * Comprehensive example demonstrating @arg({ raw: true }) usage with the new Args API.
  *
- * The raw: true option in @arg is perfect for building proxy commands that need to
+ * The raw: true opt in @arg is perfect for building proxy commands that need to
  * forward arguments to other tools without parsing them as CLI options.
  *
  * Run examples:
@@ -13,7 +13,7 @@
  *   deno run examples/rawrest_example.ts --help
  */
 
-import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
+import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 // Example 1: Simple proxy command
 console.log("=== Example 1: Simple Proxy Command ===");
@@ -35,10 +35,10 @@ class ContainerProxy extends Args {
   })
   runtimeArgs: string[] = [];
 
-  @option({ description: "Enable verbose logging" })
+  @opt({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @option({ description: "Dry run - show command but don't execute" })
+  @opt({ description: "Dry run - show command but don't execute" })
   dryRun: boolean = false;
 }
 
@@ -72,10 +72,10 @@ class RunCommand {
   @arg({ description: "Arguments to pass to the script/binary", raw: true })
   args: string[] = [];
 
-  @option({ description: "Run in background" })
+  @opt({ description: "Run in background" })
   background: boolean = false;
 
-  @option({ description: "Restart on file changes" })
+  @opt({ description: "Restart on file changes" })
   watch: boolean = false;
 }
 
@@ -84,10 +84,10 @@ class TestCommand {
   @arg({ description: "Test framework arguments", raw: true })
   testArgs: string[] = [];
 
-  @option({ description: "Show coverage report" })
+  @opt({ description: "Show coverage report" })
   coverage: boolean = false;
 
-  @option({ description: "Run tests in watch mode" })
+  @opt({ description: "Run tests in watch mode" })
   watch: boolean = false;
 }
 
@@ -97,7 +97,7 @@ class TestCommand {
   exitOnError: false,
 })
 class DevTool extends Args {
-  @option({ description: "Enable debug output" })
+  @opt({ description: "Enable debug output" })
   debug: boolean = false;
 
   @subCommand(RunCommand)
@@ -166,10 +166,10 @@ class PackageProxy extends Args {
   @arg({ description: "All arguments for the package manager", raw: true })
   managerArgs: string[] = [];
 
-  @option({ description: "Show what would be executed without running" })
+  @opt({ description: "Show what would be executed without running" })
   whatIf: boolean = false;
 
-  @option({ description: "Force operation even if risky" })
+  @opt({ description: "Force operation even if risky" })
   force: boolean = false;
 }
 
@@ -212,10 +212,10 @@ class ValidatedProxy extends Args {
   @arg({ description: "Command and arguments to execute", raw: true })
   cmdArgs: string[] = [];
 
-  @option({ description: "Set execution timeout in seconds", type: "number" })
+  @opt({ description: "Set execution timeout in seconds", type: "number" })
   timeout: number = 30;
 
-  @option({ description: "Capture stdout/stderr" })
+  @opt({ description: "Capture stdout/stderr" })
   capture: boolean = false;
 }
 
@@ -258,16 +258,16 @@ class PipelineStep extends Args {
   @arg({ description: "Tool-specific command and arguments", raw: true })
   toolCommand: string[] = [];
 
-  @option({ description: "Environment (dev, staging, prod)" })
+  @opt({ description: "Environment (dev, staging, prod)" })
   env: string = "dev";
 
-  @option({ description: "Pipeline run ID" })
+  @opt({ description: "Pipeline run ID" })
   runId: string = "";
 
-  @option({ description: "Skip safety checks" })
+  @opt({ description: "Skip safety checks" })
   skipChecks: boolean = false;
 
-  @option({ description: "Maximum execution time in minutes", type: "number" })
+  @opt({ description: "Maximum execution time in minutes", type: "number" })
   maxTime: number = 30;
 }
 

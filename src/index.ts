@@ -1,5 +1,5 @@
 import type {
-  OptionDef,
+  OptDef,
   ParseOptions,
   ParseResult,
   PositionalDef,
@@ -92,7 +92,7 @@ export {
   arg,
   command,
   type DecoratorContext,
-  option,
+  opt,
   subCommand,
   validate,
 } from "./decorators.ts";
@@ -138,10 +138,9 @@ function parseInstanceBased(
   commandPath?: string,
 ): ParseResult {
   // 1. Collect metadata
-  const { optionDefs, positionalDefs, subCommands } =
-    collectInstanceArgumentDefs(
-      instance,
-    );
+  const { optDefs, positionalDefs, subCommands } = collectInstanceArgumentDefs(
+    instance,
+  );
 
   // 2. Inject gen-completions command if at root
   if (!commandPath && !subCommands.has("gen-completions")) {
@@ -156,7 +155,7 @@ function parseInstanceBased(
   if (args.length === 0 && options?.defaultCommand) {
     return handleDefaultCommand(
       options.defaultCommand,
-      optionDefs,
+      optDefs,
       positionalDefs,
       subCommands,
       options,
@@ -172,7 +171,7 @@ function parseInstanceBased(
   // 5. Process tokens
   const status = parseTokens(
     tokens,
-    optionDefs,
+    optDefs,
     positionalDefs,
     subCommands,
     options,
@@ -180,7 +179,7 @@ function parseInstanceBased(
 
   if (status.type === "help") {
     const helpText = printHelp(
-      optionDefs,
+      optDefs,
       positionalDefs,
       options,
       subCommands,
@@ -190,9 +189,7 @@ function parseInstanceBased(
     handleHelpDisplay(helpText, options || {});
     // Return initial result (with defaults) if help handler doesn't exit
     const result: ParseResult = {};
-    for (const argDef of optionDefs) {
-      result[argDef.name] = instance[argDef.name];
-    }
+    for (const argDef of optDefs) result[argDef.name] = instance[argDef.name];
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -205,7 +202,7 @@ function parseInstanceBased(
 
     const finalResult: ParseResult = {};
     // Initialize with parent defaults and parsed values
-    for (const argDef of optionDefs) {
+    for (const argDef of optDefs) {
       finalResult[argDef.name] = status.parentResult[argDef.name] !== undefined
         ? status.parentResult[argDef.name]
         : instance[argDef.name];
@@ -222,20 +219,20 @@ function parseInstanceBased(
       options,
       subName,
       commandPath ? `${commandPath} ${subName}` : subName,
-      optionDefs,
+      optDefs,
       positionalDefs,
       subCommands,
     );
 
     // Validate parent arguments
-    validateResult(finalResult, optionDefs, positionalDefs, options);
+    validateResult(finalResult, optDefs, positionalDefs, options);
 
     return finalResult;
   }
 
   // 6. Merge with defaults from instance
   const finalResult: ParseResult = {};
-  for (const argDef of optionDefs) {
+  for (const argDef of optDefs) {
     finalResult[argDef.name] = status.result[argDef.name] !== undefined
       ? status.result[argDef.name]
       : instance[argDef.name];
@@ -247,14 +244,14 @@ function parseInstanceBased(
   }
 
   // 7. Validate
-  validateResult(finalResult, optionDefs, positionalDefs, options);
+  validateResult(finalResult, optDefs, positionalDefs, options);
 
   return finalResult;
 }
 
 function handleDefaultCommand(
   defaultCommand: string,
-  optionDefs: OptionDef[],
+  optDefs: OptDef[],
   positionalDefs: PositionalDef[],
   subCommands: Map<string, SubCommand>,
   options: ParseOptions,
@@ -264,7 +261,7 @@ function handleDefaultCommand(
 ): ParseResult {
   if (defaultCommand === "help") {
     const helpText = printHelp(
-      optionDefs,
+      optDefs,
       positionalDefs,
       options,
       subCommands,
@@ -273,9 +270,7 @@ function handleDefaultCommand(
     );
     handleHelpDisplay(helpText, options);
     const result: ParseResult = {};
-    for (const argDef of optionDefs) {
-      result[argDef.name] = instance[argDef.name];
-    }
+    for (const argDef of optDefs) result[argDef.name] = instance[argDef.name];
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -290,14 +285,12 @@ function handleDefaultCommand(
       options,
       defaultCommand,
       commandPath ? `${commandPath} ${defaultCommand}` : defaultCommand,
-      optionDefs,
+      optDefs,
       positionalDefs,
       subCommands,
     );
     const result: ParseResult = {};
-    for (const argDef of optionDefs) {
-      result[argDef.name] = instance[argDef.name];
-    }
+    for (const argDef of optDefs) result[argDef.name] = instance[argDef.name];
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -314,7 +307,7 @@ function executeSubCommand(
   parentOptions: ParseOptions | undefined,
   name: string,
   path: string,
-  parentOptionDefs: OptionDef[],
+  parentOptDefs: OptDef[],
   parentPositionalDefs: PositionalDef[],
   parentSubCommands: Map<string, SubCommand>,
 ): unknown {
@@ -324,13 +317,13 @@ function executeSubCommand(
   ) {
     // Special handling for completion command which needs validation
     const subInstance = new sub.commandClass() as Record<string, unknown>;
-    const { optionDefs, positionalDefs } = collectInstanceArgumentDefs(
+    const { optDefs, positionalDefs } = collectInstanceArgumentDefs(
       subInstance,
     );
     const tokens = tokenize(args);
     const status = parseTokens(
       tokens,
-      optionDefs,
+      optDefs,
       positionalDefs,
       undefined,
       parentOptions,
@@ -339,7 +332,7 @@ function executeSubCommand(
     if (status.type === "success") {
       // Merge and Validate
       const finalResult: ParseResult = {};
-      for (const argDef of optionDefs) {
+      for (const argDef of optDefs) {
         finalResult[argDef.name] = status.result[argDef.name] !== undefined
           ? status.result[argDef.name]
           : subInstance[argDef.name];
@@ -351,14 +344,14 @@ function executeSubCommand(
       }
 
       // Validate manually here for GenCompletionsCommand to catch missing shell
-      validateResult(finalResult, optionDefs, positionalDefs, parentOptions);
+      validateResult(finalResult, optDefs, positionalDefs, parentOptions);
     } else if (status.type === "help") {
       // Should probably just show help for gen-completions
     }
 
     const completions = generateFishCompletions(
       parentOptions?.name || "app",
-      parentOptionDefs,
+      parentOptDefs,
       parentPositionalDefs,
       parentSubCommands,
     );
@@ -402,12 +395,12 @@ function executeSubCommand(
 
 function validateResult(
   result: ParseResult,
-  optionDefs: OptionDef[],
+  optDefs: OptDef[],
   positionalDefs: PositionalDef[],
   options?: ParseOptions,
 ) {
   // Validate flags
-  for (const argDef of optionDefs) {
+  for (const argDef of optDefs) {
     if (argDef.validators) {
       for (const validator of argDef.validators) {
         const error = validator(result[argDef.name]);

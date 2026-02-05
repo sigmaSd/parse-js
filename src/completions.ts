@@ -1,4 +1,4 @@
-import type { OptionDef, PositionalDef, SubCommand } from "./types.ts";
+import type { OptDef, PositionalDef, SubCommand } from "./types.ts";
 import { collectInstanceArgumentDefs } from "./metadata.ts";
 
 /**
@@ -6,7 +6,7 @@ import { collectInstanceArgumentDefs } from "./metadata.ts";
  */
 export function generateFishCompletions(
   appName: string,
-  optionDefs: OptionDef[],
+  optDefs: OptDef[],
   _positionalDefs: PositionalDef[],
   subCommands?: Map<string, SubCommand>,
 ): string {
@@ -16,7 +16,7 @@ export function generateFishCompletions(
   lines.push(`complete -c ${appName} -f`);
 
   // Add completions for global options
-  for (const arg of optionDefs) {
+  for (const arg of optDefs) {
     const shortFlag = arg.short ? ` -s ${arg.short}` : "";
     const desc = arg.description ? ` -d "${arg.description}"` : "";
     lines.push(
@@ -35,12 +35,12 @@ export function generateFishCompletions(
       );
 
       const instance = new subCommand.commandClass() as Record<string, unknown>;
-      const { optionDefs: subOptionDefs } = collectInstanceArgumentDefs(
+      const { optDefs: subOptDefs } = collectInstanceArgumentDefs(
         instance,
         { strict: false },
       );
 
-      for (const arg of subOptionDefs) {
+      for (const arg of subOptDefs) {
         const shortFlag = arg.short ? ` -s ${arg.short}` : "";
         const desc = arg.description ? ` -d "${arg.description}"` : "";
         lines.push(

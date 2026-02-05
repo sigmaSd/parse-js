@@ -1,6 +1,6 @@
 import type { Token } from "./tokenizer.ts";
 import type {
-  OptionDef,
+  OptDef,
   ParseOptions,
   ParseResult,
   PositionalDef,
@@ -24,16 +24,16 @@ export type ParseStatus =
  */
 export function parseTokens(
   tokens: Token[],
-  optionDefs: OptionDef[],
+  optDefs: OptDef[],
   positionalDefs: PositionalDef[],
   subCommands?: Map<string, SubCommand>,
   options?: ParseOptions,
 ): ParseStatus {
   const result: ParseResult = {};
-  const argMap = new Map<string, OptionDef>();
-  const shortFlagMap = new Map<string, OptionDef>();
+  const argMap = new Map<string, OptDef>();
+  const shortFlagMap = new Map<string, OptDef>();
 
-  for (const arg of optionDefs) {
+  for (const arg of optDefs) {
     argMap.set(arg.name, arg);
     if (arg.short) {
       shortFlagMap.set(arg.short, arg);

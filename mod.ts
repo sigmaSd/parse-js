@@ -5,17 +5,17 @@
  *
  * @example Basic usage
  * ```ts
- * import { Args, cli, option } from "./mod.ts";
+ * import { Args, cli, opt } from "./mod.ts";
  *
  * @cli({ name: "calculator", description: "A simple calculator" })
  * class Calculator extends Args {
- *   @option({ description: "First number", type: "number", required: true })
+ *   @opt({ description: "First number", type: "number", required: true })
  *   a!: number;
  *
- *   @option({ description: "Second number", type: "number", required: true })
+ *   @opt({ description: "Second number", type: "number", required: true })
  *   b!: number;
  *
- *   @option({ description: "Operation to perform" })
+ *   @opt({ description: "Operation to perform" })
  *   operation = "add";
  * }
  *
@@ -25,11 +25,11 @@
  *
  * @example With subcommands
  * ```ts
- * import { Args, cli, command, option, subCommand } from "./mod.ts";
+ * import { Args, cli, command, opt, subCommand } from "./mod.ts";
  *
  * @command
  * class ServeCommand {
- *   @option({ description: "Port to serve on" })
+ *   @opt({ description: "Port to serve on" })
  *   port = 3000;
  * }
  *
@@ -54,7 +54,7 @@ export {
   addValidator,
   arg,
   command,
-  option,
+  opt,
   subCommand,
   validate,
 } from "./src/decorators.ts";
@@ -79,8 +79,8 @@ export type {
   ArgumentMetadata,
   CommandInstance,
   CommonOptions,
-  OptionDef,
-  OptionOptions,
+  OptDef,
+  OptOptions,
   ParseOptions,
   ParseResult,
   PositionalDef,

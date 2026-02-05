@@ -3,7 +3,7 @@
  */
 
 import type {
-  OptionDef,
+  OptDef,
   ParseOptions,
   PositionalDef,
   SubCommand,
@@ -15,7 +15,7 @@ import { captureHelpText } from "./error-handling.ts";
  * Generates and prints comprehensive help text for a command.
  */
 export function printHelp(
-  optionDefs: OptionDef[],
+  optDefs: OptDef[],
   positionalDefs: PositionalDef[],
   options?: ParseOptions,
   subCommands?: Map<string, SubCommand>,
@@ -50,8 +50,8 @@ export function printHelp(
       printArgumentsSection(positionalDefs, colors, showDefaults);
     }
 
-    printOptionsSection(
-      optionDefs,
+    printOptsSection(
+      optDefs,
       colors,
       showDefaults,
       subCommands,
@@ -209,8 +209,8 @@ function printArgumentsSection(
   console.log("");
 }
 
-function printOptionsSection(
-  optionDefs: OptionDef[],
+function printOptsSection(
+  optDefs: OptDef[],
   colors: ReturnType<typeof createColors>,
   showDefaults: boolean,
   subCommands?: Map<string, SubCommand>,
@@ -224,7 +224,7 @@ function printOptionsSection(
     console.log(colors.bold(colors.brightYellow("Options:")));
   }
 
-  for (const arg of optionDefs) {
+  for (const arg of optDefs) {
     let flagDisplay = "";
     if (arg.short) {
       flagDisplay = `${colors.brightCyan(`-${arg.short}`)}, ${

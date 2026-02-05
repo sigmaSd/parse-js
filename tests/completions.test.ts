@@ -1,18 +1,18 @@
 import { assertStringIncludes } from "@std/assert";
-import { Args, cli, command, option, subCommand } from "../mod.ts";
+import { Args, cli, command, opt, subCommand } from "../mod.ts";
 import { generateFishCompletions } from "../src/completions.ts";
 import { collectInstanceArgumentDefs } from "../src/metadata.ts";
 
 Deno.test("completions - generateFishCompletions directly", () => {
   @command
   class BuildCommand {
-    @option({ description: "Minify output" })
+    @opt({ description: "Minify output" })
     minify = false;
   }
 
   @cli({ name: "myapp" })
   class MyApp extends Args {
-    @option({ description: "Verbose mode", short: "v" })
+    @opt({ description: "Verbose mode", short: "v" })
     verbose = false;
 
     @subCommand(BuildCommand, { description: "Build the project" })
@@ -20,14 +20,13 @@ Deno.test("completions - generateFishCompletions directly", () => {
   }
 
   const instance = new MyApp();
-  const { optionDefs, positionalDefs, subCommands } =
-    collectInstanceArgumentDefs(
-      instance as unknown as Record<string, unknown>,
-    );
+  const { optDefs, positionalDefs, subCommands } = collectInstanceArgumentDefs(
+    instance as unknown as Record<string, unknown>,
+  );
 
   const output = generateFishCompletions(
     "myapp",
-    optionDefs,
+    optDefs,
     positionalDefs,
     subCommands,
   );

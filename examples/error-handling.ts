@@ -5,14 +5,7 @@
  * more robust CLI applications that don't always exit on errors.
  */
 
-import {
-  Args,
-  cli,
-  command,
-  isParseError,
-  option,
-  subCommand,
-} from "../mod.ts";
+import { Args, cli, command, isParseError, opt, subCommand } from "../mod.ts";
 
 // Example 1: Default behavior (exits on errors)
 console.log("=== Example 1: Default Behavior (Process Exit) ===");
@@ -23,10 +16,10 @@ try {
     description: "App with default error handling",
   })
   class DefaultConfig extends Args {
-    @option()
+    @opt()
     port: number = 8080;
 
-    @option()
+    @opt()
     debug: boolean = false;
   }
 
@@ -46,10 +39,10 @@ try {
     exitOnHelp: false,
   })
   class GracefulConfig extends Args {
-    @option()
+    @opt()
     port: number = 8080;
 
-    @option()
+    @opt()
     debug: boolean = false;
   }
 
@@ -95,10 +88,10 @@ try {
     onHelp: handleHelp,
   })
   class CustomConfig extends Args {
-    @option({ description: "Server port number" })
+    @opt({ description: "Server port number" })
     port: number = 8080;
 
-    @option({ description: "Enable debug logging" })
+    @opt({ description: "Enable debug logging" })
     debug: boolean = false;
   }
 
@@ -112,13 +105,13 @@ console.log("\n=== Example 4: Server Application ===");
 
 @command
 class StartCommand {
-  @option({ description: "Port to listen on" })
+  @opt({ description: "Port to listen on" })
   port: number = 3000;
 
-  @option({ description: "Host to bind to" })
+  @opt({ description: "Host to bind to" })
   host: string = "localhost";
 
-  @option({
+  @opt({
     description: "Configuration file path",
     required: true,
     type: "string",
@@ -128,7 +121,7 @@ class StartCommand {
 
 @command
 class StopCommand {
-  @option({ description: "Force stop without graceful shutdown" })
+  @opt({ description: "Force stop without graceful shutdown" })
   force: boolean = false;
 }
 
@@ -181,7 +174,7 @@ class ServerApp {
           @subCommand(StopCommand)
           stop?: StopCommand;
 
-          @option({ description: "Global verbose flag" })
+          @opt({ description: "Global verbose flag" })
           verbose: boolean = false;
         }
 
@@ -253,10 +246,10 @@ class _TestRunner {
           exitOnHelp: false,
         })
         class TestConfig extends Args {
-          @option()
+          @opt()
           port: number = 8080;
 
-          @option()
+          @opt()
           debug: boolean = false;
         }
 
@@ -309,13 +302,13 @@ class _ConfigManager {
         },
       })
       class AppConfig extends Args {
-        @option({ description: "Database URL", required: true, type: "string" })
+        @opt({ description: "Database URL", required: true, type: "string" })
         dbUrl!: string;
 
-        @option({ description: "API port" })
+        @opt({ description: "API port" })
         port: number = 3000;
 
-        @option({ description: "Environment" })
+        @opt({ description: "Environment" })
         env: string = "development";
       }
 

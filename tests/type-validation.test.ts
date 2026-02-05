@@ -4,7 +4,7 @@
  */
 
 import { assertEquals, assertThrows } from "jsr:@std/assert@1";
-import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
+import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 Deno.test("Type inference from defaults works without @type in decorator", () => {
   // This should work - type inferred from default value
@@ -42,11 +42,11 @@ Deno.test("Type validation - properties with defaults should work", () => {
   assertEquals(result.cmd!.files, ["test.txt", "test2.txt"]);
 });
 
-Deno.test("Array option parsing works with default values", () => {
+Deno.test("Array opt parsing works with default values", () => {
   // Array options work with default values
   @cli({ name: "test" })
   class Config extends Args {
-    @option({ type: "string[]" })
+    @opt({ type: "string[]" })
     tags: string[] = []; // Has default, should work
   }
 
@@ -158,10 +158,10 @@ Deno.test("Reserved property names - user-defined length and name work correctly
     @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @option()
+    @opt()
     length: number = 10;
 
-    @option()
+    @opt()
     name: string = "default";
   }
 
@@ -188,7 +188,7 @@ Deno.test("Reserved property names - user-defined length and name work correctly
 Deno.test("Type validation - properties with defaults work without type in decorator", () => {
   @cli({ name: "test" })
   class StrictConfig extends Args {
-    @option()
+    @opt()
     strictProperty: string = "";
   }
 
@@ -199,13 +199,13 @@ Deno.test("Type validation - properties with defaults work without type in decor
 Deno.test("Type validation - properties with defaults don't need explicit type", () => {
   @cli({ name: "test" })
   class DefaultConfig extends Args {
-    @option()
+    @opt()
     port: number = 8080;
 
-    @option()
+    @opt()
     host: string = "localhost";
 
-    @option()
+    @opt()
     enabled: boolean = false;
   }
 
@@ -231,26 +231,26 @@ Deno.test("Type validation - properties without defaults and type should error",
     "Property 'input' has no default value and no type specified in @arg()",
   );
 
-  // Test for regular option
+  // Test for regular opt
   assertThrows(
     () => {
       @cli({ name: "test" })
       class BadConfig2 extends Args {
-        @option({ required: true })
+        @opt({ required: true })
         apiKey?: string;
       }
 
       BadConfig2.parse([]);
     },
     Error,
-    "Property 'apiKey' has no default value and no type specified in @option()",
+    "Property 'apiKey' has no default value and no type specified in @opt()",
   );
 });
 
 Deno.test("Type validation - properties with type but no defaults should work", () => {
   @cli({ name: "test" })
   class GoodConfig extends Args {
-    @option({ type: "string", required: true })
+    @opt({ type: "string", required: true })
     apiKey?: string;
 
     @arg({ type: "string", required: true })

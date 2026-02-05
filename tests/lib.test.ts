@@ -13,7 +13,7 @@ import {
   Args,
   cli,
   command,
-  option,
+  opt,
   subCommand,
 } from "../mod.ts";
 
@@ -56,17 +56,17 @@ function max(maxValue: number) {
   });
 }
 
-Deno.test("Basic option parsing with defaults", () => {
+Deno.test("Basic opt parsing with defaults", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Port number to listen on" })
+    @opt({ description: "Port number to listen on" })
     @minValue(1000)
     port: number = 8080;
 
-    @option({ description: "Enable debug mode" })
+    @opt({ description: "Enable debug mode" })
     debug: boolean = false;
 
-    @option({ description: "Host address to bind to" })
+    @opt({ description: "Host address to bind to" })
     host: string = "localhost";
   }
 
@@ -79,10 +79,10 @@ Deno.test("Basic option parsing with defaults", () => {
 Deno.test("Option parsing with explicit types", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Enable verbose output" })
+    @opt({ description: "Enable verbose output" })
     verbose: boolean = false;
 
-    @option({ description: "Production mode" })
+    @opt({ description: "Production mode" })
     prod: boolean = false;
   }
 
@@ -91,13 +91,13 @@ Deno.test("Option parsing with explicit types", () => {
   assertEquals(result.prod, true);
 });
 
-Deno.test("Array option parsing", () => {
+Deno.test("Array opt parsing", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Request count" })
+    @opt({ description: "Request count" })
     count: number = 1;
 
-    @option({ description: "Enable feature" })
+    @opt({ description: "Enable feature" })
     enabled: boolean = false;
   }
 
@@ -109,11 +109,11 @@ Deno.test("Array option parsing", () => {
 Deno.test("Optional fields with validation", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Connection timeout in seconds" })
+    @opt({ description: "Connection timeout in seconds" })
     @range(1, 300)
     timeout: number = 30;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
   }
 
@@ -125,10 +125,10 @@ Deno.test("Optional fields with validation", () => {
 Deno.test("Array fields with validation", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Tags to include", type: "string[]" })
+    @opt({ description: "Tags to include", type: "string[]" })
     tags: string[] = [];
 
-    @option({ description: "Port numbers", type: "number[]" })
+    @opt({ description: "Port numbers", type: "number[]" })
     ports: number[] = [];
   }
 
@@ -145,14 +145,14 @@ Deno.test("Array fields with validation", () => {
 Deno.test("Required field validation", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
-    @option({
+    @opt({
       description: "API key for authentication",
       type: "string",
       required: true,
     })
     apiKey!: string;
 
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
   }
 
@@ -172,7 +172,7 @@ Deno.test("Required field validation", () => {
 Deno.test("Custom validation functions", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     @range(1000, 65535)
     port: number = 8080;
   }
@@ -198,7 +198,7 @@ Deno.test("Positional arguments", () => {
     @arg({ description: "Output file", type: "string" })
     output: string = "output.txt";
 
-    @option({ description: "Enable verbose output" })
+    @opt({ description: "Enable verbose output" })
     verbose: boolean = false;
   }
 
@@ -223,7 +223,7 @@ Deno.test("Rest arguments", () => {
     @arg({ description: "Additional files", rest: true, type: "string[]" })
     files: string[] = [];
 
-    @option({ description: "Enable verbose output" })
+    @opt({ description: "Enable verbose output" })
     verbose: boolean = false;
   }
 
@@ -248,26 +248,26 @@ Deno.test("Rest arguments", () => {
 Deno.test("Simple subcommands", () => {
   @command
   class ServeCommand {
-    @option({ description: "Port to listen on" })
+    @opt({ description: "Port to listen on" })
     @range(1000, 65535)
     port: number = 8080;
 
-    @option({ description: "Enable SSL" })
+    @opt({ description: "Enable SSL" })
     ssl: boolean = false;
   }
 
   @command
   class BuildCommand {
-    @option({ description: "Output directory" })
+    @opt({ description: "Output directory" })
     output: string = "dist";
 
-    @option({ description: "Enable minification" })
+    @opt({ description: "Enable minification" })
     minify: boolean = false;
   }
 
   @cli({ name: "testapp" })
   class App extends Args {
-    @option({ description: "Enable verbose logging" })
+    @opt({ description: "Enable verbose logging" })
     verbose: boolean = false;
 
     @subCommand(ServeCommand)
@@ -297,16 +297,16 @@ Deno.test("Simple subcommands", () => {
 Deno.test("Nested subcommands", () => {
   @command
   class StartDbCommand {
-    @option({ description: "Database port" })
+    @opt({ description: "Database port" })
     port: number = 5432;
 
-    @option({ description: "Database host" })
+    @opt({ description: "Database host" })
     host: string = "localhost";
   }
 
   @command
   class StopDbCommand {
-    @option({ description: "Force stop" })
+    @opt({ description: "Force stop" })
     force: boolean = false;
   }
 
@@ -318,7 +318,7 @@ Deno.test("Nested subcommands", () => {
     @subCommand(StopDbCommand)
     stop?: StopDbCommand;
 
-    @option({ description: "Database name", type: "string" })
+    @opt({ description: "Database name", type: "string" })
     name: string = "";
   }
 
@@ -327,7 +327,7 @@ Deno.test("Nested subcommands", () => {
     @subCommand(DatabaseCommand)
     database?: DatabaseCommand;
 
-    @option({ description: "Enable verbose logging" })
+    @opt({ description: "Enable verbose logging" })
     verbose: boolean = false;
   }
 
@@ -349,13 +349,13 @@ Deno.test("Nested subcommands", () => {
 Deno.test("Help display", () => {
   @cli({ name: "testapp", description: "Test application", exitOnHelp: false })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Enable debug mode" })
+    @opt({ description: "Enable debug mode" })
     debug: boolean = false;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
   }
 
@@ -369,13 +369,13 @@ Deno.test("Help display", () => {
 Deno.test("Environment variable parsing", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = false;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
   }
 
@@ -389,21 +389,21 @@ Deno.test("Environment variable parsing", () => {
 Deno.test("Complex validation scenario", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
-    @option({ description: "Server count" })
+    @opt({ description: "Server count" })
     @range(1, 10)
     count: number = 1;
 
-    @option({ description: "Connection rate limit" })
+    @opt({ description: "Connection rate limit" })
     @min(1)
     rate: number = 10;
 
-    @option({ description: "Feature enabled" })
+    @opt({ description: "Feature enabled" })
     enabled: boolean = false;
 
-    @option({ description: "Service tags", type: "string[]" })
+    @opt({ description: "Service tags", type: "string[]" })
     tags: string[] = [];
 
-    @option({ description: "Available ports", type: "number[]" })
+    @opt({ description: "Available ports", type: "number[]" })
     ports: number[] = [];
   }
 
@@ -443,14 +443,14 @@ Deno.test("Optional and required fields mixed", () => {
     })
     input!: string;
 
-    @option({ description: "Server port" })
+    @opt({ description: "Server port" })
     @range(1000, 65535)
     port: number = 8080;
 
-    @option({ description: "Enable verbose logging" })
+    @opt({ description: "Enable verbose logging" })
     verbose: boolean = false;
 
-    @option({ description: "Configuration file path" })
+    @opt({ description: "Configuration file path" })
     config: string = "";
   }
 
@@ -471,13 +471,13 @@ Deno.test("Optional and required fields mixed", () => {
 Deno.test("Error handling and validation messages", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = false;
   }
 
@@ -492,13 +492,13 @@ Deno.test("Error handling and validation messages", () => {
 Deno.test("Boolean flag variations", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Verbose mode" })
+    @opt({ description: "Verbose mode" })
     verbose: boolean = false;
 
-    @option({ description: "Quiet mode" })
+    @opt({ description: "Quiet mode" })
     quiet: boolean = false;
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = false;
   }
 
@@ -518,13 +518,13 @@ Deno.test("Boolean flag variations", () => {
 Deno.test("Array parsing edge cases", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Tags list", type: "string[]" })
+    @opt({ description: "Tags list", type: "string[]" })
     tags: string[] = [];
 
-    @option({ description: "Port numbers", type: "number[]" })
+    @opt({ description: "Port numbers", type: "number[]" })
     ports: number[] = [];
 
-    @option({ description: "Enable feature" })
+    @opt({ description: "Enable feature" })
     enabled: boolean = false;
   }
 
@@ -543,7 +543,7 @@ Deno.test("Array parsing edge cases", () => {
 Deno.test("Type coercion", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Numeric value" })
+    @opt({ description: "Numeric value" })
     @min(0)
     @max(100)
     num: number = 50;
@@ -562,7 +562,7 @@ Deno.test("Complex nested subcommand structure", () => {
     @arg({ description: "Email address", required: true, type: "string" })
     email!: string;
 
-    @option({ description: "Admin privileges" })
+    @opt({ description: "Admin privileges" })
     admin: boolean = false;
   }
 
@@ -571,7 +571,7 @@ Deno.test("Complex nested subcommand structure", () => {
     @arg({ description: "Username to delete", required: true, type: "string" })
     username!: string;
 
-    @option({ description: "Force deletion" })
+    @opt({ description: "Force deletion" })
     force: boolean = false;
   }
 
@@ -586,16 +586,16 @@ Deno.test("Complex nested subcommand structure", () => {
 
   @command
   class ServerCommand {
-    @option({ description: "Server port" })
+    @opt({ description: "Server port" })
     port: number = 8080;
 
-    @option({ description: "Enable SSL" })
+    @opt({ description: "Enable SSL" })
     ssl: boolean = false;
   }
 
   @cli({ name: "testapp" })
   class App extends Args {
-    @option({ description: "Enable verbose logging" })
+    @opt({ description: "Enable verbose logging" })
     verbose: boolean = false;
 
     @subCommand(UserCommand)
@@ -623,13 +623,13 @@ Deno.test("Complex nested subcommand structure", () => {
 Deno.test("Edge case: empty arguments", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = false;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
   }
 
@@ -642,13 +642,13 @@ Deno.test("Edge case: empty arguments", () => {
 Deno.test("Multiple validation decorators", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Verbose output" })
+    @opt({ description: "Verbose output" })
     verbose: boolean = false;
 
-    @option({ description: "Quiet mode" })
+    @opt({ description: "Quiet mode" })
     quiet: boolean = false;
 
-    @option({ description: "Debug level" })
+    @opt({ description: "Debug level" })
     debug: boolean = false;
   }
 
@@ -661,19 +661,19 @@ Deno.test("Multiple validation decorators", () => {
 Deno.test("Large argument arrays", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Request count" })
+    @opt({ description: "Request count" })
     count: number = 1;
 
-    @option({ description: "Rate limit" })
+    @opt({ description: "Rate limit" })
     rate: number = 10;
 
-    @option({ description: "Feature enabled" })
+    @opt({ description: "Feature enabled" })
     enabled: boolean = false;
 
-    @option({ description: "Service tags", type: "string[]" })
+    @opt({ description: "Service tags", type: "string[]" })
     tags: string[] = [];
 
-    @option({ description: "Port numbers", type: "number[]" })
+    @opt({ description: "Port numbers", type: "number[]" })
     ports: number[] = [];
   }
 
@@ -702,14 +702,14 @@ Deno.test("Configuration with both options and arguments", () => {
     @arg({ description: "Input files", rest: true, type: "string[]" })
     input: string[] = [];
 
-    @option({ description: "Server port" })
+    @opt({ description: "Server port" })
     @range(1000, 65535)
     port: number = 8080;
 
-    @option({ description: "Verbose output" })
+    @opt({ description: "Verbose output" })
     verbose: boolean = false;
 
-    @option({ description: "Config file path" })
+    @opt({ description: "Config file path" })
     config: string = "";
   }
 
@@ -740,13 +740,13 @@ Deno.test("Configuration with both options and arguments", () => {
 Deno.test("Default values preservation", () => {
   @cli({ name: "testapp" })
   class Config extends Args {
-    @option({ description: "Port number" })
+    @opt({ description: "Port number" })
     port: number = 8080;
 
-    @option({ description: "Host address" })
+    @opt({ description: "Host address" })
     host: string = "localhost";
 
-    @option({ description: "Debug mode" })
+    @opt({ description: "Debug mode" })
     debug: boolean = false;
   }
 
@@ -760,11 +760,11 @@ Deno.test("Default values preservation", () => {
 Deno.test("Complex mixed validation", () => {
   @cli({ name: "testapp", exitOnError: false })
   class Config extends Args {
-    @option({ description: "Server port" })
+    @opt({ description: "Server port" })
     @range(8000, 9000)
     port: number = 8080;
 
-    @option({ description: "Verbose mode" })
+    @opt({ description: "Verbose mode" })
     verbose: boolean = false;
   }
 

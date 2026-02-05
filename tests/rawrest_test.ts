@@ -1,5 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
+import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 Deno.test("rawRest - basic functionality", () => {
   @cli({
@@ -143,7 +143,7 @@ Deno.test("rawRest - with regular options mixed in", () => {
     @arg({ description: "Tool name", type: "string" })
     tool: string = "";
 
-    @option({ description: "Enable verbose output" })
+    @opt({ description: "Enable verbose output" })
     verbose: boolean = false;
 
     @arg({ description: "Subcommand and its arguments", raw: true })
@@ -190,7 +190,7 @@ Deno.test("rawRest - with subcommands", () => {
     @arg({ description: "Arguments for the binary", raw: true })
     binArgs: string[] = [];
 
-    @option({ description: "Run in background" })
+    @opt({ description: "Run in background" })
     background: boolean = false;
   }
 
@@ -200,7 +200,7 @@ Deno.test("rawRest - with subcommands", () => {
     exitOnError: false,
   })
   class ChefApp extends Args {
-    @option({ description: "Enable debug mode" })
+    @opt({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(RunCommand)
@@ -231,7 +231,7 @@ Deno.test("rawRest - complex real-world example", () => {
     @arg({ description: "All container and command arguments", raw: true })
     containerArgs: string[] = [];
 
-    @option({ description: "Enable debug logging" })
+    @opt({ description: "Enable debug logging" })
     debug: boolean = false;
   }
 
@@ -269,7 +269,7 @@ Deno.test("unexpected positional arguments should error", () => {
     exitOnError: false,
   })
   class EmptyCommand extends Args {
-    @option({ description: "Enable debug mode" })
+    @opt({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -295,7 +295,7 @@ Deno.test("unexpected positional arguments with defined args should error", () =
     @arg({ description: "Output file", type: "string" })
     output: string = "";
 
-    @option({ description: "Enable verbose mode" })
+    @opt({ description: "Enable verbose mode" })
     verbose: boolean = false;
   }
 

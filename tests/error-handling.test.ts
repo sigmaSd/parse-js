@@ -14,7 +14,7 @@ import {
   handleHelpDisplay,
   handleParsingError,
   isParseError,
-  option,
+  opt,
   ParseError,
   subCommand,
 } from "../mod.ts";
@@ -32,7 +32,7 @@ Deno.test("Error handling - default behavior (exitOnError: true)", () => {
   try {
     @cli({ name: "test" })
     class Config extends Args {
-      @option()
+      @opt()
       port: number = 8080;
     }
 
@@ -56,7 +56,7 @@ Deno.test("Error handling - disable exit behavior (exitOnError: false)", () => {
     exitOnError: false,
   })
   class Config extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -83,7 +83,7 @@ Deno.test("Error handling - custom error handler", () => {
     },
   })
   class Config extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -115,7 +115,7 @@ Deno.test("Error handling - validation errors with custom handler", () => {
     },
   })
   class Config extends Args {
-    @option()
+    @opt()
     @addValidator(min(10))
     port: number = 8080;
   }
@@ -141,7 +141,7 @@ Deno.test("Help handling - default behavior (exitOnHelp: true)", () => {
   try {
     @cli({ name: "test" })
     class Config extends Args {
-      @option()
+      @opt()
       port: number = 8080;
     }
 
@@ -165,7 +165,7 @@ Deno.test("Help handling - disable exit behavior (exitOnHelp: false)", () => {
     exitOnHelp: false,
   })
   class Config extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -190,7 +190,7 @@ Deno.test("Help handling - custom help handler", () => {
     },
   })
   class Config extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -204,7 +204,7 @@ Deno.test("Help handling - custom help handler", () => {
 Deno.test("Error handling - subcommand errors respect configuration", () => {
   @command
   class TestCommand {
-    @option({ required: true, type: "string" })
+    @opt({ required: true, type: "string" })
     apiKey: string = "";
   }
 
@@ -249,7 +249,7 @@ Deno.test("ParseError properties and type guard", () => {
 
   @cli({ exitOnError: false })
   class Config extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -294,7 +294,7 @@ Deno.test("Error handling - different error types", () => {
 
     @cli({ exitOnError: false })
     class Config extends Args {
-      @option()
+      @opt()
       port: number = 8080;
     }
 
@@ -328,7 +328,7 @@ Deno.test("Mixed configuration - help exits, errors throw", () => {
       exitOnHelp: true, // Help should still exit
     })
     class Config1 extends Args {
-      @option()
+      @opt()
       port: number = 8080;
     }
 
@@ -352,7 +352,7 @@ Deno.test("Mixed configuration - help exits, errors throw", () => {
     exitOnHelp: true,
   })
   class Config2 extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
@@ -425,13 +425,13 @@ Deno.test("Integration test - full error handling workflow", () => {
 
   @cli(options)
   class Config1 extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
   @cli(options)
   class Config2 extends Args {
-    @option()
+    @opt()
     port: number = 8080;
   }
 
