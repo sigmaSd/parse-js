@@ -64,10 +64,14 @@ class ServeCommand {
 
 @command
 class BuildCommand {
-  @opt({ description: "Output directory", required: true })
+  @opt({ description: "Output directory", required: true, type: "string" })
   output!: string;
 
-  @opt({ description: "Source files to build", required: true })
+  @opt({
+    description: "Source files to build",
+    required: true,
+    type: "string[]",
+  })
   sources!: string[];
 
   @opt({ description: "Enable minification" })
