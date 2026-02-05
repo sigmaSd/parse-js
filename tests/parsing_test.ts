@@ -1,22 +1,13 @@
 // deno-lint-ignore-file no-import-prefix
 import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
-import {
-  Args,
-  argument,
-  cli,
-  command,
-  description,
-  subCommand,
-  type,
-} from "../src/index.ts";
+import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
 
 @command
 class _BuildCommand extends Args {
-  @argument({ description: "Input directory" })
-  @type("string")
+  @arg({ description: "Input directory", type: "string" })
   input: string = "";
 
-  @description("Enable production build")
+  @option({ description: "Enable production build" })
   production: boolean = false;
 }
 
@@ -27,7 +18,7 @@ Deno.test("empty class with no arguments should work", () => {
     exitOnError: false,
   })
   class EmptyCommand extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -42,7 +33,7 @@ Deno.test("unknown flags should error", () => {
     exitOnError: false,
   })
   class FlagTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -62,7 +53,7 @@ Deno.test("unexpected positional arguments should error", () => {
     exitOnError: false,
   })
   class PositionalTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -82,7 +73,7 @@ Deno.test("multiple unexpected positional arguments should error on first one", 
     exitOnError: false,
   })
   class MultipleTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -102,15 +93,13 @@ Deno.test("defined positional arguments should work correctly", () => {
     exitOnError: false,
   })
   class FileTest extends Args {
-    @argument({ description: "Input file" })
-    @type("string")
+    @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @argument({ description: "Output file" })
-    @type("string")
+    @arg({ description: "Output file", type: "string" })
     output: string = "";
 
-    @description("Enable verbose mode")
+    @option({ description: "Enable verbose mode" })
     verbose: boolean = false;
   }
 
@@ -127,12 +116,10 @@ Deno.test("too many positional arguments should error", () => {
     exitOnError: false,
   })
   class TooManyTest extends Args {
-    @argument({ description: "Input file" })
-    @type("string")
+    @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @argument({ description: "Output file" })
-    @type("string")
+    @arg({ description: "Output file", type: "string" })
     output: string = "";
   }
 
@@ -152,11 +139,10 @@ Deno.test("valid flags should work", () => {
     exitOnError: false,
   })
   class ValidFlagTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
-    @description("Port number")
-    @type("number")
+    @option({ description: "Port number", type: "number" })
     port: number = 8080;
   }
 
@@ -172,15 +158,13 @@ Deno.test("mix of valid positional and flags should work", () => {
     exitOnError: false,
   })
   class MixedTest extends Args {
-    @argument({ description: "Input file" })
-    @type("string")
+    @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @argument({ description: "Output file" })
-    @type("string")
+    @arg({ description: "Output file", type: "string" })
     output: string = "";
 
-    @description("Enable verbose mode")
+    @option({ description: "Enable verbose mode" })
     verbose: boolean = false;
   }
 
@@ -197,12 +181,10 @@ Deno.test("rest arguments should work", () => {
     exitOnError: false,
   })
   class RestTest extends Args {
-    @argument({ description: "First file" })
-    @type("string")
+    @arg({ description: "First file", type: "string" })
     first: string = "";
 
-    @argument({ description: "Additional files", rest: true })
-    @type("string[]")
+    @arg({ description: "Additional files", rest: true, type: "string[]" })
     files: string[] = [];
   }
 
@@ -218,12 +200,10 @@ Deno.test("optional positional arguments should work", () => {
     exitOnError: false,
   })
   class OptionalTest extends Args {
-    @argument({ description: "Input file" })
-    @type("string")
+    @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @argument({ description: "Output file" })
-    @type("string")
+    @arg({ description: "Output file", type: "string" })
     output: string = "default.txt";
   }
 
@@ -235,11 +215,10 @@ Deno.test("optional positional arguments should work", () => {
 Deno.test("subcommands with unexpected positional arguments should error", () => {
   @command
   class TestBuildCommand {
-    @argument({ description: "Input directory" })
-    @type("string")
+    @arg({ description: "Input directory", type: "string" })
     input: string = "";
 
-    @description("Enable production build")
+    @option({ description: "Enable production build" })
     production: boolean = false;
   }
 
@@ -249,7 +228,7 @@ Deno.test("subcommands with unexpected positional arguments should error", () =>
     exitOnError: false,
   })
   class SubcommandTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(TestBuildCommand)
@@ -268,11 +247,10 @@ Deno.test("subcommands with unexpected positional arguments should error", () =>
 Deno.test("subcommands with single argument should become positional arg", () => {
   @command
   class SingleArgBuildCommand {
-    @argument({ description: "Input directory" })
-    @type("string")
+    @arg({ description: "Input directory", type: "string" })
     input: string = "";
 
-    @description("Enable production build")
+    @option({ description: "Enable production build" })
     production: boolean = false;
   }
 
@@ -282,7 +260,7 @@ Deno.test("subcommands with single argument should become positional arg", () =>
     exitOnError: false,
   })
   class SingleArgTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(SingleArgBuildCommand)
@@ -299,11 +277,10 @@ Deno.test("subcommands with single argument should become positional arg", () =>
 Deno.test("subcommands with unexpected args after valid ones should error", () => {
   @command
   class AfterValidBuildCommand {
-    @argument({ description: "Input directory" })
-    @type("string")
+    @arg({ description: "Input directory", type: "string" })
     input: string = "";
 
-    @description("Enable production build")
+    @option({ description: "Enable production build" })
     production: boolean = false;
   }
 
@@ -313,7 +290,7 @@ Deno.test("subcommands with unexpected args after valid ones should error", () =
     exitOnError: false,
   })
   class AfterValidTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(AfterValidBuildCommand)
@@ -332,11 +309,10 @@ Deno.test("subcommands with unexpected args after valid ones should error", () =
 Deno.test("subcommands with valid arguments should work", () => {
   @command
   class ValidBuildCommand {
-    @argument({ description: "Input directory" })
-    @type("string")
+    @arg({ description: "Input directory", type: "string" })
     input: string = "";
 
-    @description("Enable production build")
+    @option({ description: "Enable production build" })
     production: boolean = false;
   }
 
@@ -346,7 +322,7 @@ Deno.test("subcommands with valid arguments should work", () => {
     exitOnError: false,
   })
   class ValidSubcommandTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(ValidBuildCommand)
@@ -363,11 +339,10 @@ Deno.test("subcommands with valid arguments should work", () => {
 Deno.test("unknown subcommands should error", () => {
   @command
   class UnknownTestBuildCommand {
-    @argument({ description: "Input directory" })
-    @type("string")
+    @arg({ description: "Input directory", type: "string" })
     input: string = "";
 
-    @description("Enable production build")
+    @option({ description: "Enable production build" })
     production: boolean = false;
   }
 
@@ -377,7 +352,7 @@ Deno.test("unknown subcommands should error", () => {
     exitOnError: false,
   })
   class UnknownSubcommandTest extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
     @subCommand(UnknownTestBuildCommand)

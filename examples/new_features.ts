@@ -1,69 +1,56 @@
 /**
- * Demonstration of new CLI parsing features:
+ * Demonstration of modern CLI parsing features:
  * - Colored help output with simple boolean control
  * - Default values shown in help text
  * - Default command functionality
+ * - Unified decorators (@option, @arg)
  */
 
-import {
-  Args,
-  argument,
-  cli,
-  command,
-  description,
-  required,
-  subCommand,
-  type,
-} from "../src/index.ts";
+import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
 
 // Define subcommands
 @command
 class ServeCommand {
-  @description("Port to serve on")
+  @option({ description: "Port to serve on" })
   port: number = 3000;
 
-  @description("Host to bind to")
+  @option({ description: "Host to bind to" })
   host: string = "localhost";
 
-  @description("Enable HTTPS")
+  @option({ description: "Enable HTTPS" })
   ssl: boolean = false;
 
-  @argument({ description: "Directory to serve" })
-  @type("string")
+  @arg({ description: "Directory to serve", type: "string" })
   directory: string = ".";
 }
 
 @command
 class BuildCommand {
-  @description("Output directory")
+  @option({ description: "Output directory" })
   output: string = "dist";
 
-  @description("Enable minification")
+  @option({ description: "Enable minification" })
   minify: boolean = false;
 
-  @description("Build target")
-  @type("string")
+  @option({ description: "Build target", type: "string" })
   target: string = "es2020";
 
-  @argument({ description: "Entry file" })
-  @required()
-  @type("string")
+  @arg({ description: "Entry file", required: true, type: "string" })
   entry: string = "";
 
-  @argument({ description: "Additional files", rest: true })
-  @type("string[]")
+  @arg({ description: "Additional files", rest: true, type: "string[]" })
   files: string[] = [];
 }
 
 @command
 class TestCommand {
-  @description("Test pattern to match")
+  @option({ description: "Test pattern to match" })
   pattern: string = "**/*.test.ts";
 
-  @description("Enable coverage reporting")
+  @option({ description: "Enable coverage reporting" })
   coverage: boolean = false;
 
-  @description("Watch for file changes")
+  @option({ description: "Watch for file changes" })
   watch: boolean = false;
 }
 
@@ -76,25 +63,22 @@ class TestCommand {
   defaultCommand: "help", // Show help when no command is provided
 })
 class DevTool extends Args {
-  @description("Enable verbose logging")
+  @option({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @description("Configuration file path")
+  @option({ description: "Configuration file path" })
   config: string = "devtool.json";
 
-  @description("Environment to run in")
+  @option({ description: "Environment to run in" })
   env: string = "development";
 
-  @description("Start the development server")
-  @subCommand(ServeCommand)
+  @subCommand(ServeCommand, { description: "Start the development server" })
   serve?: ServeCommand;
 
-  @description("Build the project")
-  @subCommand(BuildCommand)
+  @subCommand(BuildCommand, { description: "Build the project" })
   build?: BuildCommand;
 
-  @description("Run tests")
-  @subCommand(TestCommand)
+  @subCommand(TestCommand, { description: "Run tests" })
   test?: TestCommand;
 }
 
@@ -138,33 +122,3 @@ function main() {
 if (import.meta.main) {
   main();
 }
-
-/*
-Usage examples:
-
-# Show colored help (default command)
-deno run new_features.ts
-
-# Start development server with defaults
-deno run new_features.ts serve
-
-# Start server on different port
-deno run new_features.ts serve --port 8080 --ssl
-
-# Build project
-deno run new_features.ts build src/main.ts --minify --output build
-
-# Verbose mode
-deno run new_features.ts --verbose serve
-
-# Help for specific command
-deno run new_features.ts serve --help
-
-Features demonstrated:
-- ✅ Colored help output (simple boolean control)
-- ✅ Default values shown in help text
-- ✅ Default command (shows help when no args provided)
-- ✅ Nested subcommands with proper help
-- ✅ Mixed positional and flag arguments
-- ✅ Rest arguments for multiple files
-*/

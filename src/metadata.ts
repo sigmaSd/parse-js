@@ -10,13 +10,6 @@ import type {
   SupportedType,
 } from "./types.ts";
 
-/**
- * Determines if a property is a user-defined static property vs a built-in class property.
- */
-function isUserDefinedProperty(descriptor: PropertyDescriptor): boolean {
-  return descriptor.writable === true && descriptor.enumerable === true;
-}
-
 interface CollectionOptions {
   strict?: boolean;
 }
@@ -51,8 +44,10 @@ export function collectInstanceArgumentDefs(
       | PropertyMetadata
       | undefined;
 
+    if (!propertyMetadata) continue;
+
     // Handle subcommands
-    if (propertyMetadata?.subCommand) {
+    if (propertyMetadata.subCommand) {
       subCommands.set(propName, {
         name: propName,
         commandClass: propertyMetadata.subCommand,
@@ -61,25 +56,13 @@ export function collectInstanceArgumentDefs(
       continue;
     }
 
-    // Validate short flag uniqueness
-    if (propertyMetadata?.short) {
-      const existingProp = shortFlagMap.get(propertyMetadata.short);
-      if (existingProp) {
-        throw new Error(
-          `Duplicate short flag '-${propertyMetadata.short}' used by both '${existingProp}' and '${propName}'`,
-        );
-      }
-      shortFlagMap.set(propertyMetadata.short, propName);
-    }
-
-    if (propertyMetadata?.argument) {
-      // Positional argument
+    // Handle Positional Arguments (@arg)
+    if (propertyMetadata.arg) {
       if (instance[propName] === undefined && !propertyMetadata.type) {
         if (options.strict) {
           throw new Error(
-            `Property '${propName}' has no default value and no @type() decorator. ` +
-              `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
-              `This is required because TypeScript cannot infer the type from undefined values.`,
+            `Property '${propName}' has no default value and no type specified in @arg(). ` +
+              `Use @arg({ type: "string" }), etc. to specify the expected type.`,
           );
         } else {
           continue;
@@ -91,57 +74,50 @@ export function collectInstanceArgumentDefs(
         type: propertyMetadata.type || getTypeFromValue(instance[propName]),
         default: instance[propName],
         validators: propertyMetadata.validators || [],
-        rest: propertyMetadata.argument.rest,
+        rest: propertyMetadata.arg.rest,
+        raw: propertyMetadata.arg.raw,
         description: propertyMetadata.description,
       });
-    } else if (propertyMetadata?.rawRest) {
-      // Raw rest argument
+      continue;
+    }
+
+    // Handle Options (@option)
+    if (propertyMetadata.option) {
       if (instance[propName] === undefined && !propertyMetadata.type) {
         if (options.strict) {
           throw new Error(
-            `Property '${propName}' has no default value and no @type() decorator. ` +
-              `Use @type("string[]") or another array type to specify the expected type. ` +
-              `This is required because TypeScript cannot infer the type from undefined values.`,
+            `Property '${propName}' has no default value and no type specified in @option(). ` +
+              `Use @option({ type: "string" }), etc. to specify the expected type.`,
           );
         } else {
           continue;
         }
       }
 
-      positionalDefs.push({
-        name: propName,
-        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
-        default: instance[propName],
-        validators: propertyMetadata?.validators || [],
-        rawRest: true,
-        description: propertyMetadata.rawRest.description,
-      });
-    } else {
-      // Regular option
-      if (instance[propName] === undefined && !propertyMetadata?.type) {
-        if (options.strict) {
+      // Validate short flag uniqueness
+      const short = propertyMetadata.option.short;
+      if (typeof short === "string") {
+        const existingProp = shortFlagMap.get(short);
+        if (existingProp) {
           throw new Error(
-            `Property '${propName}' has no default value and no @type() decorator. ` +
-              `Use @type("string"), @type("number"), etc. to specify the expected type. ` +
-              `This is required because TypeScript cannot infer the type from undefined values.`,
+            `Duplicate short flag '-${short}' used by both '${existingProp}' and '${propName}'`,
           );
-        } else {
-          continue;
         }
+        shortFlagMap.set(short, propName);
       }
 
       optionDefs.push({
         name: propName,
-        type: propertyMetadata?.type || getTypeFromValue(instance[propName]),
+        type: propertyMetadata.type || getTypeFromValue(instance[propName]),
         default: instance[propName] as
           | string
           | number
           | boolean
           | string[]
           | number[],
-        validators: propertyMetadata?.validators || [],
-        description: propertyMetadata?.description,
-        short: propertyMetadata?.short,
+        validators: propertyMetadata.validators || [],
+        description: propertyMetadata.description,
+        short: typeof short === "string" ? short : undefined,
       });
     }
   }
@@ -176,7 +152,7 @@ function validatePositionalArguments(
   positionalDefs: PositionalDef[],
 ): void {
   let hasRest = false;
-  const hasRawRest = positionalDefs.some((def) => def.rawRest);
+  const hasRaw = positionalDefs.some((def) => def.raw);
 
   for (const argDef of positionalDefs) {
     if (argDef.rest) {
@@ -185,9 +161,9 @@ function validatePositionalArguments(
     }
   }
 
-  if (hasRest && hasRawRest) {
+  if (hasRest && hasRaw) {
     throw new Error(
-      `Cannot use both @argument(n, {rest: true}) and @rawRest() in the same command. Use @rawRest() for proxy commands or regular rest arguments for typed arrays.`,
+      `Cannot use both rest: true and raw: true in the same command.`,
     );
   }
 
@@ -195,7 +171,7 @@ function validatePositionalArguments(
   for (let i = 0; i < positionalDefs.length; i++) {
     const argDef = positionalDefs[i];
 
-    if (argDef.rawRest) {
+    if (argDef.raw) {
       continue;
     }
 
@@ -220,81 +196,56 @@ export function collectArgumentDefs(
   optionDefs: OptionDef[];
   positionalDefs: PositionalDef[];
 } {
+  // NOTE: This function seems to be used for static property based parsing which is older.
+  // We'll update it to match the new metadata structure but focus on instance-based parsing.
   const optionDefs: OptionDef[] = [];
   const positionalDefs: PositionalDef[] = [];
 
   const shortFlagMap = new Map<string, string>();
-  const propertyNames = Object.getOwnPropertyNames(klass);
   const classMetadata = klass[Symbol.metadata] as
     | Record<string | symbol, unknown>
     | undefined;
 
-  for (const propName of propertyNames) {
-    const descriptor = Object.getOwnPropertyDescriptor(klass, propName);
-    if (!descriptor || typeof descriptor.value === "function") continue;
+  if (!classMetadata) return { optionDefs, positionalDefs };
 
-    if (
-      (propName === "length" || propName === "name" ||
-        propName === "prototype") &&
-      !isUserDefinedProperty(descriptor)
-    ) {
-      continue;
-    }
+  // For now, we'll assume property names are available in metadata keys.
+  const metadataKeys = Object.keys(classMetadata);
 
-    const metadata = classMetadata?.[propName] as PropertyMetadata | undefined;
+  for (const propName of metadataKeys) {
+    const metadata = classMetadata[propName] as PropertyMetadata | undefined;
+    if (!metadata) continue;
 
-    if (metadata?.subCommand) {
-      continue;
-    }
+    if (metadata.subCommand) continue;
 
-    if (metadata?.short) {
-      const existingProp = shortFlagMap.get(metadata.short);
-      if (existingProp) {
-        throw new Error(
-          `Duplicate short flag '-${metadata.short}' used by both '${existingProp}' and '${propName}'`,
-        );
+    const type: SupportedType = metadata.type || "string";
+
+    if (metadata.arg) {
+      positionalDefs.push({
+        name: propName,
+        type,
+        validators: metadata.validators || [],
+        rest: metadata.arg.rest,
+        raw: metadata.arg.raw,
+        description: metadata.description,
+      });
+    } else if (metadata.option) {
+      const short = metadata.option.short;
+      if (typeof short === "string") {
+        const existingProp = shortFlagMap.get(short);
+        if (existingProp) {
+          throw new Error(
+            `Duplicate short flag '-${short}' used by both '${existingProp}' and '${propName}'`,
+          );
+        }
+        shortFlagMap.set(short, propName);
       }
-      shortFlagMap.set(metadata.short, propName);
-    }
 
-    let type: SupportedType;
-    try {
-      type = extractTypeFromDescriptor(
-        descriptor,
-        metadata || {},
-        propName,
-        klass.name,
-      );
-    } catch (error) {
-      throw error;
-    }
-
-    if (metadata?.argument) {
-      positionalDefs.push({
-        name: propName,
-        type,
-        default: descriptor.value,
-        validators: metadata.validators,
-        rest: metadata.argument.rest,
-        description: metadata.argument.description,
-      });
-    } else if (metadata?.rawRest) {
-      positionalDefs.push({
-        name: propName,
-        type,
-        default: descriptor.value,
-        validators: metadata.validators,
-        rawRest: true,
-        description: metadata.rawRest.description,
-      });
-    } else {
       optionDefs.push({
         name: propName,
         type,
-        description: metadata?.description,
-        default: descriptor.value,
-        validators: metadata?.validators || [],
-        short: metadata?.short,
+        description: metadata.description,
+        validators: metadata.validators || [],
+        short: typeof short === "string" ? short : undefined,
       });
     }
   }
@@ -306,6 +257,7 @@ export function collectArgumentDefs(
 
 /**
  * Extracts the argument type from a property descriptor and metadata.
+ * (Keeping it for internal utility but it might be less used now)
  */
 export function extractTypeFromDescriptor(
   descriptor: PropertyDescriptor,
@@ -338,8 +290,6 @@ export function extractTypeFromDescriptor(
   }
 
   throw new Error(
-    `Property '${propertyName}' in class '${className}' has no default value and no @type decorator. ` +
-      `Either provide a default value or use @type() to specify the type. ` +
-      `Examples: @type("string"), @type("number"), @type("boolean"), @type("string[]"), etc.`,
+    `Property '${propertyName}' in class '${className}' has no type specified.`,
   );
 }

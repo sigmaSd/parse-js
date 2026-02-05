@@ -1,14 +1,12 @@
 import {
   addValidator,
+  arg,
   Args,
-  argument,
   cli,
   command,
-  description,
-  required,
+  option,
   subCommand,
-  type,
-} from "../src/index.ts";
+} from "../mod.ts";
 
 ////////////////
 // User-defined validation decorators
@@ -47,19 +45,18 @@ function oneOf(choices: string[]) {
 
 @command
 class ServeCommand {
-  @description("Port number to listen on")
+  @option({ description: "Port number to listen on" })
   @min(1000)
   @max(65535)
   port: number = 8080;
 
-  @description("Host address to bind to")
+  @option({ description: "Host address to bind to" })
   host: string = "localhost";
 
-  @description("Enable HTTPS")
+  @option({ description: "Enable HTTPS" })
   https: boolean = false;
 
-  @description("Number of worker processes")
-  @type("number")
+  @option({ description: "Number of worker processes", type: "number" })
   @min(1)
   @max(16)
   workers: number = 1;
@@ -67,37 +64,33 @@ class ServeCommand {
 
 @command
 class BuildCommand {
-  @description("Output directory")
-  @required()
+  @option({ description: "Output directory", required: true })
   output!: string;
 
-  @description("Source files to build")
-  @required()
+  @option({ description: "Source files to build", required: true })
   sources!: string[];
 
-  @description("Enable minification")
+  @option({ description: "Enable minification" })
   minify: boolean = false;
 
-  @description("Target environment")
+  @option({ description: "Target environment" })
   @oneOf(["development", "production", "test"])
   env: string = "development";
 }
 
 @command
 class TestCommand {
-  @description("Test files pattern")
-  @type("string")
+  @option({ description: "Test files pattern", type: "string" })
   pattern: string = "";
 
-  @description("Enable coverage reporting")
+  @option({ description: "Enable coverage reporting" })
   coverage: boolean = false;
 
-  @description("Number of parallel workers")
-  @type("number")
+  @option({ description: "Number of parallel workers", type: "number" })
   @min(1)
   parallel: number = 1;
 
-  @description("Test timeout in seconds")
+  @option({ description: "Test timeout in seconds" })
   @min(1)
   @max(300)
   timeout: number = 30;
@@ -105,24 +98,24 @@ class TestCommand {
 
 @command
 class ProcessCommand {
-  @argument({ description: "Input file to process" })
-  @required()
-  @type("string")
+  @arg({ description: "Input file to process", required: true, type: "string" })
   input!: string;
 
-  @argument({ description: "Output file path" })
-  @type("string")
+  @arg({ description: "Output file path", type: "string" })
   output: string = "processed.txt";
 
-  @argument({ description: "Additional files to include", rest: true })
-  @type("string[]")
+  @arg({
+    description: "Additional files to include",
+    rest: true,
+    type: "string[]",
+  })
   files: string[] = [];
 
-  @description("Processing format")
+  @option({ description: "Processing format" })
   @oneOf(["json", "xml", "csv"])
   format: string = "json";
 
-  @description("Enable verbose output")
+  @option({ description: "Enable verbose output" })
   verbose: boolean = false;
 }
 
@@ -132,24 +125,24 @@ class ProcessCommand {
 
 @command
 class StartDatabaseCommand {
-  @description("Database port")
+  @option({ description: "Database port" })
   @min(1000)
   @max(65535)
   port: number = 5432;
 
-  @description("Database host")
+  @option({ description: "Database host" })
   host: string = "localhost";
 
-  @description("Enable SSL connection")
+  @option({ description: "Enable SSL connection" })
   ssl: boolean = false;
 }
 
 @command
 class StopDatabaseCommand {
-  @description("Force stop without graceful shutdown")
+  @option({ description: "Force stop without graceful shutdown" })
   force: boolean = false;
 
-  @description("Timeout for graceful shutdown (seconds)")
+  @option({ description: "Timeout for graceful shutdown (seconds)" })
   @min(1)
   @max(300)
   timeout: number = 30;
@@ -157,35 +150,30 @@ class StopDatabaseCommand {
 
 @command
 class MigrateCommand {
-  @description("Migration direction")
+  @option({ description: "Migration direction" })
   @oneOf(["up", "down"])
   direction: string = "up";
 
-  @description("Number of migrations to run")
-  @type("number")
+  @option({ description: "Number of migrations to run", type: "number" })
   @min(1)
   count: number = 1;
 }
 
 @command
 class DatabaseCommand {
-  @description("Start the database server")
   @subCommand(StartDatabaseCommand)
   start?: StartDatabaseCommand;
 
-  @description("Stop the database server")
   @subCommand(StopDatabaseCommand)
   stop?: StopDatabaseCommand;
 
-  @description("Run database migrations")
   @subCommand(MigrateCommand)
   migrate?: MigrateCommand;
 
-  @description("Database name")
-  @type("string")
+  @option({ description: "Database name", type: "string" })
   name: string = "";
 
-  @description("Connection timeout (seconds)")
+  @option({ description: "Connection timeout (seconds)" })
   @min(1)
   @max(60)
   timeout: number = 10;
@@ -201,34 +189,30 @@ class DatabaseCommand {
     "A powerful CLI application with nested subcommands, validation, and help",
 })
 class MyArgs extends Args {
-  @description("Start the development server")
-  @subCommand(ServeCommand)
+  @subCommand(ServeCommand, { description: "Start the development server" })
   serve?: ServeCommand;
 
-  @description("Build the project")
-  @subCommand(BuildCommand)
+  @subCommand(BuildCommand, { description: "Build the project" })
   build?: BuildCommand;
 
-  @description("Run the test suite")
-  @subCommand(TestCommand)
+  @subCommand(TestCommand, { description: "Run the test suite" })
   test?: TestCommand;
 
-  @description("Process files with positional arguments")
-  @subCommand(ProcessCommand)
+  @subCommand(ProcessCommand, {
+    description: "Process files with positional arguments",
+  })
   process?: ProcessCommand;
 
-  @description("Database operations")
-  @subCommand(DatabaseCommand)
+  @subCommand(DatabaseCommand, { description: "Database operations" })
   database?: DatabaseCommand;
 
-  @description("Configuration file to use")
-  @type("string")
+  @option({ description: "Configuration file to use", type: "string" })
   config: string = "";
 
-  @description("Enable verbose logging")
+  @option({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @description("Enable debug mode")
+  @option({ description: "Enable debug mode" })
   debug: boolean = false;
 }
 
@@ -306,43 +290,3 @@ function main() {
 if (import.meta.main) {
   main();
 }
-
-////////////////
-// Example usage commands:
-//
-// Basic subcommands:
-// deno run example.ts serve --port 3000 --host 0.0.0.0
-// deno run example.ts build --output dist --sources src/main.ts,src/utils.ts --minify
-// deno run example.ts test --pattern user --coverage --parallel 4
-// deno run example.ts process input.txt output.json extra1.txt extra2.txt --format json --verbose
-//
-// Nested subcommands (2-3 levels deep):
-// deno run example.ts database start --port 5432 --host 0.0.0.0 --ssl
-// deno run example.ts database stop --force --timeout 60
-// deno run example.ts database migrate --direction up --count 3
-// deno run example.ts --verbose database --name mydb start --port 8080
-//
-// With global options:
-// deno run example.ts --verbose --debug serve --port 8080
-// deno run example.ts --config prod.json build --output build --sources src/app.ts --env production
-// deno run example.ts --verbose database --name prod migrate --direction up
-//
-// Help commands:
-// deno run example.ts --help
-// deno run example.ts serve --help
-// deno run example.ts build --help
-// deno run example.ts test --help
-// deno run example.ts process --help
-// deno run example.ts database --help
-// deno run example.ts database start --help
-// deno run example.ts database migrate --help
-//
-// Validation examples (these will fail):
-// deno run example.ts serve --port 99999  (port too high)
-// deno run example.ts build --env invalid  (invalid environment)
-// deno run example.ts test --timeout 500  (timeout too high)
-// deno run example.ts database start --port 99999  (nested validation)
-// deno run example.ts database migrate --direction invalid  (invalid direction)
-//
-// Global options only:
-// deno run example.ts --config app.json --verbose

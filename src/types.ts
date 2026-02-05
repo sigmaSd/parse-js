@@ -43,6 +43,8 @@ export interface ArgumentMetadata {
   description?: string;
   /** Whether this argument captures all remaining positional args */
   rest?: boolean;
+  /** Whether this captures all remaining args without parsing flags */
+  raw?: boolean;
 }
 
 /**
@@ -60,9 +62,39 @@ export interface PositionalDef {
   /** Whether this captures remaining args */
   rest?: boolean;
   /** Whether this captures all remaining args without parsing flags */
-  rawRest?: boolean;
+  raw?: boolean;
   /** Help description */
   description?: string;
+}
+
+/**
+ * Common configuration for both arguments and options.
+ */
+export interface CommonOptions {
+  /** Optional help description shown in usage */
+  description?: string;
+  /** Whether the field is required (convenience for adding a required validator) */
+  required?: boolean;
+  /** Explicitly set type for parsing and validation */
+  type?: SupportedType;
+}
+
+/**
+ * Configuration options for the @arg decorator.
+ */
+export interface ArgOptions extends CommonOptions {
+  /** Whether this argument captures all remaining positional args */
+  rest?: boolean;
+  /** Whether this captures all remaining args without parsing flags (proxy mode) */
+  raw?: boolean;
+}
+
+/**
+ * Configuration options for the @option decorator.
+ */
+export interface OptionOptions extends CommonOptions {
+  /** Short flag character (e.g., 'o' for -o). If true, first character of property name is used. */
+  short?: string | boolean;
 }
 
 /**
@@ -81,22 +113,18 @@ export interface SubCommand {
  * Property metadata collected from decorators.
  */
 export interface PropertyMetadata {
-  /** Explicitly set type via @type() decorator */
+  /** Explicitly set type */
   type?: SupportedType;
-  /** Validation functions from @required(), @addValidator(), etc. */
+  /** Validation functions */
   validators?: Validator[];
-  /** Description text from @description() decorator */
+  /** Description text */
   description?: string;
   /** Subcommand class from @subCommand() decorator */
   subCommand?: new () => unknown;
-  /** Positional argument config from @argument() decorator */
-  argument?: ArgumentMetadata;
-  /** Raw rest argument config from @rawRest() decorator */
-  rawRest?: {
-    description?: string;
-  };
-  /** Short flag character from @short() decorator */
-  short?: string;
+  /** Positional argument config from @arg() decorator */
+  arg?: ArgOptions;
+  /** Option config from @option() decorator */
+  option?: OptionOptions;
 }
 
 /**

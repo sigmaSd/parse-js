@@ -5,21 +5,17 @@
  *
  * @example Basic usage
  * ```ts
- * import { Args, cli, description, required, type } from "./mod.ts";
+ * import { Args, cli, option } from "./mod.ts";
  *
  * @cli({ name: "calculator", description: "A simple calculator" })
  * class Calculator extends Args {
- *   @description("First number")
- *   @type("number")
- *   @required()
+ *   @option({ description: "First number", type: "number", required: true })
  *   a!: number;
  *
- *   @description("Second number")
- *   @type("number")
- *   @required()
+ *   @option({ description: "Second number", type: "number", required: true })
  *   b!: number;
  *
- *   @description("Operation to perform")
+ *   @option({ description: "Operation to perform" })
  *   operation = "add";
  * }
  *
@@ -29,17 +25,16 @@
  *
  * @example With subcommands
  * ```ts
- * import { Args, cli, command, description, subCommand } from "./mod.ts";
+ * import { Args, cli, command, option, subCommand } from "./mod.ts";
  *
  * @command
  * class ServeCommand {
- *   @description("Port to serve on")
+ *   @option({ description: "Port to serve on" })
  *   port = 3000;
  * }
  *
  * @cli({ name: "myapp", description: "My application" })
  * class MyApp extends Args {
- *   @description("Start development server")
  *   @subCommand(ServeCommand)
  *   serve?: ServeCommand;
  * }
@@ -57,14 +52,10 @@ export { Args, cli } from "./src/index.ts";
 // Export all decorator functions
 export {
   addValidator,
-  argument,
+  arg,
   command,
-  description,
-  rawRest,
-  required,
-  short,
+  option,
   subCommand,
-  type,
   validate,
 } from "./src/decorators.ts";
 
@@ -84,9 +75,12 @@ export {
 
 // Export types
 export type {
+  ArgOptions,
   ArgumentMetadata,
   CommandInstance,
+  CommonOptions,
   OptionDef,
+  OptionOptions,
   ParseOptions,
   ParseResult,
   PositionalDef,

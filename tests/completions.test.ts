@@ -1,48 +1,75 @@
-import { assertEquals, assertStringIncludes } from "@std/assert";
+import { assertStringIncludes } from "@std/assert";
+import { Args, cli, command, option, subCommand } from "../mod.ts";
+import { generateFishCompletions } from "../src/completions.ts";
+import { collectInstanceArgumentDefs } from "../src/metadata.ts";
 
-Deno.test("gen-completions fish", async () => {
-  const command = new Deno.Command("deno", {
-    args: ["run", "examples/example.ts", "gen-completions", "fish"],
-    stdout: "piped",
-    stderr: "piped",
-  });
+Deno.test("completions - generateFishCompletions directly", () => {
+  @command
+  class BuildCommand {
+    @option({ description: "Minify output" })
+    minify = false;
+  }
 
-  const { code, stdout, stderr } = await command.output();
-  const output = new TextDecoder().decode(stdout);
-  const error = new TextDecoder().decode(stderr);
+  @cli({ name: "myapp" })
+  class MyApp extends Args {
+    @option({ description: "Verbose mode", short: "v" })
+    verbose = false;
 
-  assertEquals(code, 0, `Command failed with code ${code}. Stderr: ${error}`);
+    @subCommand(BuildCommand, { description: "Build the project" })
+    build?: BuildCommand;
+  }
 
-  // Check for some expected fish completion lines
+  const instance = new MyApp();
+  const { optionDefs, positionalDefs, subCommands } =
+    collectInstanceArgumentDefs(
+      instance as unknown as Record<string, unknown>,
+    );
+
+  const output = generateFishCompletions(
+    "myapp",
+    optionDefs,
+    positionalDefs,
+    subCommands,
+  );
+
   assertStringIncludes(output, "complete -c myapp -f");
   assertStringIncludes(
     output,
-    'complete -c myapp -n "__fish_use_subcommand" -a "serve" -d "Start the development server"',
+    'complete -c myapp -n "__fish_use_subcommand" -a "build" -d "Build the project"',
   );
   assertStringIncludes(
     output,
-    'complete -c myapp -n "__fish_seen_subcommand_from serve" -l port',
+    'complete -c myapp -n "__fish_seen_subcommand_from build" -l minify',
   );
   assertStringIncludes(
     output,
-    'complete -c myapp -n "__fish_use_subcommand" -l verbose',
+    'complete -c myapp -n "__fish_use_subcommand" -l verbose -s v',
   );
 });
 
-Deno.test("gen-completions missing shell arg", async () => {
-  const command = new Deno.Command("deno", {
-    args: ["run", "examples/example.ts", "gen-completions"],
-    stdout: "piped",
-    stderr: "piped",
-  });
+Deno.test("completions - GenCompletionsCommand validation", () => {
+  @cli({ name: "testapp", exitOnError: false })
+  class TestApp extends Args {}
 
-  const { code, stderr } = await command.output();
-  const error = new TextDecoder().decode(stderr);
+  // Test missing shell arg
+  try {
+    TestApp.parse(["gen-completions"]);
+    throw new Error("Should have thrown validation error");
+  } catch (error) {
+    assertStringIncludes(
+      (error as Error).message,
+      "Validation error for argument 'shell': is required",
+    );
+  }
 
-  // Should fail because shell is required
-  assertEquals(code, 1);
-  assertStringIncludes(
-    error,
-    "Validation error for argument 'shell': is required",
-  );
+  // Test invalid shell arg
+  try {
+    TestApp.parse(["gen-completions", "bash"]);
+    throw new Error("Should have thrown validation error");
+  } catch (error) {
+    assertStringIncludes(
+      (error as Error).message,
+      "Validation error for argument 'shell': must be one of: fish",
+    );
+  }
 });

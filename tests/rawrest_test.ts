@@ -1,14 +1,5 @@
 import { assertEquals, assertThrows } from "@std/assert";
-import {
-  Args,
-  argument,
-  cli,
-  command,
-  description,
-  rawRest,
-  subCommand,
-  type,
-} from "../src/index.ts";
+import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
 
 Deno.test("rawRest - basic functionality", () => {
   @cli({
@@ -17,11 +8,10 @@ Deno.test("rawRest - basic functionality", () => {
     exitOnError: false,
   })
   class ProxyCommand extends Args {
-    @argument({ description: "Binary name to execute" })
-    @type("string")
+    @arg({ description: "Binary name to execute", type: "string" })
     binary: string = "";
 
-    @rawRest("Arguments to pass to the binary")
+    @arg({ description: "Arguments to pass to the binary", raw: true })
     args: string[] = [];
   }
 
@@ -44,15 +34,13 @@ Deno.test("rawRest - multiple positional args then rawRest", () => {
     exitOnError: false,
   })
   class ChefCommand extends Args {
-    @argument({ description: "Command to run" })
-    @type("string")
+    @arg({ description: "Command to run", type: "string" })
     command: string = "";
 
-    @argument({ description: "Binary name" })
-    @type("string")
+    @arg({ description: "Binary name", type: "string" })
     binary: string = "";
 
-    @rawRest("Arguments for the binary")
+    @arg({ description: "Arguments for the binary", raw: true })
     binArgs: string[] = [];
   }
 
@@ -75,15 +63,13 @@ Deno.test("rawRest - with no remaining args", () => {
     exitOnError: false,
   })
   class NpmCommand extends Args {
-    @argument({ description: "Command" })
-    @type("string")
+    @arg({ description: "Command", type: "string" })
     cmd: string = "";
 
-    @argument({ description: "Script name" })
-    @type("string")
+    @arg({ description: "Script name", type: "string" })
     script: string = "start";
 
-    @rawRest("Script arguments")
+    @arg({ description: "Script arguments", raw: true })
     scriptArgs: string[] = [];
   }
 
@@ -100,15 +86,13 @@ Deno.test("rawRest - captures flags that would normally be parsed", () => {
     exitOnError: false,
   })
   class DenoCommand extends Args {
-    @argument({ description: "Runtime" })
-    @type("string")
+    @arg({ description: "Runtime", type: "string" })
     runtime: string = "";
 
-    @argument({ description: "Subcommand" })
-    @type("string")
+    @arg({ description: "Subcommand", type: "string" })
     subcommand: string = "";
 
-    @rawRest("Script and arguments")
+    @arg({ description: "Script and arguments", raw: true })
     scriptArgs: string[] = [];
   }
 
@@ -137,11 +121,10 @@ Deno.test("rawRest - empty command line uses defaults", () => {
     exitOnError: false,
   })
   class EmptyCommand extends Args {
-    @argument({ description: "Optional command" })
-    @type("string")
+    @arg({ description: "Optional command", type: "string" })
     cmd: string = "default";
 
-    @rawRest("Optional arguments")
+    @arg({ description: "Optional arguments", raw: true })
     args: string[] = [];
   }
 
@@ -157,14 +140,13 @@ Deno.test("rawRest - with regular options mixed in", () => {
     exitOnError: false,
   })
   class MixedCommand extends Args {
-    @argument({ description: "Tool name" })
-    @type("string")
+    @arg({ description: "Tool name", type: "string" })
     tool: string = "";
 
-    @description("Enable verbose output")
+    @option({ description: "Enable verbose output" })
     verbose: boolean = false;
 
-    @rawRest("Subcommand and its arguments")
+    @arg({ description: "Subcommand and its arguments", raw: true })
     subArgs: string[] = [];
   }
 
@@ -187,11 +169,10 @@ Deno.test("rawRest - single argument before rawRest", () => {
     exitOnError: false,
   })
   class ExecCommand extends Args {
-    @argument({ description: "Command to execute" })
-    @type("string")
+    @arg({ description: "Command to execute", type: "string" })
     command: string = "";
 
-    @rawRest("Command arguments")
+    @arg({ description: "Command arguments", raw: true })
     cmdArgs: string[] = [];
   }
 
@@ -203,14 +184,13 @@ Deno.test("rawRest - single argument before rawRest", () => {
 Deno.test("rawRest - with subcommands", () => {
   @command
   class RunCommand {
-    @argument({ description: "Binary to execute" })
-    @type("string")
+    @arg({ description: "Binary to execute", type: "string" })
     binary: string = "";
 
-    @rawRest("Arguments for the binary")
+    @arg({ description: "Arguments for the binary", raw: true })
     binArgs: string[] = [];
 
-    @description("Run in background")
+    @option({ description: "Run in background" })
     background: boolean = false;
   }
 
@@ -220,10 +200,9 @@ Deno.test("rawRest - with subcommands", () => {
     exitOnError: false,
   })
   class ChefApp extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
 
-    @description("Run a command with arguments")
     @subCommand(RunCommand)
     run?: RunCommand;
   }
@@ -243,18 +222,16 @@ Deno.test("rawRest - complex real-world example", () => {
     exitOnError: false,
   })
   class ContainerProxy extends Args {
-    @argument({ description: "Container runtime" })
-    @type("string")
+    @arg({ description: "Container runtime", type: "string" })
     runtime: string = "";
 
-    @argument({ description: "Runtime command" })
-    @type("string")
+    @arg({ description: "Runtime command", type: "string" })
     runtimeCmd: string = "";
 
-    @rawRest("All container and command arguments")
+    @arg({ description: "All container and command arguments", raw: true })
     containerArgs: string[] = [];
 
-    @description("Enable debug logging")
+    @option({ description: "Enable debug logging" })
     debug: boolean = false;
   }
 
@@ -292,7 +269,7 @@ Deno.test("unexpected positional arguments should error", () => {
     exitOnError: false,
   })
   class EmptyCommand extends Args {
-    @description("Enable debug mode")
+    @option({ description: "Enable debug mode" })
     debug: boolean = false;
   }
 
@@ -312,15 +289,13 @@ Deno.test("unexpected positional arguments with defined args should error", () =
     exitOnError: false,
   })
   class FileProcessor extends Args {
-    @argument({ description: "Input file" })
-    @type("string")
+    @arg({ description: "Input file", type: "string" })
     input: string = "";
 
-    @argument({ description: "Output file" })
-    @type("string")
+    @arg({ description: "Output file", type: "string" })
     output: string = "";
 
-    @description("Enable verbose mode")
+    @option({ description: "Enable verbose mode" })
     verbose: boolean = false;
   }
 

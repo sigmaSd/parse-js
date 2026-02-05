@@ -108,8 +108,8 @@ function printUsageSection(
 }
 
 function buildUsageArguments(positionalDefs: PositionalDef[]): string {
-  const rawRestDef = positionalDefs.find((def) => def.rawRest);
-  const regularPositionalDefs = positionalDefs.filter((def) => !def.rawRest);
+  const rawRestDef = positionalDefs.find((def) => def.raw);
+  const regularPositionalDefs = positionalDefs.filter((def) => !def.raw);
 
   let usageArgs = "";
 
@@ -164,8 +164,8 @@ function printArgumentsSection(
 ): void {
   console.log(colors.bold(colors.brightYellow("Arguments:")));
 
-  const rawRestDef = positionalDefs.find((def) => def.rawRest);
-  const regularPositionalDefs = positionalDefs.filter((def) => !def.rawRest);
+  const rawRestDef = positionalDefs.find((def) => def.raw);
+  const regularPositionalDefs = positionalDefs.filter((def) => !def.raw);
 
   for (const argDef of regularPositionalDefs) {
     const isRequired = !argDef.default && !isRequiredByValidator(argDef);

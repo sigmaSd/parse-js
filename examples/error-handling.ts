@@ -9,12 +9,10 @@ import {
   Args,
   cli,
   command,
-  description,
   isParseError,
-  required,
+  option,
   subCommand,
-  type,
-} from "../src/index.ts";
+} from "../mod.ts";
 
 // Example 1: Default behavior (exits on errors)
 console.log("=== Example 1: Default Behavior (Process Exit) ===");
@@ -25,7 +23,10 @@ try {
     description: "App with default error handling",
   })
   class DefaultConfig extends Args {
+    @option()
     port: number = 8080;
+
+    @option()
     debug: boolean = false;
   }
 
@@ -45,7 +46,10 @@ try {
     exitOnHelp: false,
   })
   class GracefulConfig extends Args {
+    @option()
     port: number = 8080;
+
+    @option()
     debug: boolean = false;
   }
 
@@ -91,10 +95,10 @@ try {
     onHelp: handleHelp,
   })
   class CustomConfig extends Args {
-    @description("Server port number")
+    @option({ description: "Server port number" })
     port: number = 8080;
 
-    @description("Enable debug logging")
+    @option({ description: "Enable debug logging" })
     debug: boolean = false;
   }
 
@@ -108,21 +112,23 @@ console.log("\n=== Example 4: Server Application ===");
 
 @command
 class StartCommand {
-  @description("Port to listen on")
+  @option({ description: "Port to listen on" })
   port: number = 3000;
 
-  @description("Host to bind to")
+  @option({ description: "Host to bind to" })
   host: string = "localhost";
 
-  @required()
-  @type("string")
-  @description("Configuration file path")
+  @option({
+    description: "Configuration file path",
+    required: true,
+    type: "string",
+  })
   config!: string;
 }
 
 @command
 class StopCommand {
-  @description("Force stop without graceful shutdown")
+  @option({ description: "Force stop without graceful shutdown" })
   force: boolean = false;
 }
 
@@ -175,7 +181,7 @@ class ServerApp {
           @subCommand(StopCommand)
           stop?: StopCommand;
 
-          @description("Global verbose flag")
+          @option({ description: "Global verbose flag" })
           verbose: boolean = false;
         }
 
@@ -209,7 +215,7 @@ class ServerApp {
 // Example 5: Testing framework integration
 console.log("\n=== Example 5: Testing Framework ===");
 
-class TestRunner {
+class _TestRunner {
   static runTests() {
     const testCases = [
       {
@@ -247,7 +253,10 @@ class TestRunner {
           exitOnHelp: false,
         })
         class TestConfig extends Args {
+          @option()
           port: number = 8080;
+
+          @option()
           debug: boolean = false;
         }
 
@@ -288,7 +297,7 @@ class TestRunner {
 // Example 6: Configuration validation with custom recovery
 console.log("\n=== Example 6: Configuration Validation ===");
 
-class ConfigManager {
+class _ConfigManager {
   static loadConfig(args: string[]) {
     try {
       @cli({
@@ -300,15 +309,13 @@ class ConfigManager {
         },
       })
       class AppConfig extends Args {
-        @description("Database URL")
-        @required()
-        @type("string")
+        @option({ description: "Database URL", required: true, type: "string" })
         dbUrl!: string;
 
-        @description("API port")
+        @option({ description: "API port" })
         port: number = 3000;
 
-        @description("Environment")
+        @option({ description: "Environment" })
         env: string = "development";
       }
 
@@ -333,33 +340,13 @@ class ConfigManager {
   }
 }
 
-// Test configuration loading
-const configs = [
-  ["--dbUrl", "postgres://localhost/myapp", "--port", "8080"],
-  ["--port", "8080"], // Missing required dbUrl
-  ["--dbUrl", "postgres://localhost/myapp", "--port", "invalid"], // Invalid port
-];
-
-for (const args of configs) {
-  console.log(`\n🔧 Loading config with: ${args.join(" ")}`);
-  const config = ConfigManager.loadConfig(args);
-  console.log(`   📋 Final config:`, config);
-}
-
 // Run the examples
-console.log("\n" + "=".repeat(60));
-console.log("Running server example...");
+console.log("\nRunning server example...");
 const _server = new ServerApp();
 // Note: In a real application, you would await server.start()
 // For this example, we'll just show it's possible
 
 console.log("\nRunning test suite...");
-TestRunner.runTests();
+_TestRunner.runTests();
 
 console.log("\n✨ All examples completed!");
-console.log("\nKey benefits of configurable error handling:");
-console.log("• Server applications don't crash on invalid CLI input");
-console.log("• Testing frameworks can validate error scenarios");
-console.log("• Custom error handling for logging and monitoring");
-console.log("• Graceful degradation with fallback configurations");
-console.log("• Better integration with larger applications");

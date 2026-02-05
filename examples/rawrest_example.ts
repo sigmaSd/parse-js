@@ -1,9 +1,9 @@
 #!/usr/bin/env -S deno run --allow-all
 
 /**
- * Comprehensive example demonstrating @rawRest decorator usage with the new Args API.
+ * Comprehensive example demonstrating @arg({ raw: true }) usage with the new Args API.
  *
- * The @rawRest decorator is perfect for building proxy commands that need to
+ * The raw: true option in @arg is perfect for building proxy commands that need to
  * forward arguments to other tools without parsing them as CLI options.
  *
  * Run examples:
@@ -13,16 +13,7 @@
  *   deno run examples/rawrest_example.ts --help
  */
 
-import {
-  Args,
-  argument,
-  cli,
-  command,
-  description,
-  rawRest,
-  subCommand,
-  type,
-} from "../src/index.ts";
+import { arg, Args, cli, command, option, subCommand } from "../mod.ts";
 
 // Example 1: Simple proxy command
 console.log("=== Example 1: Simple Proxy Command ===");
@@ -32,17 +23,22 @@ console.log("=== Example 1: Simple Proxy Command ===");
   description: "A proxy that forwards commands to container runtimes",
 })
 class ContainerProxy extends Args {
-  @argument({ description: "Container runtime (docker, podman, etc.)" })
-  @type("string")
+  @arg({
+    description: "Container runtime (docker, podman, etc.)",
+    type: "string",
+  })
   runtime: string = "";
 
-  @rawRest("All arguments to pass to the container runtime")
+  @arg({
+    description: "All arguments to pass to the container runtime",
+    raw: true,
+  })
   runtimeArgs: string[] = [];
 
-  @description("Enable verbose logging")
+  @option({ description: "Enable verbose logging" })
   verbose: boolean = false;
 
-  @description("Dry run - show command but don't execute")
+  @option({ description: "Dry run - show command but don't execute" })
   dryRun: boolean = false;
 }
 
@@ -70,29 +66,28 @@ console.log("=== Example 2: Development Tool Proxy ===");
 
 @command
 class RunCommand {
-  @argument({ description: "Script or binary name" })
-  @type("string")
+  @arg({ description: "Script or binary name", type: "string" })
   name: string = "";
 
-  @rawRest("Arguments to pass to the script/binary")
+  @arg({ description: "Arguments to pass to the script/binary", raw: true })
   args: string[] = [];
 
-  @description("Run in background")
+  @option({ description: "Run in background" })
   background: boolean = false;
 
-  @description("Restart on file changes")
+  @option({ description: "Restart on file changes" })
   watch: boolean = false;
 }
 
 @command
 class TestCommand {
-  @rawRest("Test framework arguments")
+  @arg({ description: "Test framework arguments", raw: true })
   testArgs: string[] = [];
 
-  @description("Show coverage report")
+  @option({ description: "Show coverage report" })
   coverage: boolean = false;
 
-  @description("Run tests in watch mode")
+  @option({ description: "Run tests in watch mode" })
   watch: boolean = false;
 }
 
@@ -102,14 +97,12 @@ class TestCommand {
   exitOnError: false,
 })
 class DevTool extends Args {
-  @description("Enable debug output")
+  @option({ description: "Enable debug output" })
   debug: boolean = false;
 
-  @description("Run a script with arguments")
   @subCommand(RunCommand)
   run?: RunCommand;
 
-  @description("Run tests with framework arguments")
   @subCommand(TestCommand)
   test?: TestCommand;
 }
@@ -161,21 +154,22 @@ console.log("=== Example 3: Package Manager Proxy ===");
   exitOnError: false,
 })
 class PackageProxy extends Args {
-  @argument({ description: "Package manager (npm, yarn, pnpm, bun)" })
-  @type("string")
+  @arg({
+    description: "Package manager (npm, yarn, pnpm, bun)",
+    type: "string",
+  })
   manager: string = "";
 
-  @argument({ description: "Command (install, run, build, etc.)" })
-  @type("string")
+  @arg({ description: "Command (install, run, build, etc.)", type: "string" })
   command: string = "";
 
-  @rawRest("All arguments for the package manager")
+  @arg({ description: "All arguments for the package manager", raw: true })
   managerArgs: string[] = [];
 
-  @description("Show what would be executed without running")
+  @option({ description: "Show what would be executed without running" })
   whatIf: boolean = false;
 
-  @description("Force operation even if risky")
+  @option({ description: "Force operation even if risky" })
   force: boolean = false;
 }
 
@@ -203,8 +197,8 @@ console.log("Full command that would be executed:", fullCommand.join(" "));
 
 console.log("\n" + "=".repeat(60) + "\n");
 
-// Example 4: Complex validation with rawRest
-console.log("=== Example 4: Validation with rawRest ===");
+// Example 4: Complex validation with raw rest
+console.log("=== Example 4: Validation with raw rest ===");
 
 @cli({
   name: "validated-proxy",
@@ -212,18 +206,16 @@ console.log("=== Example 4: Validation with rawRest ===");
   exitOnError: false,
 })
 class ValidatedProxy extends Args {
-  @argument({ description: "Execution mode" })
-  @type("string")
+  @arg({ description: "Execution mode", type: "string" })
   mode: string = "";
 
-  @rawRest("Command and arguments to execute")
+  @arg({ description: "Command and arguments to execute", raw: true })
   cmdArgs: string[] = [];
 
-  @description("Set execution timeout in seconds")
-  @type("number")
+  @option({ description: "Set execution timeout in seconds", type: "number" })
   timeout: number = 30;
 
-  @description("Capture stdout/stderr")
+  @option({ description: "Capture stdout/stderr" })
   capture: boolean = false;
 }
 
@@ -260,24 +252,22 @@ console.log("=== Example 5: CI/CD Pipeline Step ===");
   exitOnError: false,
 })
 class PipelineStep extends Args {
-  @argument({ description: "Step type (build, test, deploy, etc.)" })
-  @type("string")
+  @arg({ description: "Step type (build, test, deploy, etc.)", type: "string" })
   stepType: string = "";
 
-  @rawRest("Tool-specific command and arguments")
+  @arg({ description: "Tool-specific command and arguments", raw: true })
   toolCommand: string[] = [];
 
-  @description("Environment (dev, staging, prod)")
+  @option({ description: "Environment (dev, staging, prod)" })
   env: string = "dev";
 
-  @description("Pipeline run ID")
+  @option({ description: "Pipeline run ID" })
   runId: string = "";
 
-  @description("Skip safety checks")
+  @option({ description: "Skip safety checks" })
   skipChecks: boolean = false;
 
-  @description("Maximum execution time in minutes")
-  @type("number")
+  @option({ description: "Maximum execution time in minutes", type: "number" })
   maxTime: number = 30;
 }
 
@@ -310,14 +300,4 @@ console.log("Timeout:", pipeline.maxTime, "minutes");
 
 console.log("\n" + "=".repeat(60) + "\n");
 
-console.log("✅ All @rawRest examples completed!");
-console.log("\nKey benefits of @rawRest:");
-console.log("• Captures all remaining arguments without parsing flags");
-console.log("• Perfect for proxy commands that forward to other tools");
-console.log("• Works seamlessly with regular CLI options and validation");
-console.log("• Supports complex command hierarchies with subcommands");
-console.log("• Handles edge cases like -- separator and mixed argument orders");
-console.log(
-  "• Clean property access: args.toolCommand instead of static access",
-);
-console.log("• Perfect type safety throughout the command chain");
+console.log("✅ All examples completed!");

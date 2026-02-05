@@ -7,14 +7,7 @@ import type {
 } from "./types.ts";
 import { printHelp } from "./help.ts";
 import { handleHelpDisplay, handleParsingError } from "./error-handling.ts";
-import {
-  argument,
-  command,
-  description,
-  required,
-  type,
-  validate,
-} from "./decorators.ts";
+import { arg, command, validate } from "./decorators.ts";
 import { collectInstanceArgumentDefs } from "./metadata.ts";
 import { generateFishCompletions } from "./completions.ts";
 import { tokenize } from "./tokenizer.ts";
@@ -60,14 +53,15 @@ export class Args {
  */
 @command
 class GenCompletionsCommand {
-  @description("The shell to generate completions for (e.g., 'fish')")
-  @type("string")
-  @argument()
   @validate(
     (value: string) => value === "fish",
     "must be one of: fish (currently only fish is supported)",
   )
-  @required()
+  @arg({
+    description: "The shell to generate completions for (e.g., 'fish')",
+    type: "string",
+    required: true,
+  })
   shell!: string;
 }
 
@@ -95,15 +89,11 @@ function cli(
 export * from "./types.ts";
 export {
   addValidator,
-  argument,
+  arg,
   command,
   type DecoratorContext,
-  description,
-  rawRest,
-  required,
-  short,
+  option,
   subCommand,
-  type,
   validate,
 } from "./decorators.ts";
 export {
@@ -200,7 +190,9 @@ function parseInstanceBased(
     handleHelpDisplay(helpText, options || {});
     // Return initial result (with defaults) if help handler doesn't exit
     const result: ParseResult = {};
-    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of optionDefs) {
+      result[argDef.name] = instance[argDef.name];
+    }
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -213,10 +205,10 @@ function parseInstanceBased(
 
     const finalResult: ParseResult = {};
     // Initialize with parent defaults and parsed values
-    for (const arg of optionDefs) {
-      finalResult[arg.name] = status.parentResult[arg.name] !== undefined
-        ? status.parentResult[arg.name]
-        : instance[arg.name];
+    for (const argDef of optionDefs) {
+      finalResult[argDef.name] = status.parentResult[argDef.name] !== undefined
+        ? status.parentResult[argDef.name]
+        : instance[argDef.name];
     }
     for (const argDef of positionalDefs) {
       finalResult[argDef.name] = status.parentResult[argDef.name] !== undefined
@@ -243,10 +235,10 @@ function parseInstanceBased(
 
   // 6. Merge with defaults from instance
   const finalResult: ParseResult = {};
-  for (const arg of optionDefs) {
-    finalResult[arg.name] = status.result[arg.name] !== undefined
-      ? status.result[arg.name]
-      : instance[arg.name];
+  for (const argDef of optionDefs) {
+    finalResult[argDef.name] = status.result[argDef.name] !== undefined
+      ? status.result[argDef.name]
+      : instance[argDef.name];
   }
   for (const argDef of positionalDefs) {
     finalResult[argDef.name] = status.result[argDef.name] !== undefined
@@ -281,7 +273,9 @@ function handleDefaultCommand(
     );
     handleHelpDisplay(helpText, options);
     const result: ParseResult = {};
-    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of optionDefs) {
+      result[argDef.name] = instance[argDef.name];
+    }
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -301,7 +295,9 @@ function handleDefaultCommand(
       subCommands,
     );
     const result: ParseResult = {};
-    for (const arg of optionDefs) result[arg.name] = instance[arg.name];
+    for (const argDef of optionDefs) {
+      result[argDef.name] = instance[argDef.name];
+    }
     for (const argDef of positionalDefs) {
       result[argDef.name] = instance[argDef.name];
     }
@@ -343,10 +339,10 @@ function executeSubCommand(
     if (status.type === "success") {
       // Merge and Validate
       const finalResult: ParseResult = {};
-      for (const arg of optionDefs) {
-        finalResult[arg.name] = status.result[arg.name] !== undefined
-          ? status.result[arg.name]
-          : subInstance[arg.name];
+      for (const argDef of optionDefs) {
+        finalResult[argDef.name] = status.result[argDef.name] !== undefined
+          ? status.result[argDef.name]
+          : subInstance[argDef.name];
       }
       for (const argDef of positionalDefs) {
         finalResult[argDef.name] = status.result[argDef.name] !== undefined
@@ -411,16 +407,16 @@ function validateResult(
   options?: ParseOptions,
 ) {
   // Validate flags
-  for (const arg of optionDefs) {
-    if (arg.validators) {
-      for (const validator of arg.validators) {
-        const error = validator(result[arg.name]);
+  for (const argDef of optionDefs) {
+    if (argDef.validators) {
+      for (const validator of argDef.validators) {
+        const error = validator(result[argDef.name]);
         if (error) {
           handleParsingError(
-            `Validation error for --${arg.name}: ${error}`,
+            `Validation error for --${argDef.name}: ${error}`,
             options,
             "validation_error",
-            { argumentName: arg.name, validationMessage: error },
+            { argumentName: argDef.name, validationMessage: error },
             1,
           );
           break;
@@ -429,16 +425,16 @@ function validateResult(
     }
   }
   // Validate positionals
-  for (const arg of positionalDefs) {
-    if (arg.validators) {
-      for (const validator of arg.validators) {
-        const error = validator(result[arg.name]);
+  for (const argDef of positionalDefs) {
+    if (argDef.validators) {
+      for (const validator of argDef.validators) {
+        const error = validator(result[argDef.name]);
         if (error) {
           handleParsingError(
-            `Validation error for argument '${arg.name}': ${error}`,
+            `Validation error for argument '${argDef.name}': ${error}`,
             options,
             "validation_error",
-            { argumentName: arg.name, validationMessage: error },
+            { argumentName: argDef.name, validationMessage: error },
             1,
           );
           break;

@@ -40,8 +40,8 @@ export function parseTokens(
     }
   }
 
-  const regularPositionalDefs = positionalDefs.filter((def) => !def.rawRest);
-  const rawRestDef = positionalDefs.find((def) => def.rawRest);
+  const regularPositionalDefs = positionalDefs.filter((def) => !def.raw);
+  const rawRestDef = positionalDefs.find((def) => def.raw);
 
   let positionalIndex = 0;
   let i = 0;

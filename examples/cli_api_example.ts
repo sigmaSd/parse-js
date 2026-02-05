@@ -7,80 +7,81 @@
 
 import {
   addValidator,
+  arg,
   Args,
-  argument,
   cli,
   command,
-  description,
   oneOf,
+  option,
   range,
-  required,
   subCommand,
-  type,
-} from "../src/index.ts";
+} from "../mod.ts";
 
 // Simple example with basic options
 @cli({ name: "calculator", description: "A simple calculator application" })
 class Calculator extends Args {
-  @description("First number to operate on")
-  @type("number")
-  @required()
+  @option({
+    description: "First number to operate on",
+    type: "number",
+    required: true,
+  })
   a!: number;
 
-  @description("Second number to operate on")
-  @type("number")
-  @required()
+  @option({
+    description: "Second number to operate on",
+    type: "number",
+    required: true,
+  })
   b!: number;
 
-  @description("Operation to perform")
+  @option({
+    description: "Operation to perform",
+  })
   @addValidator(oneOf(["add", "subtract", "multiply", "divide"]))
   operation = "add";
 
-  @description("Show detailed output")
+  @option({ description: "Show detailed output" })
   verbose = false;
 }
 
 // Subcommands are plain classes (no need to extend Args)
 @command
 class BuildCommand {
-  @description("Enable production optimizations")
+  @option({ description: "Enable production optimizations" })
   production = false;
 
-  @description("Output directory")
+  @option({ description: "Output directory" })
   output = "dist";
 
-  @argument({ description: "Project directory to build" })
-  @type("string")
+  @arg({ description: "Project directory to build", type: "string" })
   project = ".";
 }
 
 @command
 class ServeCommand {
-  @description("Port to serve on")
+  @option({ description: "Port to serve on" })
   @addValidator(range(1, 65535))
   port = 3000;
 
-  @description("Enable development mode")
+  @option({ description: "Enable development mode" })
   dev = false;
 
-  @description("Host to bind to")
+  @option({ description: "Host to bind to" })
   host = "localhost";
 }
 
 // Main app with subcommands (extends Args)
 @cli({ name: "buildtool", description: "A project build and development tool" })
 class BuildTool extends Args {
-  @description("Enable verbose logging")
+  @option({ description: "Enable verbose logging" })
   verbose = false;
 
-  @description("Configuration file to use")
+  @option({ description: "Configuration file to use" })
   config = "build.config.js";
 
-  @description("Build the project")
   @subCommand(BuildCommand)
   build?: BuildCommand;
 
-  @description("Start development server")
   @subCommand(ServeCommand)
   serve?: ServeCommand;
 }
@@ -91,23 +92,24 @@ class BuildTool extends Args {
   description: "Process files with various operations",
 })
 class FileProcessor extends Args {
-  @argument({ description: "Input file to process" })
-  @type("string")
+  @arg({ description: "Input file to process", type: "string" })
   input?: string;
 
-  @argument({ description: "Output file (optional)" })
-  @type("string")
+  @arg({ description: "Output file (optional)", type: "string" })
   output?: string;
 
-  @argument({ description: "Additional files to include", rest: true })
-  @type("string[]")
+  @arg({
+    description: "Additional files to include",
+    rest: true,
+    type: "string[]",
+  })
   includes?: string[];
 
-  @description("Processing operation")
+  @option({ description: "Processing operation" })
   @addValidator(oneOf(["copy", "transform", "validate"]))
   operation = "copy";
 
-  @description("Enable verbose output")
+  @option({ description: "Enable verbose output" })
   verbose = false;
 }
 
@@ -246,6 +248,7 @@ console.log(`
 NEW API DESIGN:
 @cli({ name: "myapp", description: "My app" })
 class MyApp extends Args {  // Main command extends Args
+  @option({ description: "Verbose mode" })
   verbose = false;
 
   @subCommand(ServeCommand)
@@ -254,7 +257,10 @@ class MyApp extends Args {  // Main command extends Args
 
 @command
 class ServeCommand {        // Subcommands are plain classes
+  @option({ description: "Port" })
   port = 3000;
+  
+  @option({ description: "Dev mode" })
   dev = false;
 }
 
