@@ -92,12 +92,12 @@ export function requiredValidator(): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, min } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("number")
- *   @addValidator(min(0))
+ *   @opt({ type: "number" })
+ *   @validate(min(1024))
  *   port = 3000;
  * }
  * ```
@@ -119,12 +119,12 @@ export function min(minValue: number): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, max } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("number")
- *   @addValidator(max(65535))
+ *   @opt({ type: "number" })
+ *   @validate(max(65535))
  *   port = 3000;
  * }
  * ```
@@ -147,14 +147,13 @@ export function max(maxValue: number): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, length } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("string")
- *   @required()
- *   @addValidator(length(3, 20))
- *   username?: string;
+ *   @opt({ type: "string" })
+ *   @validate(length(3, 20))
+ *   username = "admin";
  * }
  * ```
  */
@@ -181,14 +180,13 @@ export function length(minLength: number, maxLength?: number): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, pattern } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("string")
- *   @required()
- *   @addValidator(pattern(/^[a-zA-Z0-9]+$/, "must contain only letters and numbers"))
- *   identifier?: string;
+ *   @opt({ type: "string" })
+ *   @validate(pattern(/^[a-z0-9]+$/))
+ *   slug = "my-post";
  * }
  * ```
  */
@@ -209,11 +207,12 @@ export function pattern(pattern: RegExp, message?: string): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, oneOf } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @addValidator(oneOf(["development", "staging", "production"]))
+ *   @opt()
+ *   @validate(oneOf(["development", "staging", "production"]))
  *   environment = "development";
  * }
  * ```
@@ -236,13 +235,13 @@ export function oneOf<T>(allowedValues: T[]): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, arrayLength } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("string[]")
- *   @addValidator(arrayLength(1, 5))
- *   tags: string[] = [];
+ *   @opt({ type: "string[]" })
+ *   @validate(arrayLength(1, 5))
+ *   tags: string[] = ["typescript"];
  * }
  * ```
  */
@@ -269,14 +268,13 @@ export function arrayLength(minItems: number, maxItems?: number): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, range } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("number")
- *   @required()
- *   @addValidator(range(1, 100))
- *   percentage?: number;
+ *   @opt({ type: "number" })
+ *   @validate(range(0, 100))
+ *   percentage = 50;
  * }
  * ```
  */
@@ -298,14 +296,13 @@ export function range(minValue: number, maxValue: number): Validator {
  *
  * @example
  * ```ts
- * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ * import { Args, cli, opt, validate, integer } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("number")
- *   @required()
- *   @addValidator(integer())
- *   count?: number;
+ *   @opt({ type: "number" })
+ *   @validate(integer())
+ *   count = 1;
  * }
  * ```
  */
@@ -326,15 +323,14 @@ export function integer(): Validator {
  * @returns A validator function
  *
  * @example
- * ```ts ignore
- * import { Args, cli, type, required, addValidator } from "@sigma/parse";
+ * ```ts
+ * import { Args, cli, opt, validate, custom } from "@sigma/parse";
  *
  * @cli({ name: "example" })
  * class Config extends Args {
- *   @type("number")
- *   @required()
- *   @addValidator(custom((n: number) => n % 2 === 0, "must be even"))
- *   evenNumber?: number;
+ *   @opt({ type: "number" })
+ *   @validate(custom((n: number) => n % 2 === 0, "must be even"))
+ *   evenNumber = 2;
  * }
  * ```
  */

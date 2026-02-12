@@ -69,25 +69,44 @@ export function addValidator(validator: Validator): (
 /**
  * Validate decorator for custom validation logic.
  *
- * This decorator creates a validator using a predicate function and custom error message.
+ * This decorator can be used in two ways:
+ * 1. With a built-in or custom validator function (e.g., `@validate(range(1, 10))`)
+ * 2. With a predicate function and custom error message (e.g., `@validate(val => val > 0, "must be positive")`)
  *
- * @param predicate - Function that returns true if value is valid
- * @param message - Error message to show when validation fails
+ * @param validatorOrPredicate - A validator function OR a predicate function
+ * @param message - Error message (required only if using a predicate)
  * @returns A decorator function
  */
+export function validate<T>(
+  validator: Validator,
+): (
+  _target: unknown,
+  context: DecoratorContext,
+) => void;
 export function validate<T>(
   predicate: (value: T) => boolean,
   message: string,
 ): (
   _target: unknown,
   context: DecoratorContext,
+) => void;
+export function validate<T>(
+  validatorOrPredicate: Validator | ((value: T) => boolean),
+  message?: string,
+): (
+  _target: unknown,
+  context: DecoratorContext,
 ) => void {
-  return addValidator((value: unknown) => {
-    if (!predicate(value as T)) {
-      return message;
+  const validator = typeof message === "string"
+    ? (value: unknown) => {
+      if (!(validatorOrPredicate as (value: T) => boolean)(value as T)) {
+        return message;
+      }
+      return null;
     }
-    return null;
-  });
+    : (validatorOrPredicate as Validator);
+
+  return addValidator(validator);
 }
 
 /**
@@ -176,7 +195,7 @@ export function subCommand<T extends new () => unknown>(
  * @returns A decorator function
  *
  * @example
- * ```ts
+ * ```ts ignore
  * class MyArgs extends Args {
  *   @opt({ short: "p", description: "Port", required: true })
  *   port!: number;
@@ -244,7 +263,7 @@ export function opt(
  * @returns A decorator function
  *
  * @example
- * ```ts
+ * ```ts ignore
  * class MyArgs extends Args {
  *   @arg({ description: "Input file", required: true })
  *   input!: string;

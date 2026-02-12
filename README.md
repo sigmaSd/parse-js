@@ -66,7 +66,7 @@ Subcommands are plain classes (no need to extend `Args`). Link them using
 `@subCommand`:
 
 ```typescript
-import { Args, cli, opt, subCommand } from "@sigma/parse";
+import { Args, cli, command, opt, subCommand } from "@sigma/parse";
 
 @command
 class ServeCommand {
@@ -122,14 +122,14 @@ if (args.serve) {
 
 **Explicitly Required** (must be provided on CLI):
 
-```typescript
+```typescript ignore
 @opt({ type: "string", required: true })
 apiKey!: string;
 ```
 
 **Optional with Default** (inferred from value):
 
-```typescript
+```typescript ignore
 port = 8080; // type inferred as number
 ```
 
@@ -138,7 +138,7 @@ port = 8080; // type inferred as number
 Use `short: true` to automatically use the first character of the property name
 as a short flag:
 
-```typescript
+```typescript ignore
 verbose = false; // becomes -v, --verbose
 ```
 
@@ -147,20 +147,20 @@ verbose = false; // becomes -v, --verbose
 ### Built-in Validators
 
 ```typescript
-import { Args, cli, opt, pattern, range } from "@sigma/parse";
+import { Args, cli, oneOf, opt, pattern, range, validate } from "@sigma/parse";
 
 @cli({ name: "example" })
 class Example extends Args {
   @opt()
-  @range(1, 100)
+  @validate(range(1, 100))
   score = 50;
 
   @opt()
-  @oneOf(["dev", "prod"])
+  @validate(oneOf(["dev", "prod"]))
   env = "dev";
 
   @opt()
-  @pattern(/^[a-z]+$/)
+  @validate(pattern(/^[a-z]+$/))
   user = "admin";
 }
 ```
@@ -169,7 +169,7 @@ class Example extends Args {
 
 Use `raw: true` to build wrappers that forward arguments to other tools:
 
-```typescript
+```typescript ignore
 @cli({ name: "proxy" })
 class Proxy extends Args {
   @arg({ description: "Command to run", required: true })
