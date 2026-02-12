@@ -17,7 +17,7 @@ decorators and inheritance.
 ## Quick Start
 
 ```typescript
-import { Args, cli, opt } from "@sigma/parse";
+import { arg, Args, cli, opt } from "@sigma/parse";
 
 @cli({ name: "calculator", description: "A simple calculator" })
 class Calculator extends Args {
