@@ -1,0 +1,19 @@
+{
+  "lockfileVersion": 1,
+  "configVersion": 1,
+  "workspaces": {
+    "": {
+      "dependencies": {
+        "@sigma/deno-compat": "npm:@jsr/sigma__deno-compat",
+        "@std/assert": "npm:@jsr/std__assert",
+      },
+    },
+  },
+  "packages": {
+    "@jsr/std__internal": ["@jsr/std__internal@1.0.12", "https://npm.jsr.io/~/11/@jsr/std__internal/1.0.12.tgz", {}, "sha512-6xReMW9p+paJgqoFRpOE2nogJFvzPfaLHLIlyADYjKMUcwDyjKZxryIbgcU+gxiTygn8yCjld1HoI0ET4/iZeA=="],
+
+    "@sigma/deno-compat": ["@jsr/sigma__deno-compat@0.21.0", "https://npm.jsr.io/~/11/@jsr/sigma__deno-compat/0.21.0.tgz", {}, "sha512-90UWJwAC2L78W+5pjElE4j3Log70jipckaQQhv9S+qmjdIncKSoe/eVDOloxBnYROMBs177YmYFjPjiMe+yBaw=="],
+
+    "@std/assert": ["@jsr/std__assert@1.0.18", "https://npm.jsr.io/~/11/@jsr/std__assert/1.0.18.tgz", { "dependencies": { "@jsr/std__internal": "^1.0.12" } }, "sha512-oxE6Go+SQJcAc8UVtocaAkKOO39QyyYrb2cwLy7PojoHOrWnCyMe5E3ItmVWjiqOjCceHofwTSmnXxcU8GTSFw=="],
+  }
+}

@@ -1,4 +1,3 @@
-// deno-lint-ignore-file no-import-prefix
 /**
  * Comprehensive test suite for the CLI argument parsing library.
  *
@@ -6,7 +5,7 @@
  * using Args.parse().
  */
 
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import { assertEquals, assertThrows } from "@std/assert";
 import {
   addValidator,
   arg,

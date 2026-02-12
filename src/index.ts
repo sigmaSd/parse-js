@@ -12,6 +12,13 @@ import { collectInstanceArgumentDefs } from "./metadata.ts";
 import { generateFishCompletions } from "./completions.ts";
 import { tokenize } from "./tokenizer.ts";
 import { parseTokens } from "./parser.ts";
+import process from "node:process";
+
+if (typeof Symbol === "undefined" || !Symbol.metadata) {
+  throw new Error(
+    "Symbol.metadata is not defined. This might mean the decorator implementation is incomplete or a polyfill is missing.",
+  );
+}
 
 /**
  * Base class for CLI argument classes.
@@ -356,7 +363,7 @@ function executeSubCommand(
       parentSubCommands,
     );
     console.log(completions);
-    Deno.exit(0);
+    process.exit(0);
   }
 
   const commandConstructor = sub.commandClass as unknown as {

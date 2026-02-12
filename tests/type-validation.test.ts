@@ -1,9 +1,8 @@
-// deno-lint-ignore-file no-import-prefix
 /**
  * Type validation and CLI argument behavior tests.
  */
 
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import { assertEquals, assertThrows } from "@std/assert";
 import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 Deno.test("Type inference from defaults works without @type in decorator", () => {

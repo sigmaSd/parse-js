@@ -14,6 +14,8 @@
     "jsr:@std/internal@^1.0.10": "1.0.12",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/text@~1.0.7": "1.0.15",
+    "npm:@jsr/sigma__deno-compat@0.21.0": "0.21.0",
+    "npm:@jsr/std__assert@1.0.18": "1.0.18",
     "npm:@types/node@*": "22.15.15"
   },
   "jsr": {
@@ -68,6 +70,21 @@
     }
   },
   "npm": {
+    "@jsr/sigma__deno-compat@0.21.0": {
+      "integrity": "sha512-90UWJwAC2L78W+5pjElE4j3Log70jipckaQQhv9S+qmjdIncKSoe/eVDOloxBnYROMBs177YmYFjPjiMe+yBaw==",
+      "tarball": "https://npm.jsr.io/~/11/@jsr/sigma__deno-compat/0.21.0.tgz"
+    },
+    "@jsr/std__assert@1.0.18": {
+      "integrity": "sha512-oxE6Go+SQJcAc8UVtocaAkKOO39QyyYrb2cwLy7PojoHOrWnCyMe5E3ItmVWjiqOjCceHofwTSmnXxcU8GTSFw==",
+      "dependencies": [
+        "@jsr/std__internal"
+      ],
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__assert/1.0.18.tgz"
+    },
+    "@jsr/std__internal@1.0.12": {
+      "integrity": "sha512-6xReMW9p+paJgqoFRpOE2nogJFvzPfaLHLIlyADYjKMUcwDyjKZxryIbgcU+gxiTygn8yCjld1HoI0ET4/iZeA==",
+      "tarball": "https://npm.jsr.io/~/11/@jsr/std__internal/1.0.12.tgz"
+    },
     "@types/node@22.15.15": {
       "integrity": "sha512-R5muMcZob3/Jjchn5LcO8jdKwSCbzqmPB6ruBxMcf9kbxtniZHP327s6C37iOfuw8mbKK3cAQa7sEl7afLrQ8A==",
       "dependencies": [
@@ -115,6 +132,12 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@^1.0.18"
-    ]
+    ],
+    "packageJson": {
+      "dependencies": [
+        "npm:@jsr/sigma__deno-compat@0.21.0",
+        "npm:@jsr/std__assert@1.0.18"
+      ]
+    }
   }
 }

@@ -1,10 +1,5 @@
-// deno-lint-ignore-file no-import-prefix
 import process from "node:process";
-import {
-  assertEquals,
-  assertInstanceOf,
-  assertThrows,
-} from "jsr:@std/assert@1";
+import { assertEquals, assertInstanceOf, assertThrows } from "@std/assert";
 import {
   addValidator,
   arg,

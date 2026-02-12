@@ -1,5 +1,4 @@
-// deno-lint-ignore-file no-import-prefix
-import { assertEquals, assertThrows } from "jsr:@std/assert@1";
+import { assertEquals, assertThrows } from "@std/assert";
 import { Args, cli, opt, ParseError } from "../mod.ts";
 
 Deno.test("Short Flag - explicit definition", () => {

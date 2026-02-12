@@ -1,5 +1,4 @@
-// deno-lint-ignore-file no-import-prefix
-import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.14";
+import { assertEquals, assertThrows } from "@std/assert";
 import { arg, Args, cli, command, opt, subCommand } from "../mod.ts";
 
 @command
