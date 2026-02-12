@@ -77,8 +77,11 @@ export {
 export type {
   ArgOptions,
   ArgumentMetadata,
+  CollectionOptions,
   CommandInstance,
+  CommandOptions,
   CommonOptions,
+  DecoratorContext,
   OptDef,
   OptOptions,
   ParseOptions,
@@ -87,9 +90,10 @@ export type {
   PositionalDef as ArgumentDef,
   PropertyMetadata,
   SubCommand,
+  SubCommandOptions,
   SupportedType,
   Validator,
-} from "./src/types.ts";
+} from "./src/index.ts";
 
 // Export error handling utilities
 export {

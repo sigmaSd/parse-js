@@ -101,6 +101,7 @@ export {
   type DecoratorContext,
   opt,
   subCommand,
+  type SubCommandOptions,
   validate,
 } from "./decorators.ts";
 export {
@@ -119,6 +120,7 @@ export { printHelp } from "./help.ts";
 export {
   collectArgumentDefs,
   collectInstanceArgumentDefs,
+  type CollectionOptions,
   extractTypeFromDescriptor,
 } from "./metadata.ts";
 export {

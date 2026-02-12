@@ -10,7 +10,11 @@ import type {
   SupportedType,
 } from "./types.ts";
 
-interface CollectionOptions {
+/**
+ * Configuration options for metadata collection.
+ */
+export interface CollectionOptions {
+  /** Whether to throw errors when types cannot be inferred */
   strict?: boolean;
 }
 

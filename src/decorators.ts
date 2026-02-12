@@ -73,8 +73,7 @@ export function addValidator(validator: Validator): (
  * 1. With a built-in or custom validator function (e.g., `@validate(range(1, 10))`)
  * 2. With a predicate function and custom error message (e.g., `@validate(val => val > 0, "must be positive")`)
  *
- * @param validatorOrPredicate - A validator function OR a predicate function
- * @param message - Error message (required only if using a predicate)
+ * @param validator - A validator function
  * @returns A decorator function
  */
 export function validate<T>(
@@ -83,6 +82,13 @@ export function validate<T>(
   _target: unknown,
   context: DecoratorContext,
 ) => void;
+/**
+ * Validate decorator for custom validation logic.
+ *
+ * @param predicate - Function that returns true if value is valid
+ * @param message - Error message to show when validation fails
+ * @returns A decorator function
+ */
 export function validate<T>(
   predicate: (value: T) => boolean,
   message: string,
@@ -90,6 +96,13 @@ export function validate<T>(
   _target: unknown,
   context: DecoratorContext,
 ) => void;
+/**
+ * Validate decorator for custom validation logic.
+ *
+ * @param validatorOrPredicate - A validator function OR a predicate function
+ * @param message - Error message (required only if using a predicate)
+ * @returns A decorator function
+ */
 export function validate<T>(
   validatorOrPredicate: Validator | ((value: T) => boolean),
   message?: string,
@@ -121,10 +134,24 @@ export function command(
   target: T,
   ctx: ClassDecoratorContext,
 ) => T;
+/**
+ * Command decorator to mark a class as a CLI command or subcommand.
+ *
+ * @param target - The class constructor being decorated
+ * @param ctx - The class decorator context
+ * @returns The original or a modified class constructor
+ */
 export function command<T extends new () => unknown>(
   target: T,
   ctx: ClassDecoratorContext,
 ): T;
+/**
+ * Command decorator to mark a class as a CLI command or subcommand.
+ *
+ * @param optionsOrTarget - Either command options or the class constructor
+ * @param _maybeCtx - Optional context (only present when used as a direct decorator)
+ * @returns The decorator function or the decorated class
+ */
 export function command<T extends new () => unknown>(
   optionsOrTarget?: CommandOptions | T,
   _maybeCtx?: ClassDecoratorContext,
