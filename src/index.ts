@@ -14,10 +14,10 @@ import { tokenize } from "./tokenizer.ts";
 import { parseTokens } from "./parser.ts";
 import process from "node:process";
 
-if (typeof Symbol === "undefined" || !Symbol.metadata) {
-  throw new Error(
-    "Symbol.metadata is not defined. This might mean the decorator implementation is incomplete or a polyfill is missing.",
-  );
+// @ts-ignore polyfill
+if (typeof Symbol !== "undefined" && !Symbol.metadata) {
+  // @ts-ignore polyfill
+  Symbol.metadata = Symbol("Symbol.metadata");
 }
 
 /**
