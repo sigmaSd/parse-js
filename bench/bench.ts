@@ -1,7 +1,6 @@
-// deno-lint-ignore-file no-import-prefix
-import { parseArgs } from "jsr:@std/cli@1/parse-args";
+import { parseArgs } from "@std/cli/parse-args";
 import { arg, Args, cli, command, opt, subCommand } from "../src/index.ts";
-import { Command } from "jsr:@cliffy/command@1.0.0-rc.8";
+import { Command } from "@cliffy/command";
 
 const args = ["deno", "run", "-A", "script.ts", "hello world"];
 
@@ -9,7 +8,7 @@ Deno.bench("std parseArgs", { group: "parse" }, () => {
   parseArgs(args);
 });
 
-Deno.bench("Args API", { group: "parse" }, () => {
+Deno.bench("Parse API", { group: "parse" }, () => {
   @command
   class RunCommand {
     @arg({ description: "script to run", type: "string" })

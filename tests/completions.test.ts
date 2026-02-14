@@ -6,8 +6,14 @@ import { collectInstanceArgumentDefs } from "../src/metadata.ts";
 Deno.test("completions - generateFishCompletions directly", () => {
   @command
   class BuildCommand {
-    @opt({ description: "Minify output" })
+    @opt({ description: "Minify output", short: "m" })
     minify = false;
+  }
+
+  @command
+  class NoDescCommand {
+    @opt()
+    force = false;
   }
 
   @cli({ name: "myapp" })
@@ -15,8 +21,14 @@ Deno.test("completions - generateFishCompletions directly", () => {
     @opt({ description: "Verbose mode", short: "v" })
     verbose = false;
 
+    @opt({ description: "No short flag" })
+    noShort = "";
+
     @subCommand(BuildCommand, { description: "Build the project" })
     build?: BuildCommand;
+
+    @subCommand(NoDescCommand)
+    nodesc?: NoDescCommand;
   }
 
   const instance = new MyApp();
@@ -38,11 +50,19 @@ Deno.test("completions - generateFishCompletions directly", () => {
   );
   assertStringIncludes(
     output,
-    'complete -c myapp -n "__fish_seen_subcommand_from build" -l minify',
+    'complete -c myapp -n "__fish_seen_subcommand_from build" -l minify -s m',
+  );
+  assertStringIncludes(
+    output,
+    'complete -c myapp -n "__fish_use_subcommand" -a "nodesc"',
   );
   assertStringIncludes(
     output,
     'complete -c myapp -n "__fish_use_subcommand" -l verbose -s v',
+  );
+  assertStringIncludes(
+    output,
+    'complete -c myapp -n "__fish_use_subcommand" -l noShort',
   );
 });
 

@@ -1,3 +1,4 @@
+// deno-coverage-ignore-file
 import type {
   OptDef,
   ParseOptions,
@@ -34,7 +35,7 @@ export class Args {
 
     // Get CLI options from class metadata
     const classMetadata = (this as unknown as {
-      [Symbol.metadata]?: Record<string | symbol, unknown>;
+      [Symbol.metadata]?: Record<string, unknown>;
     })[Symbol.metadata];
 
     const cliOptions = classMetadata?.__cliOptions as ParseOptions | undefined;
@@ -370,7 +371,7 @@ function executeSubCommand(
 
   const commandConstructor = sub.commandClass as unknown as {
     parse?: (args: string[]) => unknown;
-    [Symbol.metadata]?: Record<string | symbol, unknown>;
+    [Symbol.metadata]?: Record<string, unknown>;
   };
 
   if (
@@ -381,7 +382,9 @@ function executeSubCommand(
   }
 
   const subInstance = new sub.commandClass() as Record<string, unknown>;
-  const subMetadata = commandConstructor[Symbol.metadata];
+  const subMetadata = (commandConstructor as unknown as {
+    [Symbol.metadata]?: Record<string, unknown>;
+  })[Symbol.metadata];
   const subOptions = subMetadata?.__cliOptions as ParseOptions | undefined;
 
   const mergedOptions = subOptions

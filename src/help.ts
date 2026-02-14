@@ -117,7 +117,8 @@ function buildUsageArguments(positionalDefs: PositionalDef[]): string {
   let usageArgs = "";
 
   for (const argDef of regularPositionalDefs) {
-    const isRequired = !argDef.default && !isRequiredByValidator(argDef);
+    const isRequired = argDef.default === undefined ||
+      isRequiredByValidator(argDef);
 
     if (argDef.rest) {
       usageArgs += isRequired ? ` <${argDef.name}...>` : ` [${argDef.name}...]`;
@@ -127,8 +128,8 @@ function buildUsageArguments(positionalDefs: PositionalDef[]): string {
   }
 
   if (rawRestDef) {
-    const isRequired = !rawRestDef.default &&
-      !isRequiredByValidator(rawRestDef);
+    const isRequired = rawRestDef.default === undefined ||
+      isRequiredByValidator(rawRestDef);
     usageArgs += isRequired
       ? ` <${rawRestDef.name}...>`
       : ` [${rawRestDef.name}...]`;
@@ -171,7 +172,8 @@ function printArgumentsSection(
   const regularPositionalDefs = positionalDefs.filter((def) => !def.raw);
 
   for (const argDef of regularPositionalDefs) {
-    const isRequired = !argDef.default && !isRequiredByValidator(argDef);
+    const isRequired = argDef.default === undefined ||
+      isRequiredByValidator(argDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const restText = argDef.rest ? colors.yellow(" (rest)") : "";
     const defaultText = showDefaults && argDef.default !== undefined
@@ -190,8 +192,8 @@ function printArgumentsSection(
   }
 
   if (rawRestDef) {
-    const isRequired = !rawRestDef.default &&
-      !isRequiredByValidator(rawRestDef);
+    const isRequired = rawRestDef.default === undefined ||
+      isRequiredByValidator(rawRestDef);
     const requiredText = isRequired ? colors.red(" (required)") : "";
     const rawRestText = colors.yellow(" (raw rest)");
     const defaultText = showDefaults && rawRestDef.default !== undefined

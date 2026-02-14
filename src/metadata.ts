@@ -135,7 +135,7 @@ export function collectInstanceArgumentDefs(
 /**
  * Get type string from a value.
  */
-function getTypeFromValue(value: unknown): SupportedType {
+export function getTypeFromValue(value: unknown): SupportedType {
   if (Array.isArray(value)) {
     if (value.length > 0 && typeof value[0] === "number") {
       return "number[]";

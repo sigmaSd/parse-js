@@ -1,6 +1,8 @@
 {
   "dependencies": {
+    "@cliffy/command": "npm:@jsr/cliffy__command",
     "@sigma/deno-compat": "npm:@jsr/sigma__deno-compat@0.21.0",
-    "@std/assert": "npm:@jsr/std__assert@1.0.18"
+    "@std/assert": "npm:@jsr/std__assert@1.0.18",
+    "@std/cli": "npm:@jsr/std__cli"
   }
 }

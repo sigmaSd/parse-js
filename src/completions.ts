@@ -17,8 +17,14 @@ export function generateFishCompletions(
 
   // Add completions for global options
   for (const arg of optDefs) {
-    const shortFlag = arg.short ? ` -s ${arg.short}` : "";
-    const desc = arg.description ? ` -d "${arg.description}"` : "";
+    let shortFlag = "";
+    if (arg.short) {
+      shortFlag = ` -s ${arg.short}`;
+    }
+    let desc = "";
+    if (arg.description) {
+      desc = ` -d "${arg.description}"`;
+    }
     lines.push(
       `complete -c ${appName} -n "__fish_use_subcommand" -l ${arg.name}${shortFlag}${desc}`,
     );
@@ -27,9 +33,10 @@ export function generateFishCompletions(
   // Add completions for subcommands
   if (subCommands && subCommands.size > 0) {
     for (const [name, subCommand] of subCommands) {
-      const desc = subCommand.description
-        ? ` -d "${subCommand.description}"`
-        : "";
+      let desc = "";
+      if (subCommand.description) {
+        desc = ` -d "${subCommand.description}"`;
+      }
       lines.push(
         `complete -c ${appName} -n "__fish_use_subcommand" -a "${name}"${desc}`,
       );
@@ -41,8 +48,14 @@ export function generateFishCompletions(
       );
 
       for (const arg of subOptDefs) {
-        const shortFlag = arg.short ? ` -s ${arg.short}` : "";
-        const desc = arg.description ? ` -d "${arg.description}"` : "";
+        let shortFlag = "";
+        if (arg.short) {
+          shortFlag = ` -s ${arg.short}`;
+        }
+        let desc = "";
+        if (arg.description) {
+          desc = ` -d "${arg.description}"`;
+        }
         lines.push(
           `complete -c ${appName} -n "__fish_seen_subcommand_from ${name}" -l ${arg.name}${shortFlag}${desc}`,
         );
