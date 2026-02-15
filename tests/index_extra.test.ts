@@ -188,3 +188,24 @@ Deno.test("subcommand with custom description in @subCommand", () => {
   // This covers some merging logic in executeSubCommand
   App.parse(["sub"]);
 });
+
+Deno.test("subcommand with string defaultCommand (points to another subcommand)", () => {
+  @command
+  class List2 {}
+
+  @command({ defaultCommand: "list2" })
+  class List {
+    @subCommand(List2)
+    list2?: List2;
+  }
+
+  @cli({ name: "app" })
+  class App extends Args {
+    @subCommand(List)
+    list?: List;
+  }
+
+  const result = App.parse(["list"]);
+  assertEquals(result.list instanceof List, true);
+  assertEquals(result.list?.list2 instanceof List2, true);
+});

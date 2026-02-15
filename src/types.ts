@@ -156,7 +156,7 @@ export interface ParseOptions {
  */
 export interface CommandOptions {
   /** Default command to run when no arguments are provided to this subcommand */
-  defaultCommand?: "help";
+  defaultCommand?: string | "help";
 }
 
 /**
