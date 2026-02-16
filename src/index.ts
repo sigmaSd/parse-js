@@ -153,7 +153,10 @@ function parseInstanceBased(
   );
 
   // 2. Inject gen-completions command if at root
-  if (!commandPath && !subCommands.has("gen-completions")) {
+  if (
+    !commandPath && !subCommands.has("gen-completions") &&
+    instance.constructor.name !== "GenCompletionsCommand"
+  ) {
     subCommands.set("gen-completions", {
       name: "gen-completions",
       commandClass: GenCompletionsCommand,
@@ -376,7 +379,8 @@ function executeSubCommand(
 
   if (
     "parse" in commandConstructor &&
-    typeof commandConstructor.parse === "function"
+    typeof commandConstructor.parse === "function" &&
+    commandConstructor.parse !== Args.parse
   ) {
     return commandConstructor.parse(args);
   }
@@ -387,20 +391,14 @@ function executeSubCommand(
   })[Symbol.metadata];
   const subOptions = subMetadata?.__cliOptions as ParseOptions | undefined;
 
-  const mergedOptions = subOptions
-    ? { ...parentOptions, ...subOptions }
-    : (parentOptions
-      ? { ...parentOptions, defaultCommand: undefined }
-      : undefined);
-
-  if (mergedOptions) {
-    if (sub.description) {
-      mergedOptions.description = sub.description;
-    } else if (!subOptions?.description) {
-      // If neither @subCommand nor @cli provided a description, don't inherit parent's
-      mergedOptions.description = undefined;
-    }
-  }
+  const mergedOptions: ParseOptions = {
+    ...parentOptions,
+    ...subOptions,
+    // Subcommands should not inherit defaultCommand from parent
+    defaultCommand: subOptions?.defaultCommand,
+    // Subcommands should not inherit description from parent
+    description: sub.description || subOptions?.description,
+  };
 
   const parsedValues = parseInstanceBased(
     subInstance,

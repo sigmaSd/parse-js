@@ -80,17 +80,21 @@ function printUsageSection(
     const fullCommandPath = commandPath || commandName;
     const hasSubCommands = subCommands && subCommands.size > 0;
 
+    const commandPrefix = appName
+      ? `${colors.cyan(appName)} ${colors.brightCyan(fullCommandPath)}`
+      : colors.brightCyan(fullCommandPath);
+
     if (hasSubCommands) {
       console.log(
-        `  ${colors.cyan(baseCommand)} ${colors.brightCyan(fullCommandPath)}${
-          colors.green(usageArgs)
-        } ${colors.yellow("<command>")} ${colors.dim("[options]")}`,
+        `  ${commandPrefix}${colors.green(usageArgs)} ${
+          colors.yellow("<command>")
+        } ${colors.dim("[options]")}`,
       );
     } else {
       console.log(
-        `  ${colors.cyan(baseCommand)} ${colors.brightCyan(fullCommandPath)}${
-          colors.green(usageArgs)
-        } ${colors.dim("[options]")}`,
+        `  ${commandPrefix}${colors.green(usageArgs)} ${
+          colors.dim("[options]")
+        }`,
       );
     }
   } else if (subCommands && subCommands.size > 0) {
